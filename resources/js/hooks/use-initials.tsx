@@ -1,15 +1,40 @@
-import { useCallback } from 'react';
+import { useMemo } from 'react';
 
-export function useInitials() {
-    return useCallback((fullName: string): string => {
-        const names = fullName.trim().split(' ');
+interface UseInitialsProps {
+    name?: string;
+    firstName?: string;
+    lastName?: string;
+}
 
-        if (names.length === 0) return '';
-        if (names.length === 1) return names[0].charAt(0).toUpperCase();
-
-        const firstInitial = names[0].charAt(0);
-        const lastInitial = names[names.length - 1].charAt(0);
-
-        return `${firstInitial}${lastInitial}`.toUpperCase();
-    }, []);
+export function useInitials({ name, firstName, lastName }: UseInitialsProps): string {
+    return useMemo(() => {
+        // Si tenemos firstName y lastName, usarlos
+        if (firstName?.trim() && lastName?.trim()) {
+            return (firstName.trim().charAt(0) + lastName.trim().charAt(0)).toUpperCase();
+        }
+        
+        // Si tenemos name completo, usarlo
+        if (name?.trim()) {
+            const nameParts = name.trim().split(' ').filter(part => part.length > 0);
+            if (nameParts.length >= 2) {
+                return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
+            }
+            if (nameParts.length === 1) {
+                return nameParts[0].charAt(0).toUpperCase();
+            }
+        }
+        
+        // Si tenemos solo firstName
+        if (firstName?.trim()) {
+            return firstName.trim().charAt(0).toUpperCase();
+        }
+        
+        // Si tenemos solo lastName
+        if (lastName?.trim()) {
+            return lastName.trim().charAt(0).toUpperCase();
+        }
+        
+        // Fallback si no hay nada
+        return 'U'; // Por "Usuario"
+    }, [name, firstName, lastName]);
 }

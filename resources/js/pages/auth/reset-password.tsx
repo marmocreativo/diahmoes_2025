@@ -1,27 +1,13 @@
-import { Head, useForm } from '@inertiajs/react';
-import { LoaderCircle } from 'lucide-react';
 import { FormEventHandler } from 'react';
-
-import InputError from '@/components/input-error';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import AuthLayout from '@/layouts/auth-layout';
+import { Head, Link, useForm } from '@inertiajs/react';
 
 interface ResetPasswordProps {
     token: string;
     email: string;
 }
 
-type ResetPasswordForm = {
-    token: string;
-    email: string;
-    password: string;
-    password_confirmation: string;
-};
-
 export default function ResetPassword({ token, email }: ResetPasswordProps) {
-    const { data, setData, post, processing, errors, reset } = useForm<Required<ResetPasswordForm>>({
+    const { data, setData, post, processing, errors, reset } = useForm({
         token: token,
         email: email,
         password: '',
@@ -36,63 +22,183 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
     };
 
     return (
-        <AuthLayout title="Reset password" description="Please enter your new password below">
-            <Head title="Reset password" />
+        <>
+            <Head title="Restablecer Contraseña - DIAHMOES" />
 
-            <form method="POST" onSubmit={submit}>
-                <div className="grid gap-6">
-                    <div className="grid gap-2">
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                            id="email"
-                            type="email"
-                            name="email"
-                            autoComplete="email"
-                            value={data.email}
-                            className="mt-1 block w-full"
-                            readOnly
-                            onChange={(e) => setData('email', e.target.value)}
-                        />
-                        <InputError message={errors.email} className="mt-2" />
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#189BAF]/10 to-[#D68B41]/10 py-12 px-4 sm:px-6 lg:px-8">
+                <div className="max-w-md w-full">
+                    {/* Logo/Header */}
+                    <div className="text-center mb-8">
+                        <div className="flex justify-center mb-4">
+                            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#189BAF]">
+                                <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                            </div>
+                        </div>
+                        <h2 className="text-3xl font-bold text-[#189BAF] mb-2">
+                            DIAHMOES
+                        </h2>
+                        <p className="text-gray-600 mb-2">
+                            Restablecer Contraseña
+                        </p>
+                        <p className="text-sm text-gray-500">
+                            Ingresa tu nueva contraseña para completar el proceso
+                        </p>
                     </div>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="password">Password</Label>
-                        <Input
-                            id="password"
-                            type="password"
-                            name="password"
-                            autoComplete="new-password"
-                            value={data.password}
-                            className="mt-1 block w-full"
-                            autoFocus
-                            onChange={(e) => setData('password', e.target.value)}
-                            placeholder="Password"
-                        />
-                        <InputError message={errors.password} />
+                    {/* Card de Reset */}
+                    <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+                        <form onSubmit={submit} className="space-y-6">
+                            {/* Email (solo lectura) */}
+                            <div>
+                                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                                    Correo Electrónico
+                                </label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                                        </svg>
+                                    </div>
+                                    <input
+                                        id="email"
+                                        name="email"
+                                        type="email"
+                                        autoComplete="email"
+                                        readOnly
+                                        value={data.email}
+                                        onChange={(e) => setData('email', e.target.value)}
+                                        className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed focus:outline-none"
+                                    />
+                                </div>
+                                {errors.email && (
+                                    <p className="mt-2 text-sm text-red-600">{errors.email}</p>
+                                )}
+                            </div>
+
+                            {/* Nueva Contraseña */}
+                            <div>
+                                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
+                                    Nueva Contraseña
+                                </label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                        </svg>
+                                    </div>
+                                    <input
+                                        id="password"
+                                        name="password"
+                                        type="password"
+                                        autoComplete="new-password"
+                                        required
+                                        autoFocus
+                                        value={data.password}
+                                        onChange={(e) => setData('password', e.target.value)}
+                                        className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-[#189BAF] transition-colors duration-200"
+                                        placeholder="Mínimo 8 caracteres"
+                                    />
+                                </div>
+                                {errors.password && (
+                                    <p className="mt-2 text-sm text-red-600">{errors.password}</p>
+                                )}
+                            </div>
+
+                            {/* Confirmar Contraseña */}
+                            <div>
+                                <label htmlFor="password_confirmation" className="block text-sm font-semibold text-gray-700 mb-2">
+                                    Confirmar Nueva Contraseña
+                                </label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </div>
+                                    <input
+                                        id="password_confirmation"
+                                        name="password_confirmation"
+                                        type="password"
+                                        autoComplete="new-password"
+                                        required
+                                        value={data.password_confirmation}
+                                        onChange={(e) => setData('password_confirmation', e.target.value)}
+                                        className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-[#189BAF] transition-colors duration-200"
+                                        placeholder="Repite la nueva contraseña"
+                                    />
+                                </div>
+                                {errors.password_confirmation && (
+                                    <p className="mt-2 text-sm text-red-600">{errors.password_confirmation}</p>
+                                )}
+                            </div>
+
+                            {/* Información de seguridad */}
+                            <div className="bg-gray-50 rounded-lg p-4">
+                                <div className="flex items-start">
+                                    <svg className="h-5 w-5 text-[#189BAF] mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                    </svg>
+                                    <div className="text-sm text-gray-600">
+                                        <p className="font-medium mb-1">Consejos para una contraseña segura:</p>
+                                        <ul className="text-xs space-y-1 text-gray-500">
+                                            <li>• Mínimo 8 caracteres de longitud</li>
+                                            <li>• Combina letras mayúsculas y minúsculas</li>
+                                            <li>• Incluye números y símbolos especiales</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-base font-semibold rounded-lg text-white bg-[#189BAF] hover:bg-[#157a8c] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#189BAF] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 shadow-lg"
+                                >
+                                    {processing ? (
+                                        <div className="flex items-center">
+                                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Restableciendo contraseña...
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center">
+                                            <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                            </svg>
+                                            Restablecer Contraseña
+                                        </div>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
                     </div>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="password_confirmation">Confirm password</Label>
-                        <Input
-                            id="password_confirmation"
-                            type="password"
-                            name="password_confirmation"
-                            autoComplete="new-password"
-                            value={data.password_confirmation}
-                            className="mt-1 block w-full"
-                            onChange={(e) => setData('password_confirmation', e.target.value)}
-                            placeholder="Confirm password"
-                        />
-                        <InputError message={errors.password_confirmation} className="mt-2" />
+                    {/* Links de navegación */}
+                    <div className="mt-6 flex justify-center space-x-4 text-sm">
+                        <Link
+                            href={route('login')}
+                            className="text-[#189BAF] hover:text-[#157a8c] transition-colors duration-200 flex items-center"
+                        >
+                            <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            </svg>
+                            Regresar al login
+                        </Link>
+                        <span className="text-gray-300">|</span>
+                        <Link
+                            href="/"
+                            className="text-gray-500 hover:text-gray-700 transition-colors duration-200"
+                        >
+                            Ir al inicio
+                        </Link>
                     </div>
-
-                    <Button type="submit" className="mt-4 w-full" disabled={processing}>
-                        {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                        Reset password
-                    </Button>
                 </div>
-            </form>
-        </AuthLayout>
+            </div>
+        </>
     );
 }

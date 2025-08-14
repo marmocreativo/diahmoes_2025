@@ -31,6 +31,7 @@ export interface SharedData {
     [key: string]: unknown;
 }
 
+// User del sistema de autenticación (Laravel)
 export interface User {
     id: number;
     name: string;
@@ -39,5 +40,43 @@ export interface User {
     email_verified_at: string | null;
     created_at: string;
     updated_at: string;
-    [key: string]: unknown; // This allows for additional properties...
+    [key: string]: unknown;
 }
+
+// Tipos para paginación (Laravel)
+export interface PaginatedData<T> {
+    data: T[];
+    links: PaginationLink[];
+    meta: PaginationMeta;
+}
+
+export interface PaginationLink {
+    url: string | null;
+    label: string;
+    active: boolean;
+}
+
+export interface PaginationMeta {
+    current_page: number;
+    from: number;
+    last_page: number;
+    per_page: number;
+    to: number;
+    total: number;
+}
+
+// Tipos genéricos para filtros
+export interface BaseFilters {
+    search?: string;
+    sort?: string;
+    direction?: 'asc' | 'desc';
+    page?: number;
+}
+
+export * from './usuarios';
+export * from './instituciones';
+export * from './clientes';
+export * from './estudios';
+export * from './adjuntos';
+export * from './mensajerias';
+export * from './correos';
