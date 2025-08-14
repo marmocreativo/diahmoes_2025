@@ -1,18 +1,25 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
+use App\Http\Controllers\InstitucionController;
+use App\Http\Controllers\MensajeriaController;
 use App\Http\Controllers\UsuarioController;
+use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return Inertia::render('welcome');
-})->name('home');
+/*
+|--------------------------------------------------------------------------
+| Rutas Web de DIAHMOES
+|--------------------------------------------------------------------------
+|
+| Estas rutas manejan todas las operaciones del sistema DIAHMOES
+| incluyendo CRUDs completos, funcionalidades adicionales y APIs.
+|
+*/
 
 Route::middleware(['auth', 'verified'])->group(function () {
     
     // Dashboard
     Route::get('/dashboard', function () {
-        return Inertia::render('dashboard');
+        return Inertia::render('Dashboard');
     })->name('dashboard');
     
     /*
@@ -28,6 +35,102 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Cambiar estado del usuario (activar/desactivar)
     Route::patch('usuarios/{usuario:ID_USUARIO}/toggle-estado', [UsuarioController::class, 'toggleEstado'])
         ->name('usuarios.toggle-estado');
+    
+    /*
+    |--------------------------------------------------------------------------
+    | CRUD de Instituciones
+    |--------------------------------------------------------------------------
+    */
+    
+    // CRUD básico de instituciones
+    Route::resource('instituciones', InstitucionController::class)
+        ->parameters(['instituciones' => 'institucion:ID_INSTITUCION']);
+
+    // Regenerar PIN de seguridad
+    Route::patch('instituciones/{institucion:ID_INSTITUCION}/regenerar-pin', [InstitucionController::class, 'regenerarPIN'])
+        ->name('instituciones.regenerar-pin');
+    
+    // Estadísticas de instituciones
+    Route::get('instituciones-estadisticas', [InstitucionController::class, 'estadisticas'])
+        ->name('instituciones.estadisticas');
+    
+    /*
+    |--------------------------------------------------------------------------
+    | CRUD de Mensajerías
+    |--------------------------------------------------------------------------
+    |
+    | Rutas estándar de recursos para mensajerías:
+    | GET /mensajerias               - Listado de mensajerías
+    | GET /mensajerias/create        - Formulario de creación
+    | POST /mensajerias              - Guardar nueva mensajería
+    | GET /mensajerias/{mensajeria}  - Ver mensajería específica
+    | GET /mensajerias/{mensajeria}/edit - Formulario de edición
+    | PUT/PATCH /mensajerias/{mensajeria} - Actualizar mensajería
+    | DELETE /mensajerias/{mensajeria} - Eliminar mensajería
+    */
+    Route::resource('mensajerias', MensajeriaController::class)
+        ->parameters(['mensajerias' => 'mensajeria:ID']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Rutas adicionales para Mensajerías
+    |--------------------------------------------------------------------------
+    */
+    
+    // Cambiar estado de mensajería (activar/desactivar)
+    Route::patch('mensajerias/{mensajeria:ID}/toggle-estado', [MensajeriaController::class, 'toggleEstado'])
+        ->name('mensajerias.toggle-estado');
+    
+    // Estadísticas de mensajerías
+    Route::get('mensajerias-estadisticas', [MensajeriaController::class, 'estadisticas'])
+        ->name('mensajerias.estadisticas');
+    
+    // Buscar mensajerías (para autocomplete)
+    Route::get('mensajerias/buscar', [MensajeriaController::class, 'buscar'])
+        ->name('mensajerias.buscar');
+    
+    /*
+    |--------------------------------------------------------------------------
+    | API Endpoints para Instituciones
+    |--------------------------------------------------------------------------
+    */
+    
+    // Obtener instituciones para selects y autocomplete
+    Route::get('api/instituciones', [InstitucionController::class, 'apiInstituciones'])
+        ->name('api.instituciones');
+    
+    // Obtener instituciones por ciudad
+    Route::get('api/instituciones/ciudad/{ciudad}', function($ciudad) {
+        return app(InstitucionController::class)->apiInstituciones(request()->merge(['ciudad' => $ciudad]));
+    })->name('api.instituciones.por-ciudad');
+    
+    // Obtener instituciones por estado
+    Route::get('api/instituciones/estado/{estado}', function($estado) {
+        return app(InstitucionController::class)->apiInstituciones(request()->merge(['estado' => $estado]));
+    })->name('api.instituciones.por-estado');
+    
+    /*
+    |--------------------------------------------------------------------------
+    | API Endpoints para Mensajerías
+    |--------------------------------------------------------------------------
+    */
+    
+    // Obtener mensajerías para selects y autocomplete
+    Route::get('api/mensajerias', [MensajeriaController::class, 'apiMensajerias'])
+        ->name('api.mensajerias');
+    
+    // Obtener solo mensajerías activas
+    Route::get('api/mensajerias/activas', function() {
+        return app(MensajeriaController::class)->apiMensajerias(request()->merge(['incluir_inactivas' => false]));
+    })->name('api.mensajerias.activas');
+    
+    // Obtener mensajerías más utilizadas
+    Route::get('api/mensajerias/mas-utilizadas/{limite?}', function($limite = 10) {
+        $mensajerias = \App\Models\Mensajeria::masUtilizadas($limite);
+        return response()->json($mensajerias->map(function($m) {
+            return $m->getResumen();
+        }));
+    })->name('api.mensajerias.mas-utilizadas');
     
     /*
     |--------------------------------------------------------------------------
@@ -57,7 +160,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     /*
     |--------------------------------------------------------------------------
-    | Rutas de conveniencia para filtros rápidos
+    | Rutas de exportación
+    |--------------------------------------------------------------------------
+    */
+    
+    // Exportar instituciones
+    Route::get('instituciones/exportar/{formato?}', [InstitucionController::class, 'exportar'])
+        ->where('formato', 'excel|csv|pdf')
+        ->name('instituciones.exportar');
+    
+    // Exportar mensajerías
+    Route::get('mensajerias/exportar/{formato?}', [MensajeriaController::class, 'exportar'])
+        ->where('formato', 'excel|csv|pdf')
+        ->name('mensajerias.exportar');
+    
+    /*
+    |--------------------------------------------------------------------------
+    | Rutas de conveniencia para filtros rápidos - Usuarios
     |--------------------------------------------------------------------------
     */
     
@@ -89,14 +208,70 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     /*
     |--------------------------------------------------------------------------
-    | Rutas adicionales útiles
+    | Rutas de conveniencia para filtros rápidos - Instituciones
     |--------------------------------------------------------------------------
     */
     
-    // Verificar si un correo ya existe (para validación en tiempo real)
+    // Filtros por ubicación geográfica
+    Route::get('instituciones/ciudad/{ciudad}', function($ciudad) {
+        return redirect()->route('instituciones.index', ['ciudad' => $ciudad]);
+    })->name('instituciones.por-ciudad');
+    
+    Route::get('instituciones/estado/{estado}', function($estado) {
+        return redirect()->route('instituciones.index', ['estado_geografico' => $estado]);
+    })->name('instituciones.por-estado');
+    
+    /*
+    |--------------------------------------------------------------------------
+    | Rutas de conveniencia para filtros rápidos - Mensajerías
+    |--------------------------------------------------------------------------
+    */
+    
+    // Filtros por estado de mensajería
+    Route::get('mensajerias/activas', function() {
+        return redirect()->route('mensajerias.index', ['estado' => 'activo']);
+    })->name('mensajerias.activas');
+    
+    Route::get('mensajerias/inactivas', function() {
+        return redirect()->route('mensajerias.index', ['estado' => 'inactivo']);
+    })->name('mensajerias.inactivas');
+    
+    // Mensajerías más utilizadas
+    Route::get('mensajerias/mas-utilizadas', function() {
+        return redirect()->route('mensajerias.index', ['sort' => 'total_guias', 'direction' => 'desc']);
+    })->name('mensajerias.mas-utilizadas');
+    
+    /*
+    |--------------------------------------------------------------------------
+    | Rutas de reportes y análisis
+    |--------------------------------------------------------------------------
+    */
+    
+    // Reportes de instituciones
+    Route::get('instituciones/reporte/ciudades', [InstitucionController::class, 'reportePorCiudades'])
+        ->name('instituciones.reporte.ciudades');
+    
+    Route::get('instituciones/reporte/estados', [InstitucionController::class, 'reportePorEstados'])
+        ->name('instituciones.reporte.estados');
+    
+    // Reportes de mensajerías
+    Route::get('mensajerias/reporte/utilizacion', function() {
+        $stats = \App\Models\Mensajeria::all()->map(function($m) {
+            return array_merge($m->getResumen(), $m->getEstadisticas());
+        });
+        return Inertia::render('Mensajerias/Reportes/Utilizacion', ['datos' => $stats]);
+    })->name('mensajerias.reporte.utilizacion');
+    
+    /*
+    |--------------------------------------------------------------------------
+    | Rutas de validación en tiempo real
+    |--------------------------------------------------------------------------
+    */
+    
+    // Verificar si un correo de usuario ya existe
     Route::post('usuarios/verificar-correo', function() {
         $correo = request('correo');
-        $usuarioId = request('usuario_id'); // Para edición
+        $usuarioId = request('usuario_id');
         
         $existe = \App\Models\Usuario::where('USUARIO_CORREO', $correo)
             ->when($usuarioId, function($query) use ($usuarioId) {
@@ -107,7 +282,112 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return response()->json(['existe' => $existe]);
     })->name('usuarios.verificar-correo');
     
+    // Verificar si un RFC de institución ya existe
+    Route::post('instituciones/verificar-rfc', function() {
+        $rfc = request('rfc');
+        $institucionId = request('institucion_id');
+        
+        $existe = \App\Models\Institucion::where('INSTITUCION_RFC', $rfc)
+            ->when($institucionId, function($query) use ($institucionId) {
+                return $query->where('ID_INSTITUCION', '!=', $institucionId);
+            })
+            ->exists();
+            
+        return response()->json(['existe' => $existe]);
+    })->name('instituciones.verificar-rfc');
+    
+    // Verificar si un correo de institución ya existe
+    Route::post('instituciones/verificar-correo', function() {
+        $correo = request('correo');
+        $institucionId = request('institucion_id');
+        
+        $existe = \App\Models\Institucion::where('INSTITUCION_CORREO', $correo)
+            ->when($institucionId, function($query) use ($institucionId) {
+                return $query->where('ID_INSTITUCION', '!=', $institucionId);
+            })
+            ->exists();
+            
+        return response()->json(['existe' => $existe]);
+    })->name('instituciones.verificar-correo');
+    
+    // Verificar si un nombre de mensajería ya existe
+    Route::post('mensajerias/verificar-nombre', function() {
+        $nombre = request('nombre');
+        $mensajeriaId = request('mensajeria_id');
+        
+        $existe = \App\Models\Mensajeria::where('NOMBRE', $nombre)
+            ->when($mensajeriaId, function($query) use ($mensajeriaId) {
+                return $query->where('ID', '!=', $mensajeriaId);
+            })
+            ->exists();
+            
+        return response()->json(['existe' => $existe]);
+    })->name('mensajerias.verificar-nombre');
+    
+    /*
+    |--------------------------------------------------------------------------
+    | Rutas de integración entre módulos
+    |--------------------------------------------------------------------------
+    */
+    
+    // Obtener usuarios de una institución específica
+    Route::get('instituciones/{institucion:ID_INSTITUCION}/usuarios', function($institucion) {
+        return app(UsuarioController::class)->apiUsuarios(request()->merge(['institucion' => $institucion->ID_INSTITUCION]));
+    })->name('instituciones.usuarios');
+    
+    // Obtener médicos de una institución específica
+    Route::get('instituciones/{institucion:ID_INSTITUCION}/medicos', function($institucion) {
+        return app(UsuarioController::class)->apiUsuarios(request()->merge([
+            'institucion' => $institucion->ID_INSTITUCION,
+            'tipo' => 'medico'
+        ]));
+    })->name('instituciones.medicos');
+    
+    // Obtener estudios que usan una mensajería específica
+    Route::get('mensajerias/{mensajeria:ID}/estudios', function($mensajeria) {
+        $estudios = $mensajeria->getEstudiosRecientes(50);
+        return response()->json($estudios->map(function($estudio) use ($mensajeria) {
+            return [
+                'ID' => $estudio->ID,
+                'CLAVE_INTERNA' => $estudio->CLAVE_INTERNA,
+                'MUESTRA_INICIALES' => $estudio->MUESTRA_INICIALES,
+                'FECHA_SOLICITUD_RECOLECCION' => $estudio->FECHA_SOLICITUD_RECOLECCION,
+                'tipo_guia' => app(MensajeriaController::class)->determinarTipoGuia($estudio, $mensajeria->NOMBRE),
+            ];
+        }));
+    })->name('mensajerias.estudios');
+    
+    /*
+    |--------------------------------------------------------------------------
+    | Rutas de configuración y sistema
+    |--------------------------------------------------------------------------
+    */
+    
+    // Configuración general del sistema
+    Route::get('/configuracion', function() {
+        return Inertia::render('Configuracion/Index');
+    })->name('configuracion.index');
+    
+    // Configuración de mensajerías
+    Route::get('/configuracion/mensajerias', function() {
+        return redirect()->route('mensajerias.index');
+    })->name('configuracion.mensajerias');
+    
 });
+
+/*
+|--------------------------------------------------------------------------
+| Aliases y rutas de conveniencia
+|--------------------------------------------------------------------------
+*/
+
+// Aliases para facilitar el acceso
+Route::redirect('/institutions', '/instituciones')->name('institutions.redirect');
+Route::redirect('/centros', '/instituciones')->name('centros.redirect');
+Route::redirect('/hospitales', '/instituciones')->name('hospitales.redirect');
+Route::redirect('/envios', '/mensajerias')->name('envios.redirect');
+Route::redirect('/transportes', '/mensajerias')->name('transportes.redirect');
+Route::redirect('/paqueterias', '/mensajerias')->name('paqueterias.redirect');
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

@@ -20,7 +20,11 @@ import {
     User,
     Plus,
     Eye,
-    Edit
+    Edit,
+    MapPin,
+    Clock,
+    Activity,
+    TrendingUp
 } from 'lucide-react';
 
 const navGroups: NavGroup[] = [
@@ -34,7 +38,7 @@ const navGroups: NavGroup[] = [
             },
             {
                 title: 'Nuevo Usuario',
-                href: '/usuarios',
+                href: '/usuarios/create',
                 icon: UserPlus,
             },
             {
@@ -59,7 +63,81 @@ const navGroups: NavGroup[] = [
             },
         ]
     },
-    
+    {
+        title: 'Gestión de Instituciones',
+        items: [
+            {
+                title: 'Todas las Instituciones',
+                href: '/instituciones',
+                icon: Building2,
+            },
+            {
+                title: 'Nueva Institución',
+                href: '/instituciones/create',
+                icon: Plus,
+            },
+            {
+                title: 'Estadísticas',
+                href: '/instituciones-estadisticas',
+                icon: TrendingUp,
+            },
+        ]
+    },
+    {
+        title: 'Estudios Médicos',
+        items: [
+            {
+                title: 'Todos los Estudios',
+                href: '/estudios',
+                icon: TestTube,
+            },
+            {
+                title: 'Nuevo Estudio',
+                href: '/estudios/create',
+                icon: Plus,
+            },
+            {
+                title: 'En Proceso',
+                href: '/estudios?estado=en_proceso',
+                icon: Clock,
+            },
+            {
+                title: 'Completados',
+                href: '/estudios?estado=completado',
+                icon: Activity,
+            },
+            {
+                title: 'Reportes',
+                href: '/estudios/reportes',
+                icon: FileText,
+            },
+        ]
+    },
+    {
+        title: 'Reportes y Análisis',
+        items: [
+            {
+                title: 'Dashboard Estadísticas',
+                href: '/reportes/dashboard',
+                icon: BarChart3,
+            },
+            {
+                title: 'Reportes por Institución',
+                href: '/reportes/instituciones',
+                icon: Building2,
+            },
+            {
+                title: 'Reportes por Médico',
+                href: '/reportes/medicos',
+                icon: Stethoscope,
+            },
+            {
+                title: 'Análisis Geográfico',
+                href: '/reportes/geografico',
+                icon: MapPin,
+            },
+        ]
+    },
 ];
 
 const footerNavItems = [
