@@ -24,7 +24,16 @@ import {
     MapPin,
     Clock,
     Activity,
-    TrendingUp
+    TrendingUp,
+    Briefcase,
+    UserCog,
+    Mail,
+    MailCheck,
+    MailX,
+    Truck,
+    Package,
+    CheckCircle,
+    XCircle
 } from 'lucide-react';
 
 const navGroups: NavGroup[] = [
@@ -35,11 +44,6 @@ const navGroups: NavGroup[] = [
                 title: 'Todos los Usuarios',
                 href: '/usuarios',
                 icon: Users,
-            },
-            {
-                title: 'Nuevo Usuario',
-                href: '/usuarios/create',
-                icon: UserPlus,
             },
             {
                 title: 'Administradores',
@@ -64,6 +68,16 @@ const navGroups: NavGroup[] = [
         ]
     },
     {
+        title: 'Gestión de Clientes',
+        items: [
+            {
+                title: 'Todos los Clientes',
+                href: '/clientes',
+                icon: Briefcase,
+            }
+        ]
+    },
+    {
         title: 'Gestión de Instituciones',
         items: [
             {
@@ -71,16 +85,16 @@ const navGroups: NavGroup[] = [
                 href: '/instituciones',
                 icon: Building2,
             },
+        ]
+    },
+    {
+        title: 'Gestión de Mensajerías',
+        items: [
             {
-                title: 'Nueva Institución',
-                href: '/instituciones/create',
-                icon: Plus,
-            },
-            {
-                title: 'Estadísticas',
-                href: '/instituciones-estadisticas',
-                icon: TrendingUp,
-            },
+                title: 'Todas las Mensajerías',
+                href: '/mensajerias',
+                icon: Truck,
+            }
         ]
     },
     {
@@ -127,6 +141,16 @@ const navGroups: NavGroup[] = [
                 icon: Building2,
             },
             {
+                title: 'Reportes por Cliente',
+                href: '/clientes/reporte/actividad',
+                icon: Briefcase,
+            },
+            {
+                title: 'Análisis de Envío Correos',
+                href: '/clientes/reporte/envio-correos',
+                icon: Mail,
+            },
+            {
                 title: 'Reportes por Médico',
                 href: '/reportes/medicos',
                 icon: Stethoscope,
@@ -135,6 +159,11 @@ const navGroups: NavGroup[] = [
                 title: 'Análisis Geográfico',
                 href: '/reportes/geografico',
                 icon: MapPin,
+            },
+            {
+                title: 'Utilización Mensajerías',
+                href: '/mensajerias/reporte/utilizacion',
+                icon: Truck,
             },
         ]
     },
@@ -178,7 +207,7 @@ export function AppSidebar() {
                                 </div>
                                 <div className="grid flex-1 text-left text-sm leading-tight">
                                     <span className="truncate font-bold text-lg">DIAHMOES</span>
-                                    <span className="truncate text-xs text-white/80">Sistema Médico</span>
+                                    <span className="truncate text-xs text-white/80">Estudios</span>
                                 </div>
                             </Link>
                         </SidebarMenuButton>

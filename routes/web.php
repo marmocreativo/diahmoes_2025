@@ -1,9 +1,11 @@
 <?php
 
+use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\InstitucionController;
 use App\Http\Controllers\MensajeriaController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 /*
 |--------------------------------------------------------------------------
@@ -15,11 +17,32 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+/*
+|--------------------------------------------------------------------------
+| Rutas Públicas
+|--------------------------------------------------------------------------
+*/
+
+// Página de bienvenida (antes del login)
+Route::get('/', function () {
+    return Inertia::render('welcome');
+})->name('welcome');
+
+// Redirección para URLs comunes
+Route::redirect('/home', '/dashboard');
+Route::redirect('/inicio', '/dashboard');
+
+/*
+|--------------------------------------------------------------------------
+| Rutas Protegidas (Requieren Autenticación)
+|--------------------------------------------------------------------------
+*/
+
 Route::middleware(['auth', 'verified'])->group(function () {
     
     // Dashboard
     Route::get('/dashboard', function () {
-        return Inertia::render('Dashboard');
+        return Inertia::render('dashboard');
     })->name('dashboard');
     
     /*
@@ -91,6 +114,41 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     /*
     |--------------------------------------------------------------------------
+    | CRUD de Clientes
+    |--------------------------------------------------------------------------
+    |
+    | Rutas estándar de recursos para clientes:
+    | GET /clientes               - Listado de clientes
+    | GET /clientes/create        - Formulario de creación
+    | POST /clientes              - Guardar nuevo cliente
+    | GET /clientes/{cliente}     - Ver cliente específico
+    | GET /clientes/{cliente}/edit - Formulario de edición
+    | PUT/PATCH /clientes/{cliente} - Actualizar cliente
+    | DELETE /clientes/{cliente} - Eliminar cliente
+    */
+    Route::resource('clientes', ClienteController::class)
+        ->parameters(['clientes' => 'cliente:ID_CLIENTE']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Rutas adicionales para Clientes
+    |--------------------------------------------------------------------------
+    */
+    
+    // Cambiar estado de envío de correo (activar/desactivar)
+    Route::patch('clientes/{cliente:ID_CLIENTE}/toggle-envio-correo', [ClienteController::class, 'toggleEnvioCorreo'])
+        ->name('clientes.toggle-envio-correo');
+    
+    // Verificar contraseña de cliente
+    Route::post('clientes/{cliente:ID_CLIENTE}/verificar-password', [ClienteController::class, 'verificarPassword'])
+        ->name('clientes.verificar-password');
+    
+    // Estadísticas de clientes
+    Route::get('clientes-estadisticas', [ClienteController::class, 'estadisticas'])
+        ->name('clientes.estadisticas');
+    
+    /*
+    |--------------------------------------------------------------------------
     | API Endpoints para Instituciones
     |--------------------------------------------------------------------------
     */
@@ -134,6 +192,38 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     /*
     |--------------------------------------------------------------------------
+    | API Endpoints para Clientes
+    |--------------------------------------------------------------------------
+    */
+    
+    // Obtener clientes para selects y autocomplete
+    Route::get('api/clientes', [ClienteController::class, 'apiIndex'])
+        ->name('api.clientes');
+    
+    // Obtener solo clientes activos (que reciben correos)
+    Route::get('api/clientes/activos', [ClienteController::class, 'apiActivos'])
+        ->name('api.clientes.activos');
+    
+    // Buscar cliente por correo específico
+    Route::post('api/clientes/buscar-por-correo', [ClienteController::class, 'apiBuscarPorCorreo'])
+        ->name('api.clientes.buscar-por-correo');
+    
+    // Estadísticas de clientes para dashboard
+    Route::get('api/clientes/estadisticas', [ClienteController::class, 'apiEstadisticas'])
+        ->name('api.clientes.estadisticas');
+    
+    // Obtener clientes con envío de correo habilitado
+    Route::get('api/clientes/con-envio-correo', function() {
+        return app(ClienteController::class)->apiIndex(request()->merge(['envio_correo' => 'si']));
+    })->name('api.clientes.con-envio-correo');
+    
+    // Obtener clientes sin envío de correo
+    Route::get('api/clientes/sin-envio-correo', function() {
+        return app(ClienteController::class)->apiIndex(request()->merge(['envio_correo' => 'no']));
+    })->name('api.clientes.sin-envio-correo');
+    
+    /*
+    |--------------------------------------------------------------------------
     | API Endpoints para Usuarios
     |--------------------------------------------------------------------------
     */
@@ -173,6 +263,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('mensajerias/exportar/{formato?}', [MensajeriaController::class, 'exportar'])
         ->where('formato', 'excel|csv|pdf')
         ->name('mensajerias.exportar');
+    
+    // Exportar clientes
+    Route::get('clientes/exportar/{formato?}', [ClienteController::class, 'exportar'])
+        ->where('formato', 'excel|csv|pdf')
+        ->name('clientes.exportar');
     
     /*
     |--------------------------------------------------------------------------
@@ -243,6 +338,31 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     /*
     |--------------------------------------------------------------------------
+    | Rutas de conveniencia para filtros rápidos - Clientes
+    |--------------------------------------------------------------------------
+    */
+    
+    // Filtros por estado de envío de correo
+    Route::get('clientes/activos', function() {
+        return redirect()->route('clientes.index', ['envio_correo' => 'si']);
+    })->name('clientes.activos');
+    
+    Route::get('clientes/inactivos', function() {
+        return redirect()->route('clientes.index', ['envio_correo' => 'no']);
+    })->name('clientes.inactivos');
+    
+    // Clientes con envío de correo habilitado
+    Route::get('clientes/con-envio-correo', function() {
+        return redirect()->route('clientes.index', ['envio_correo' => 'si']);
+    })->name('clientes.con-envio-correo');
+    
+    // Clientes sin envío de correo
+    Route::get('clientes/sin-envio-correo', function() {
+        return redirect()->route('clientes.index', ['envio_correo' => 'no']);
+    })->name('clientes.sin-envio-correo');
+    
+    /*
+    |--------------------------------------------------------------------------
     | Rutas de reportes y análisis
     |--------------------------------------------------------------------------
     */
@@ -261,6 +381,34 @@ Route::middleware(['auth', 'verified'])->group(function () {
         });
         return Inertia::render('Mensajerias/Reportes/Utilizacion', ['datos' => $stats]);
     })->name('mensajerias.reporte.utilizacion');
+    
+    // Reportes de clientes
+    Route::get('clientes/reporte/envio-correos', function() {
+        $stats = [
+            'con_envio' => \App\Models\Cliente::contarActivos(),
+            'sin_envio' => \App\Models\Cliente::contarInactivos(),
+            'total' => \App\Models\Cliente::contarTotal(),
+            'porcentaje_activos' => \App\Models\Cliente::contarTotal() > 0 
+                ? round((\App\Models\Cliente::contarActivos() / \App\Models\Cliente::contarTotal()) * 100, 2) 
+                : 0,
+        ];
+        return Inertia::render('Clientes/Reportes/EnvioCorreos', ['datos' => $stats]);
+    })->name('clientes.reporte.envio-correos');
+    
+    Route::get('clientes/reporte/actividad', function() {
+        $clientes = \App\Models\Cliente::with('estudios')
+            ->get()
+            ->map(function($cliente) {
+                return [
+                    'ID_CLIENTE' => $cliente->ID_CLIENTE,
+                    'CLIENTE_NOMBRE' => $cliente->CLIENTE_NOMBRE,
+                    'CLIENTE_CORREO' => $cliente->CLIENTE_CORREO,
+                    'total_estudios' => $cliente->getTotalEstudios(),
+                    'enviar_correo' => $cliente->CLIENTE_ENVIAR_CORREO === 'si',
+                ];
+            });
+        return Inertia::render('Clientes/Reportes/Actividad', ['datos' => $clientes]);
+    })->name('clientes.reporte.actividad');
     
     /*
     |--------------------------------------------------------------------------
@@ -324,6 +472,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return response()->json(['existe' => $existe]);
     })->name('mensajerias.verificar-nombre');
     
+    // Verificar si un correo de cliente ya existe
+    Route::post('clientes/verificar-correo', function() {
+        $correo = request('correo');
+        $clienteId = request('cliente_id');
+        
+        $existe = \App\Models\Cliente::where('CLIENTE_CORREO', $correo)
+            ->when($clienteId, function($query) use ($clienteId) {
+                return $query->where('ID_CLIENTE', '!=', $clienteId);
+            })
+            ->exists();
+            
+        return response()->json(['existe' => $existe]);
+    })->name('clientes.verificar-correo');
+    
     /*
     |--------------------------------------------------------------------------
     | Rutas de integración entre módulos
@@ -357,6 +519,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
         }));
     })->name('mensajerias.estudios');
     
+    // Obtener estudios de un cliente específico
+    Route::get('clientes/{cliente:ID_CLIENTE}/estudios', function($cliente) {
+        $estudios = $cliente->getEstudiosRecientes(50);
+        return response()->json($estudios->map(function($estudio) {
+            return [
+                'ID' => $estudio->ID,
+                'CLAVE_INTERNA' => $estudio->CLAVE_INTERNA,
+                'MUESTRA_INICIALES' => $estudio->MUESTRA_INICIALES,
+                'FECHA_SOLICITUD_RECOLECCION' => $estudio->FECHA_SOLICITUD_RECOLECCION,
+                'ESTUDIO_ESTADO' => $estudio->ESTUDIO_ESTADO,
+            ];
+        }));
+    })->name('clientes.estudios');
+    
+    // Obtener estudios recientes de un cliente para dashboard
+    Route::get('clientes/{cliente:ID_CLIENTE}/estudios-recientes/{limite?}', function($cliente, $limite = 10) {
+        $estudios = $cliente->getEstudiosRecientes($limite);
+        return response()->json($estudios);
+    })->name('clientes.estudios-recientes');
+    
     /*
     |--------------------------------------------------------------------------
     | Rutas de configuración y sistema
@@ -373,6 +555,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return redirect()->route('mensajerias.index');
     })->name('configuracion.mensajerias');
     
+    // Configuración de clientes
+    Route::get('/configuracion/clientes', function() {
+        return redirect()->route('clientes.index');
+    })->name('configuracion.clientes');
+    
 });
 
 /*
@@ -388,6 +575,11 @@ Route::redirect('/hospitales', '/instituciones')->name('hospitales.redirect');
 Route::redirect('/envios', '/mensajerias')->name('envios.redirect');
 Route::redirect('/transportes', '/mensajerias')->name('transportes.redirect');
 Route::redirect('/paqueterias', '/mensajerias')->name('paqueterias.redirect');
+
+// Aliases para clientes
+Route::redirect('/customers', '/clientes')->name('customers.redirect');
+Route::redirect('/empresas', '/clientes')->name('empresas.redirect');
+Route::redirect('/companies', '/clientes')->name('companies.redirect');
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

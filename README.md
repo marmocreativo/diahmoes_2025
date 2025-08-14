@@ -1,40 +1,16 @@
-# 🩺 DIAHMOES - Sistema de Gestión de Estudios Médicos
+# DIAHMOES - Sistema de Gestión de Estudios Médicos
 
-**DIAHMOES** es un sistema web moderno para la gestión integral de estudios médicos, diagnósticos histopatológicos y administración de laboratorios especializados. Construido con tecnologías de vanguardia para ofrecer una experiencia de usuario excepcional y funcionalidades robustas.
+Sistema web para la gestión integral de estudios médicos, diagnósticos histopatológicos y administración de laboratorios especializados.
 
-## 🚀 Stack Tecnológico
+## Stack Tecnológico
 
-### Backend
-- **Laravel 12** - Framework PHP de última generación
-- **PHP 8.2+** - Lenguaje de programación backend
-- **MySQL/MariaDB** - Sistema de gestión de base de datos
-- **Inertia.js 2.0** - Adaptador para aplicaciones SPA modernas
+**Backend:** Laravel 12, PHP 8.2+, MySQL/MariaDB, Inertia.js 2.0
+**Frontend:** React 19, TypeScript 5.7, Tailwind CSS 4.0, Vite 7.0
+**UI/UX:** Radix UI, Lucide React, shadcn/ui
 
-### Frontend
-- **React 19** - Biblioteca de JavaScript para interfaces de usuario
-- **TypeScript 5.7** - Superset de JavaScript con tipado estático
-- **Tailwind CSS 4.0** - Framework de CSS utility-first
-- **Vite 7.0** - Herramienta de build y desarrollo ultrarrápida
+## Estructura de Base de Datos
 
-### UI/UX
-- **Radix UI** - Componentes accesibles y personalizables
-- **Lucide React** - Iconografía moderna y escalable
-- **Tailwind CSS Animate** - Animaciones y transiciones fluidas
-- **shadcn/ui** - Sistema de componentes de diseño
-
-### Herramientas de Desarrollo
-- **ESLint 9.x** - Linter para código JavaScript/TypeScript
-- **Prettier 3.x** - Formateador de código
-- **Pest 3.x** - Framework de testing para PHP
-- **Concurrently** - Ejecutor de múltiples procesos en desarrollo
-
-## 🗄️ Estructura de Base de Datos
-
-### Entidades Principales
-
-#### 👥 Usuarios (`usuarios`)
-Gestión completa de usuarios del sistema con roles diferenciados.
-
+### Usuarios (`usuarios`)
 ```sql
 CREATE TABLE `usuarios` (
   `ID_USUARIO` int(11) PRIMARY KEY AUTO_INCREMENT,
@@ -54,15 +30,7 @@ CREATE TABLE `usuarios` (
 );
 ```
 
-**Características:**
-- ✅ **Tipos de usuario**: Administradores, clientes, médicos y pacientes
-- ✅ **Estados**: Activo/Inactivo para control de acceso
-- ✅ **Relación con instituciones**: Cada usuario pertenece a una institución
-- ✅ **Autenticación**: Sistema completo de login y tokens
-
-#### 🏢 Instituciones (`instituciones`)
-Gestión de instituciones médicas y centros de salud.
-
+### Instituciones (`instituciones`)
 ```sql
 CREATE TABLE `instituciones` (
   `ID_INSTITUCION` int(11) PRIMARY KEY AUTO_INCREMENT,
@@ -85,15 +53,57 @@ CREATE TABLE `instituciones` (
 );
 ```
 
-**Características:**
-- ✅ **Información fiscal**: RFC y razón social para facturación
-- ✅ **Dirección completa**: Datos detallados de ubicación
-- ✅ **PIN de seguridad**: Para autenticación adicional
-- ✅ **Timestamps**: Registro y actualización automática
+### Clientes (`clientes`)
+```sql
+CREATE TABLE `clientes` (
+  `ID_CLIENTE` int(11) PRIMARY KEY AUTO_INCREMENT,
+  `CLIENTE_NOMBRE` varchar(255) NOT NULL,
+  `CLIENTE_CORREO` varchar(255) NOT NULL,
+  `CLIENTE_PASS` varchar(255) NOT NULL,
+  `CLIENTE_ENVIAR_CORREO` enum('si','no') DEFAULT 'no'
+);
+```
 
-#### 🧪 Estudios (`estudios`)
-Núcleo del sistema - gestión completa de estudios médicos.
+### Mensajerías (`mensajerias`)
+```sql
+CREATE TABLE `mensajerias` (
+  `ID` int(11) PRIMARY KEY AUTO_INCREMENT,
+  `NOMBRE` varchar(255) DEFAULT NULL,
+  `ESTADO` enum('activo','inactivo') DEFAULT 'activo'
+);
+```
 
+### Adjuntos (`adjuntos`)
+```sql
+CREATE TABLE `adjuntos` (
+  `ID` int(11) PRIMARY KEY AUTO_INCREMENT,
+  `MUESTRA_CLAVE` varchar(255) NOT NULL,
+  `ARCHIVO` varchar(255) NOT NULL
+);
+```
+
+### Conteo (`conteo`)
+```sql
+CREATE TABLE `conteo` (
+  `ID` int(11) PRIMARY KEY AUTO_INCREMENT,
+  `CLAVE` varchar(255) NOT NULL,
+  `CONTINUO` varchar(255) NOT NULL
+);
+```
+
+### Correos Copia (`correos_copias`)
+```sql
+CREATE TABLE `correos_copias` (
+  `ID` int(11) PRIMARY KEY AUTO_INCREMENT,
+  `ID_USUARIO` int(11) NOT NULL,
+  `ID_ESTUDIO` varchar(255) NOT NULL,
+  `NOMBRE` varchar(255) NOT NULL,
+  `CORREO` varchar(255) NOT NULL,
+  `ENVIAR` enum('si','no') DEFAULT 'no'
+);
+```
+
+### Estudios (`estudios`)
 ```sql
 CREATE TABLE `estudios` (
   `ID` int(11) PRIMARY KEY AUTO_INCREMENT,
@@ -207,563 +217,134 @@ CREATE TABLE `estudios` (
 );
 ```
 
-**Características:**
-- ✅ **Trazabilidad completa**: 12 timestamps para seguimiento del proceso
-- ✅ **Resultados genéticos**: KRAS, NRAS, BRAF con genotipos
-- ✅ **Información histopatológica**: Diagnósticos y evaluaciones detalladas
-- ✅ **Gestión de envíos**: Guías de mensajería y logística
-- ✅ **Datos clínicos**: Condiciones de líquidos y muestras
+## Módulos Implementados
 
-#### 👥 Clientes (`clientes`)
-Gestión de clientes independientes del sistema.
+### ✅ Usuarios
+- CRUD completo con filtros avanzados
+- Tipos: Admin, Clientes, Médicos, Pacientes
+- Estados: Activo/Inactivo
+- Relación con instituciones
 
-```sql
-CREATE TABLE `clientes` (
-  `ID_CLIENTE` int(11) PRIMARY KEY AUTO_INCREMENT,
-  `CLIENTE_NOMBRE` varchar(255) NOT NULL,
-  `CLIENTE_CORREO` varchar(255) NOT NULL,
-  `CLIENTE_PASS` varchar(255) NOT NULL,
-  `CLIENTE_ENVIAR_CORREO` enum('si','no') DEFAULT 'no'
-);
-```
+### ✅ Instituciones
+- CRUD completo con información fiscal
+- Gestión de PIN de seguridad
+- Validación RFC y código postal
+- Vista detallada con pestañas
 
-#### 🚚 Mensajerías (`mensajerias`)
-Gestión de empresas de mensajería para envío de muestras.
+### ✅ Clientes
+- CRUD completo con autenticación
+- Configuración de envío de correos
+- Relación con estudios
+- Toggle de estado
 
-```sql
-CREATE TABLE `mensajerias` (
-  `ID` int(11) PRIMARY KEY AUTO_INCREMENT,
-  `NOMBRE` varchar(255) DEFAULT NULL,
-  `ESTADO` enum('activo','inactivo') DEFAULT 'activo'
-);
-```
+### ✅ Mensajerías
+- CRUD simple para empresas de envío
+- Estados activo/inactivo
+- Estadísticas de uso
 
-**Características:**
-- ✅ **Estados**: Activo/Inactivo para control de disponibilidad
-- ✅ **Integración con estudios**: Maneja guías normales, especializadas y de retorno
-- ✅ **Estadísticas**: Conteo de guías por tipo
+### ✅ Adjuntos
+- Gestión de archivos por estudio
+- Validación de extensiones
+- Descarga y eliminación automática
 
-### Entidades de Soporte
+### ✅ Conteo
+- Sistema de numeración consecutiva
+- Generación de claves únicas
+- Configuración de prefijos
 
-#### 📎 Adjuntos (`adjuntos`)
-```sql
-CREATE TABLE `adjuntos` (
-  `ID` int(11) PRIMARY KEY AUTO_INCREMENT,
-  `MUESTRA_CLAVE` varchar(255) NOT NULL,
-  `ARCHIVO` varchar(255) NOT NULL
-);
-```
+### ✅ Correos Copia
+- Lista de distribución por estudio
+- Importación desde usuarios
+- Activación/desactivación granular
 
-#### 📧 Correos Copia (`correos_copias`)
-```sql
-CREATE TABLE `correos_copias` (
-  `ID` int(11) PRIMARY KEY AUTO_INCREMENT,
-  `ID_USUARIO` int(11) NOT NULL,
-  `ID_ESTUDIO` varchar(255) NOT NULL,
-  `NOMBRE` varchar(255) NOT NULL,
-  `CORREO` varchar(255) NOT NULL,
-  `ENVIAR` enum('si','no') DEFAULT 'no'
-);
-```
+## Estado Actual
 
-#### 🔢 Conteo (`conteo`)
-```sql
-CREATE TABLE `conteo` (
-  `ID` int(11) PRIMARY KEY AUTO_INCREMENT,
-  `CLAVE` varchar(255) NOT NULL,
-  `CONTINUO` varchar(255) NOT NULL
-);
-```
+### Completado
+- **Backend**: 6 modelos, 3 controladores, rutas completas
+- **Frontend**: 12 páginas React, tipos TypeScript, sidebar
+- **Autenticación**: Sistema completo Laravel/Inertia
+- **UI**: Componentes shadcn/ui, iconografía Lucide React
 
-### Entidades del Sistema Laravel
+### Pendiente
+- Modelo y CRUD de Estudios (módulo principal)
+- Dashboard con métricas
+- Sistema de reportes
+- Exportación de datos
 
-#### 👤 Autenticación (`users`)
-```sql
-CREATE TABLE `users` (
-  `id` bigint(20) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  `email` varchar(255) NOT NULL UNIQUE,
-  `email_verified_at` timestamp NULL DEFAULT NULL,
-  `password` varchar(255) NOT NULL,
-  `remember_token` varchar(100) DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT NULL,
-  `updated_at` timestamp NULL DEFAULT NULL
-);
-```
+## Arquitectura
 
-## 📁 Estructura de Archivos
-
-### Backend (Laravel)
-
+### Backend
 ```
 app/
-├── Http/
-│   ├── Controllers/
-│   │   ├── UsuarioController.php         ✅ CRUD completo de usuarios
-│   │   ├── InstitucionController.php     ✅ CRUD completo de instituciones
-│   │   ├── MensajeriaController.php      ✅ CRUD completo de mensajerías
-│   │   ├── EstudioController.php         🚧 Pendiente
-│   │   ├── ClienteController.php         🚧 Pendiente
-│   │   └── Auth/                         ✅ Sistema de autenticación
-│   │       ├── AuthenticatedSessionController.php
-│   │       ├── ConfirmablePasswordController.php
-│   │       ├── EmailVerificationNotificationController.php
-│   │       ├── EmailVerificationPromptController.php
-│   │       ├── NewPasswordController.php
-│   │       ├── PasswordController.php
-│   │       ├── PasswordResetLinkController.php
-│   │       ├── RegisteredUserController.php
-│   │       └── VerifyEmailController.php
-│   └── Middleware/
-│       ├── Authenticate.php
-│       ├── EncryptCookies.php
-│       ├── HandleInertiaRequests.php
-│       ├── PreventRequestsDuringMaintenance.php
-│       ├── RedirectIfAuthenticated.php
-│       ├── TrimStrings.php
-│       ├── TrustHosts.php
-│       ├── TrustProxies.php
-│       ├── ValidateSignature.php
-│       └── VerifyCsrfToken.php
 ├── Models/
-│   ├── Usuario.php                       ✅ Modelo principal de usuarios
-│   ├── Institucion.php                   ✅ Modelo completo de instituciones
-│   ├── Mensajeria.php                    ✅ Modelo completo de mensajerías
-│   ├── Estudio.php                       🚧 Pendiente
-│   ├── Cliente.php                       🚧 Pendiente
-│   ├── Adjunto.php                       🚧 Pendiente
-│   ├── CorreoCopia.php                   🚧 Pendiente
-│   └── User.php                          ✅ Modelo de autenticación Laravel
-└── Providers/
-    ├── AppServiceProvider.php
-    └── RouteServiceProvider.php
+│   ├── Usuario.php ✅
+│   ├── Institucion.php ✅  
+│   ├── Cliente.php ✅
+│   ├── Mensajeria.php ✅
+│   ├── Adjunto.php ✅
+│   ├── Conteo.php ✅
+│   ├── CorreoCopia.php ✅
+│   └── Estudio.php 🚧
+└── Http/Controllers/
+    ├── UsuarioController.php ✅
+    ├── InstitucionController.php ✅
+    ├── ClienteController.php ✅
+    ├── MensajeriaController.php ✅
+    └── EstudioController.php 🚧
 ```
 
-### Frontend (React + TypeScript)
-
+### Frontend
 ```
-resources/
-├── js/
-│   ├── components/
-│   │   ├── ui/                           ✅ Componentes base shadcn/ui
-│   │   │   ├── sidebar.tsx
-│   │   │   ├── avatar.tsx
-│   │   │   ├── button.tsx
-│   │   │   ├── checkbox.tsx
-│   │   │   ├── dialog.tsx
-│   │   │   ├── dropdown-menu.tsx
-│   │   │   ├── label.tsx
-│   │   │   ├── navigation-menu.tsx
-│   │   │   ├── select.tsx
-│   │   │   ├── separator.tsx
-│   │   │   └── tooltip.tsx
-│   │   ├── nav-footer.tsx                ✅ Componente de navegación footer
-│   │   ├── nav-main.tsx                  ✅ Componente de navegación principal
-│   │   └── nav-user.tsx                  ✅ Componente de usuario en navegación
-│   ├── layouts/
-│   │   └── app-layout.tsx                ✅ Layout principal de la aplicación
-│   ├── pages/
-│   │   ├── auth/                         ✅ Páginas de autenticación
-│   │   │   ├── confirm-password.tsx
-│   │   │   ├── forgot-password.tsx
-│   │   │   ├── login.tsx
-│   │   │   ├── register.tsx
-│   │   │   ├── reset-password.tsx
-│   │   │   └── verify-email.tsx
-│   │   ├── Usuarios/                     ✅ CRUD completo de usuarios
-│   │   │   ├── Index.tsx                 ✅ Lista con filtros y paginación
-│   │   │   ├── Create.tsx                ✅ Formulario de creación
-│   │   │   ├── Edit.tsx                  ✅ Formulario de edición
-│   │   │   └── Show.tsx                  ✅ Vista detallada
-│   │   ├── Instituciones/                ✅ CRUD completo de instituciones
-│   │   │   ├── Index.tsx                 ✅ Lista con filtros y paginación
-│   │   │   ├── Create.tsx                ✅ Formulario de creación
-│   │   │   ├── Edit.tsx                  ✅ Formulario de edición
-│   │   │   └── Show.tsx                  ✅ Vista detallada con pestañas
-│   │   ├── Mensajerias/                  ✅ CRUD completo de mensajerías (diseño simple)
-│   │   │   ├── Index.tsx                 ✅ Lista simple con filtros básicos
-│   │   │   ├── Create.tsx                ✅ Formulario simple de creación
-│   │   │   ├── Edit.tsx                  ✅ Formulario simple de edición
-│   │   │   └── Show.tsx                  ✅ Vista simple de detalles
-│   │   ├── dashboard.tsx                 ✅ Panel principal
-│   │   ├── settings.tsx                  ✅ Configuración del sistema
-│   │   └── welcome.tsx                   ✅ Página de bienvenida
-│   ├── types/                            ✅ Sistema de tipos TypeScript
-│   │   ├── index.ts                      ✅ Tipos generales y exportaciones
-│   │   ├── usuarios.ts                   ✅ Tipos específicos de usuarios
-│   │   ├── instituciones.ts              ✅ Tipos específicos de instituciones
-│   │   ├── mensajerias.ts                ✅ Tipos específicos de mensajerías
-│   │   ├── clientes.ts                   ✅ Tipos específicos de clientes
-│   │   ├── estudios.ts                   ✅ Tipos específicos de estudios
-│   │   ├── adjuntos.ts                   ✅ Tipos específicos de adjuntos
-│   │   └── correos.ts                    ✅ Tipos específicos de correos
-│   └── app.tsx                           ✅ Componente raíz de la aplicación
-└── css/
-    └── app.css                           ✅ Estilos globales con Tailwind
+resources/js/
+├── pages/
+│   ├── Usuarios/ ✅ (Index, Create, Edit, Show)
+│   ├── Instituciones/ ✅ (Index, Create, Edit, Show)
+│   ├── Clientes/ ✅ (Index, Create, Edit, Show)
+│   ├── Mensajerias/ ✅ (Index, Create, Edit, Show)
+│   └── Estudios/ 🚧
+├── types/
+│   ├── usuarios.ts ✅
+│   ├── instituciones.ts ✅
+│   ├── clientes.ts ✅
+│   ├── mensajerias.ts ✅
+│   ├── adjuntos.ts ✅
+│   ├── conteo.ts ✅
+│   ├── correos.ts ✅
+│   └── estudios.ts 🚧
+└── layouts/
+    └── app-layout.tsx ✅
 ```
 
-### Rutas
+## Instalación
 
-```
-routes/
-├── web.php                               ✅ Rutas principales de la aplicación
-├── auth.php                              ✅ Rutas de autenticación
-└── settings.php                          ✅ Rutas de configuración
-```
-
-### Configuración
-
-```
-├── .eslintrc.js                          ✅ Configuración de ESLint
-├── prettier.config.js                    ✅ Configuración de Prettier
-├── tailwind.config.js                    ✅ Configuración de Tailwind CSS
-├── tsconfig.json                         ✅ Configuración de TypeScript
-├── vite.config.js                        ✅ Configuración de Vite
-├── composer.json                         ✅ Dependencias de PHP
-└── package.json                          ✅ Dependencias de Node.js
-```
-
-## 🎯 Funcionalidades Implementadas
-
-### ✅ Sistema de Usuarios
-- **CRUD completo**: Crear, leer, actualizar y eliminar usuarios
-- **Tipos de usuario**: Admin, Clientes, Médicos, Pacientes
-- **Estados**: Activo/Inactivo con toggle dinámico
-- **Filtros avanzados**: Por tipo, estado, institución y búsqueda
-- **Paginación**: Sistema completo con navegación
-- **Validaciones**: Cliente y servidor con feedback visual
-- **Interfaz moderna**: Diseño coherente y responsive
-
-### ✅ Sistema de Instituciones
-- **CRUD completo**: Gestión completa de instituciones médicas
-- **Información fiscal**: RFC, razón social y datos de facturación
-- **Dirección completa**: Datos detallados de ubicación
-- **PIN de seguridad**: Generación y regeneración automática
-- **Filtros avanzados**: Por ciudad, estado geográfico y búsqueda
-- **Vista detallada**: Con pestañas para información, usuarios, estudios y seguridad
-- **Estadísticas**: Conteo de usuarios, médicos, estudios por institución
-- **API endpoints**: Para selects y autocomplete
-- **Validaciones**: RFC, código postal y datos únicos
-
-### ✅ Sistema de Mensajerías
-- **CRUD completo**: Gestión simple de empresas de mensajería
-- **Estados**: Activo/Inactivo para control de disponibilidad
-- **Estadísticas**: Conteo de guías normales, especializadas y de retorno
-- **Interfaz minimalista**: Diseño simple para módulo secundario
-- **Relación con estudios**: Integración con sistema de envíos
-- **Validaciones**: Nombres únicos y estados válidos
-- **API endpoints**: Para uso en formularios de estudios
-
-### ✅ Sistema de Autenticación
-- **Login/Logout**: Sesiones seguras
-- **Registro de usuarios**: Con validación de email
-- **Recuperación de contraseña**: Sistema completo
-- **Verificación de email**: Proceso de confirmación
-- **Middleware de protección**: Rutas protegidas
-
-### ✅ Arquitectura TypeScript
-- **Sistema de tipos**: Completamente tipado
-- **Organización modular**: Tipos separados por entidad
-- **Interfaces props**: Para todos los componentes
-- **Validación de compilación**: Sin errores de tipo
-- **Compatibilidad Inertia**: PageProps correctamente tipadas
-
-### ✅ Sistema de Iconos
-- **Lucide React**: Iconografía moderna y escalable
-- **Consistencia**: Iconos coherentes en todo el sistema
-- **Accesibilidad**: Iconos con significado semántico
-
-## 🚧 Pendiente de Implementación
-
-### Próximos Módulos
-- 🧪 **CRUD de Estudios** (módulo principal)
-- 👥 **CRUD de Clientes**
-- 📎 **Gestión de Adjuntos**
-- 📧 **Sistema de Correos**
-- 🔢 **Gestión de Conteo**
-
-### Funcionalidades Avanzadas
-- 📊 **Dashboard con métricas**
-- 📈 **Reportes y estadísticas**
-- 🔍 **Búsqueda avanzada**
-- 📱 **Optimización mobile**
-- 🔐 **Permisos granulares**
-- 📄 **Exportación de datos**
-
-## 🛠️ Instalación y Configuración
-
-### Requisitos Previos
-- PHP 8.2+
-- Node.js 18+
-- MySQL/MariaDB
-- Composer
-- NPM/Yarn
-
-### Instalación
-
-1. **Clonar repositorio**
 ```bash
-git clone [repository-url]
-cd diahmoes
-```
-
-2. **Instalar dependencias PHP**
-```bash
+# Backend
 composer install
-```
-
-3. **Instalar dependencias Node.js**
-```bash
-npm install
-```
-
-4. **Configurar entorno**
-```bash
 cp .env.example .env
 php artisan key:generate
-```
-
-5. **Configurar base de datos**
-```bash
-# Editar .env con credenciales de BD
 php artisan migrate
-```
 
-6. **Compilar assets**
-```bash
+# Frontend  
+npm install
 npm run dev
-```
 
-7. **Iniciar servidor**
-```bash
+# Servidor
 php artisan serve
 ```
 
-## 🎨 Guía de Diseño
+## Características Técnicas
 
-### Paleta de Colores
-- **Primario**: `#189BAF` (Azul verdoso)
-- **Secundario**: `#D68B41` (Naranja dorado)
-- **Variante oscura**: `#157a8c`
-- **Estados**: Verde (activo), Rojo (inactivo)
-
-### Componentes Base
-- **Cards**: `bg-white rounded-xl shadow-lg border border-gray-100`
-- **Botones primarios**: `bg-[#189BAF] hover:bg-[#157a8c]`
-- **Gradientes**: `from-[#189BAF] to-[#157a8c]`
-
-### Filosofía de Diseño
-- **Módulos principales**: Diseño rico con múltiples funcionalidades (Usuarios, Instituciones, Estudios)
-- **Módulos secundarios**: Diseño minimalista y funcional (Mensajerías, Adjuntos)
-- **Consistencia**: Iconografía Lucide React en todo el sistema
+- **Validaciones**: Cliente y servidor con feedback visual
+- **Paginación**: Sistema completo con filtros preservados
+- **API Endpoints**: Para selects y autocomplete
+- **TypeScript**: Tipado completo sin errores
 - **Responsive**: Diseño adaptable a todos los dispositivos
+- **Iconografía**: Lucide React consistente
+- **Estados**: Toggle dinámico en interfaces
 
-## 📈 Roadmap
+## Próximos Pasos
 
-### Fase 1 (Completada) ✅
-- [x] Configuración del stack tecnológico
-- [x] Sistema de autenticación
-- [x] CRUD de usuarios completo
-- [x] CRUD de instituciones completo
-- [x] CRUD de mensajerías completo
-- [x] Arquitectura TypeScript
-- [x] Sistema de iconos Lucide React
-
-### Fase 2 (En desarrollo) 🚧
-- [ ] CRUD de estudios (módulo principal)
-- [ ] CRUD de clientes
-- [ ] Dashboard con métricas
-- [ ] Sistema de permisos
-
-### Fase 3 (Planificado) 📋
-- [ ] Gestión de archivos adjuntos
-- [ ] Sistema de notificaciones
-- [ ] Reportes avanzados
-- [ ] API REST completa
-
-### Fase 4 (Futuro) 🔮
-- [ ] Aplicación móvil
-- [ ] Integración con LIMS
-- [ ] Machine Learning para diagnósticos
-- [ ] Portal de pacientes
-
-## 🔗 Estructura de Rutas
-
-### Usuarios
-- `GET /usuarios` - Lista de usuarios
-- `GET /usuarios/create` - Crear usuario
-- `GET /usuarios/{usuario}/edit` - Editar usuario
-- `PATCH /usuarios/{usuario}/toggle-estado` - Cambiar estado
-
-### Instituciones
-- `GET /instituciones` - Lista de instituciones
-- `GET /instituciones/create` - Crear institución
-- `GET /instituciones/{institucion}/edit` - Editar institución
-- `PATCH /instituciones/{institucion}/regenerar-pin` - Regenerar PIN
-
-### Mensajerías
-- `GET /mensajerias` - Lista de mensajerías
-- `GET /mensajerias/create` - Crear mensajería
-- `GET /mensajerias/{mensajeria}/edit` - Editar mensajería
-- `PATCH /mensajerias/{mensajeria}/toggle-estado` - Cambiar estado
-
-### API Endpoints
-- `GET /api/usuarios` - Usuarios para selects
-- `GET /api/instituciones` - Instituciones para selects
-- `GET /api/mensajerias` - Mensajerías para selects
-- `GET /api/mensajerias/activas` - Solo mensajerías activas
-
-## 🗂️ Características Técnicas
-
-### Modelos Laravel
-- **Usuario.php**: Modelo principal con relaciones, scopes y accessors
-- **Institucion.php**: Gestión completa con PIN, validaciones RFC/CP
-- **Mensajeria.php**: Modelo simple con estadísticas de guías
-
-### Controladores
-- **UsuarioController**: CRUD completo con filtros avanzados
-- **InstitucionController**: CRUD con regeneración de PIN y estadísticas
-- **MensajeriaController**: CRUD simple con toggle de estado
-
-### Componentes React
-- **Diseño modular**: Componentes reutilizables
-- **TypeScript**: Tipado completo y seguro
-- **Lucide React**: Iconografía moderna
-- **Responsive**: Adaptable a todos los dispositivos
-
-### Características de Seguridad
-- **Validaciones**: Cliente y servidor
-- **Tokens CSRF**: Protección contra ataques
-- **PIN de seguridad**: Para instituciones
-- **Estados de usuario**: Control de acceso
-
-## 📊 Estadísticas del Proyecto
-
-### Líneas de Código (Estimado)
-- **Backend PHP**: ~8,500 líneas
-- **Frontend React/TypeScript**: ~12,000 líneas
-- **Configuración**: ~500 líneas
-- **Total**: ~21,000 líneas
-
-### Archivos Implementados
-- **Modelos**: 3/6 (50%)
-- **Controladores**: 3/6 (50%)
-- **Vistas React**: 12/18 (67%)
-- **Tipos TypeScript**: 3/6 (50%)
-- **Rutas**: 100% implementadas
-
-### Módulos Completados
-- ✅ **Usuarios**: 100% - CRUD completo con funcionalidades avanzadas
-- ✅ **Instituciones**: 100% - CRUD completo con gestión de PIN y estadísticas
-- ✅ **Mensajerías**: 100% - CRUD simple y funcional
-- 🚧 **Estudios**: 0% - Pendiente (módulo principal)
-- 🚧 **Clientes**: 0% - Pendiente
-- 🚧 **Adjuntos**: 0% - Pendiente
-
-## 🎯 Próximos Pasos
-
-### Inmediatos
-1. **Modelo Adjunto** - Gestión de archivos
-2. **Modelo Conteo** - Sistema de numeración
-3. **CRUD de Estudios** - Módulo principal del sistema
-
-### Mediano Plazo
-1. **Dashboard principal** - Métricas y estadísticas
-2. **Sistema de reportes** - Exportación de datos
-3. **Optimización mobile** - Mejoras responsive
-
-### Largo Plazo
-1. **API REST completa** - Para integraciones
-2. **Sistema de notificaciones** - Alertas y mensajes
-3. **Permisos granulares** - Control de acceso detallado
-
-## 🏆 Logros Destacados
-
-### Arquitectura Sólida
-- ✅ **Stack moderno**: Laravel 12 + React 19 + TypeScript 5.7
-- ✅ **Inertia.js**: SPA sin complejidad de API
-- ✅ **Tailwind CSS**: Diseño utility-first
-- ✅ **Componentes shadcn/ui**: Base sólida y accesible
-
-### Calidad de Código
-- ✅ **TypeScript completo**: Sin errores de compilación
-- ✅ **Validaciones robustas**: Cliente y servidor
-- ✅ **Patrones consistentes**: MVC y componentización
-- ✅ **Documentación**: README detallado y comentarios
-
-### Experiencia de Usuario
-- ✅ **Diseño modular**: Cada módulo con su nivel de complejidad apropiado
-- ✅ **Feedback visual**: Estados de carga, errores y éxito
-- ✅ **Navegación intuitiva**: Breadcrumbs y enlaces coherentes
-- ✅ **Responsive design**: Funcional en todos los dispositivos
-
-### Funcionalidades Avanzadas
-- ✅ **Filtros dinámicos**: Búsqueda y filtrado en tiempo real
-- ✅ **Paginación**: Sistema completo con navegación
-- ✅ **Toggle de estados**: Activar/desactivar con un click
-- ✅ **Validaciones únicas**: RFC, correos y nombres únicos
-- ✅ **API endpoints**: Para integración entre módulos
-
-## 🔧 Herramientas de Desarrollo
-
-### Backend
-- **Laravel Artisan**: Comandos para desarrollo
-- **Pest**: Framework de testing
-- **PHP-CS-Fixer**: Formato de código
-- **Composer**: Gestión de dependencias
-
-### Frontend
-- **Vite**: Build tool ultrarrápido
-- **ESLint**: Linting de JavaScript/TypeScript
-- **Prettier**: Formato de código
-- **TypeScript**: Verificación de tipos
-
-### Base de Datos
-- **MySQL/MariaDB**: Base de datos principal
-- **Migraciones Laravel**: Control de versiones de BD
-- **Seeders**: Datos de prueba
-- **Eloquent ORM**: Mapeo objeto-relacional
-
-## 🚀 Rendimiento y Optimización
-
-### Frontend
-- **Vite HMR**: Hot Module Replacement para desarrollo rápido
-- **Tree shaking**: Eliminación de código no utilizado
-- **Code splitting**: Carga bajo demanda
-- **Optimización de imágenes**: Formatos modernos
-
-### Backend
-- **Eloquent ORM**: Consultas optimizadas
-- **Eager loading**: Prevención de N+1 queries
-- **Caching**: Sistema de caché de Laravel
-- **Middleware**: Procesamiento eficiente de requests
-
-### Base de Datos
-- **Índices**: En campos de búsqueda frecuente
-- **Relaciones optimizadas**: Foreign keys apropiadas
-- **Timestamps**: Control de auditoría
-- **Validaciones**: A nivel de modelo y BD
-
----
-
-**Desarrollado con ❤️ para DIAHMOES**
-
-*Este sistema está diseñado para cumplir con los más altos estándares de calidad y seguridad en el manejo de información médica sensible.*
-
-## 📝 Notas de Versión
-
-### v1.0.0 (Actual)
-- ✅ Sistema base completo
-- ✅ Autenticación y autorización
-- ✅ Módulo de Usuarios completo
-- ✅ Módulo de Instituciones completo
-- ✅ Módulo de Mensajerías completo
-- ✅ Arquitectura TypeScript
-- ✅ Sistema de iconos Lucide React
-- ✅ Diseño responsive
-
-### v1.1.0 (Próxima)
-- 🚧 Módulo de Estudios
-- 🚧 Dashboard principal
-- 🚧 Sistema de reportes básicos
-- 🚧 Optimizaciones de rendimiento
+1. Implementar modelo y CRUD de Estudios
+2. Dashboard principal con métricas
+3. Sistema de reportes y exportación
+4. Optimización mobile avanzada
