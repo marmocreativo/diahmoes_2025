@@ -73,6 +73,36 @@ export interface BaseFilters {
     page?: number;
 }
 
+// Dashboard types
+export interface DashboardStats {
+    estudios_pendientes: number;
+    estudios_completados: number;
+    porcentaje_cambio_completados: number;
+    muestras_procesando: number;
+    instituciones_activas: number;
+}
+
+export interface RecentStudy {
+    id: string;
+    paciente: string;
+    tipo: string;
+    estado: string;
+    fecha: string;
+}
+
+export interface DashboardNotification {
+    type: 'warning' | 'info';
+    title: string;
+    message: string;
+    count: number;
+}
+
+export interface DashboardProps {
+    stats: DashboardStats;
+    recentStudies: RecentStudy[];
+    notifications: DashboardNotification[];
+}
+
 export * from './usuarios';
 export * from './instituciones';
 export * from './clientes';

@@ -1,6 +1,6 @@
 // types/estudios.ts - Tipos específicos de estudios
 
-import { BaseFilters, PaginatedData } from './index';
+import { BaseFilters, PaginatedData, SharedData } from './index';
 
 export interface Estudio {
     ID: number;
@@ -180,7 +180,7 @@ export interface EstudioFilters extends BaseFilters {
 }
 
 // Props para componentes de estudios
-export interface EstudioIndexProps {
+export interface EstudioIndexProps extends SharedData {
     estudios: PaginatedData<Estudio>;
     filters: EstudioFilters;
     medicos: Array<{
@@ -196,13 +196,16 @@ export interface EstudioIndexProps {
         ID_CLIENTE: number;
         CLIENTE_NOMBRE: string;
     }>;
+    estados: Record<string, string>;
+    tiposEstudio: Record<string, string>;
 }
 
-export interface EstudioCreateProps {
+export interface EstudioCreateProps extends SharedData {
     medicos: Array<{
         ID_USUARIO: number;
         USUARIO_NOMBRE: string;
         USUARIO_APELLIDOS: string;
+        USUARIO_CORREO: string;
     }>;
     instituciones: Array<{
         ID_INSTITUCION: number;
@@ -217,6 +220,82 @@ export interface EstudioCreateProps {
         USUARIO_NOMBRE: string;
         USUARIO_APELLIDOS: string;
     }>;
+    mensajerias: Array<{
+        ID: number;
+        NOMBRE: string;
+    }>;
+    tiposMuestra: Record<string, string>;
+    tiposEstudio: Record<string, string>;
+    generos: Record<string, string>;
+    tiposEnvio: Record<string, string>;
+    datosAutomaticos: {
+        IdAleatorio: string;
+        Prefijo: string;
+        Anio: string;
+        Seriado: string;
+        SiguienteNumero: string;
+        ClaveInterna: string;
+    };
+}
+
+// Formulario de datos para crear estudio (legacy form)
+export interface EstudioFormData {
+    // Campos hidden
+    IdAleatorio: string;
+    Seriado: string;
+    Anio: string;
+    SiguienteNumero: string;
+    Prefijo: string;
+    
+    // Clave y Fecha
+    ClaveInterna: string;
+    FolioMerck: string;
+    FechaSolicitudRecoleccion: string;
+    HoraSolicitudRecoleccion: string;
+    
+    // Clientes
+    IdCliente: number;
+    NombreCliente?: string;
+    CorreoCliente?: string;
+    EnviarCorreoCliente?: boolean;
+    
+    // Médico
+    IdMedico: number;
+    NombreUsuario?: string;
+    ApellidosUsuario?: string;
+    CorreoUsuario?: string;
+    TelefonoUsuario?: string;
+    UsuarioTipo?: string;
+    PassUsuario?: string;
+    
+    // Institución
+    IdInstitucion: number;
+    NombreInstitucion?: string;
+    CorreoInstitucion?: string;
+    TelefonoInstitucion?: string;
+    
+    // Dirección de Recolección
+    NoAplica?: boolean;
+    MuestraGuiaMensajeria?: string;
+    MuestraGuia?: string;
+    MuestraDirigirse?: string;
+    MuestraPreguntar?: string;
+    MuestraDireccion?: string;
+    MuestraNumeroExt?: string;
+    MuestraNumeroInt?: string;
+    MuestraColonia?: string;
+    MuestraMunicipio?: string;
+    MuestraCiudad?: string;
+    MuestraEstado?: string;
+    MuestraEnvioTipo?: string;
+    MuestraCodigoPostal?: string;
+    MuestraHorarios?: string;
+    
+    // Control de flujo
+    Guardar?: string;
+    
+    // Índice signature requerido por Inertia FormDataType
+    [key: string]: string | number | boolean | undefined;
 }
 
 export interface EstudioEditProps extends EstudioCreateProps {

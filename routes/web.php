@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\ClienteController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EstudioController;
 use App\Http\Controllers\InstitucionController;
 use App\Http\Controllers\MensajeriaController;
 use App\Http\Controllers\UsuarioController;
@@ -32,6 +34,10 @@ Route::get('/', function () {
 Route::redirect('/home', '/dashboard');
 Route::redirect('/inicio', '/dashboard');
 
+// Ruta pública para generar PDF de estudios (sin autenticación)
+Route::get('/publicos/estudio', [EstudioController::class, 'generatePublicPdf'])
+    ->name('estudios.pdf.public');
+
 /*
 |--------------------------------------------------------------------------
 | Rutas Protegidas (Requieren Autenticación)
@@ -41,9 +47,7 @@ Route::redirect('/inicio', '/dashboard');
 Route::middleware(['auth', 'verified'])->group(function () {
     
     // Dashboard
-    Route::get('/dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
     /*
     |--------------------------------------------------------------------------
@@ -146,6 +150,47 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Estadísticas de clientes
     Route::get('clientes-estadisticas', [ClienteController::class, 'estadisticas'])
         ->name('clientes.estadisticas');
+    
+    /*
+    |--------------------------------------------------------------------------
+    | CRUD de Estudios
+    |--------------------------------------------------------------------------
+    */
+    
+    // CRUD básico de estudios
+    Route::resource('estudios', EstudioController::class)
+        ->parameters(['estudios' => 'estudio:ID']);
+    
+    // Rutas especializadas para edición en pasos
+    Route::get('estudios/{estudio:ID}/edit/recoleccion', [EstudioController::class, 'editRecoleccion'])
+        ->name('estudios.edit.recoleccion');
+    Route::patch('estudios/{estudio:ID}/recoleccion', [EstudioController::class, 'updateRecoleccion'])
+        ->name('estudios.update.recoleccion');
+    
+    Route::get('estudios/{estudio:ID}/edit/recepcion', [EstudioController::class, 'editRecepcion'])
+        ->name('estudios.edit.recepcion');
+    Route::patch('estudios/{estudio:ID}/recepcion', [EstudioController::class, 'updateRecepcion'])
+        ->name('estudios.update.recepcion');
+    
+    Route::get('estudios/{estudio:ID}/edit/laboratorio', [EstudioController::class, 'editLaboratorio'])
+        ->name('estudios.edit.laboratorio');
+    Route::patch('estudios/{estudio:ID}/laboratorio', [EstudioController::class, 'updateLaboratorio'])
+        ->name('estudios.update.laboratorio');
+    
+    Route::get('estudios/{estudio:ID}/edit/informe', [EstudioController::class, 'editInforme'])
+        ->name('estudios.edit.informe');
+    Route::patch('estudios/{estudio:ID}/informe', [EstudioController::class, 'updateInforme'])
+        ->name('estudios.update.informe');
+    
+    // Ruta para generar PDF del estudio
+    Route::get('estudios/{estudio:ID}/pdf', [EstudioController::class, 'generatePdf'])
+        ->name('estudios.pdf');
+    
+    // API para manejar correos de copia
+    Route::post('api/estudios/{estudio:ID}/correos-copia', [EstudioController::class, 'storeCorreoCopia'])
+        ->name('api.estudios.correos-copia.store');
+    Route::delete('api/estudios/{estudio:ID}/correos-copia/{correoId}', [EstudioController::class, 'destroyCorreoCopia'])
+        ->name('api.estudios.correos-copia.destroy');
     
     /*
     |--------------------------------------------------------------------------

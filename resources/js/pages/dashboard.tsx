@@ -1,5 +1,5 @@
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem, type DashboardProps, type DashboardNotification } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -19,22 +19,12 @@ interface User {
 }
 
 export default function Dashboard() {
-    const { auth } = usePage<{ auth: { user: User }; [key: string]: any }>().props;
-
-    // Datos simulados - más adelante conectarás con datos reales
-    const stats = {
-        estudios_pendientes: 24,
-        estudios_completados: 156,
-        muestras_procesando: 8,
-        instituciones_activas: 12
-    };
-
-    const recentStudies = [
-        { id: 'DH-2025-001', paciente: 'A.M.R.', tipo: 'KRAS', estado: 'En Proceso', fecha: '2025-01-13' },
-        { id: 'DH-2025-002', paciente: 'L.G.H.', tipo: 'BRAF', estado: 'Completado', fecha: '2025-01-12' },
-        { id: 'DH-2025-003', paciente: 'C.R.M.', tipo: 'NRAS', estado: 'Pendiente', fecha: '2025-01-12' },
-        { id: 'DH-2025-004', paciente: 'M.T.V.', tipo: 'KRAS', estado: 'En Proceso', fecha: '2025-01-11' },
-    ];
+    const { auth, stats, recentStudies, notifications } = usePage<{ 
+        auth: { user: User }; 
+        stats: DashboardProps['stats'];
+        recentStudies: DashboardProps['recentStudies'];
+        notifications: DashboardProps['notifications'];
+    }>().props;
 
     const getStatusColor = (estado: string) => {
         switch (estado) {
@@ -107,7 +97,9 @@ export default function Dashboard() {
                             </div>
                         </div>
                         <div className="mt-4">
-                            <span className="text-sm text-green-600">↗ +12% este mes</span>
+                            <span className={`text-sm ${stats.porcentaje_cambio_completados >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {stats.porcentaje_cambio_completados >= 0 ? '↗' : '↘'} {Math.abs(stats.porcentaje_cambio_completados)}% este mes
+                            </span>
                         </div>
                     </div>
 
@@ -230,29 +222,48 @@ export default function Dashboard() {
                         <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
                             <h3 className="text-lg font-bold text-gray-800 mb-4">Notificaciones</h3>
                             <div className="space-y-3">
-                                <div className="p-3 rounded-lg bg-[#D68B41]/10 border border-[#D68B41]/20">
-                                    <div className="flex items-start">
-                                        <svg className="h-4 w-4 text-[#D68B41] mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                                        </svg>
-                                        <div>
-                                            <p className="text-sm font-medium text-[#D68B41]">Muestras por vencer</p>
-                                            <p className="text-xs text-[#D68B41]/80">3 muestras requieren procesamiento urgente</p>
+                            {notifications.length > 0 ? (
+                                notifications.map((notification: DashboardNotification, index: number) => (
+                                    <div key={index} className={`p-3 rounded-lg ${
+                                        notification.type === 'warning' 
+                                            ? 'bg-[#D68B41]/10 border border-[#D68B41]/20' 
+                                            : 'bg-[#189BAF]/10 border border-[#189BAF]/20'
+                                    }`}>
+                                        <div className="flex items-start">
+                                            <svg className={`h-4 w-4 mt-0.5 mr-2 flex-shrink-0 ${
+                                                notification.type === 'warning' ? 'text-[#D68B41]' : 'text-[#189BAF]'
+                                            }`} fill="currentColor" viewBox="0 0 20 20">
+                                                {notification.type === 'warning' ? (
+                                                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                                ) : (
+                                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                                )}
+                                            </svg>
+                                            <div>
+                                                <p className={`text-sm font-medium ${
+                                                    notification.type === 'warning' ? 'text-[#D68B41]' : 'text-[#189BAF]'
+                                                }`}>
+                                                    {notification.title}
+                                                </p>
+                                                <p className={`text-xs ${
+                                                    notification.type === 'warning' ? 'text-[#D68B41]/80' : 'text-[#189BAF]/80'
+                                                }`}>
+                                                    {notification.message}
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                
-                                <div className="p-3 rounded-lg bg-[#189BAF]/10 border border-[#189BAF]/20">
-                                    <div className="flex items-start">
-                                        <svg className="h-4 w-4 text-[#189BAF] mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                ))
+                            ) : (
+                                <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
+                                    <div className="flex items-center justify-center">
+                                        <svg className="h-4 w-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
-                                        <div>
-                                            <p className="text-sm font-medium text-[#189BAF]">Resultados listos</p>
-                                            <p className="text-xs text-[#189BAF]/80">5 estudios completados pendientes de envío</p>
-                                        </div>
+                                        <p className="text-sm text-gray-500">No hay notificaciones urgentes</p>
                                     </div>
                                 </div>
+                            )}
                             </div>
                         </div>
                     </div>

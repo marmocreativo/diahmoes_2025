@@ -190,6 +190,14 @@ class Estudio extends Model
         return $this->hasMany(Adjunto::class, 'MUESTRA_CLAVE', 'MUESTRA_CLAVE');
     }
 
+    /**
+     * Relación con correos de copia
+     */
+    public function correosCopia(): HasMany
+    {
+        return $this->hasMany(CorreoCopia::class, 'ID_ESTUDIO', 'ID');
+    }
+
     // Scopes
     public function scopePendientes($query)
     {

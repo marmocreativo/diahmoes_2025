@@ -50,30 +50,6 @@ class CorreoCopia extends Model
     /**
      * Accessors
      */
-    public function getIdUsuarioAttribute()
-    {
-        return $this->ID_USUARIO;
-    }
-
-    public function getIdEstudioAttribute()
-    {
-        return $this->ID_ESTUDIO;
-    }
-
-    public function getNombreAttribute()
-    {
-        return $this->NOMBRE;
-    }
-
-    public function getCorreoAttribute()
-    {
-        return $this->CORREO;
-    }
-
-    public function getEnviarAttribute()
-    {
-        return $this->ENVIAR;
-    }
 
     public function getEnviarBooleanAttribute()
     {
