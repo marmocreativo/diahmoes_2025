@@ -3,6 +3,7 @@ import { type BreadcrumbItem } from '@/types';
 import { type Institucion, type InstitucionIndexProps } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import { Building, Plus, Users, MapPin, ChevronsUpDown, ArrowUp, ArrowDown, Eye, Edit, RotateCw, FileText } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -95,21 +96,11 @@ export default function Index() {
 
     const getSortIcon = (field: string) => {
         if (filters?.sort !== field) {
-            return (
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
-                </svg>
-            );
+            return <ChevronsUpDown className="h-4 w-4" />;
         }
-        return filters.direction === 'asc' ? (
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
-            </svg>
-        ) : (
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" />
-            </svg>
-        );
+        return filters.direction === 'asc' ? 
+            <ArrowUp className="h-4 w-4" /> : 
+            <ArrowDown className="h-4 w-4" />;
     };
 
     return (
@@ -129,18 +120,14 @@ export default function Index() {
                         <div className="flex items-center space-x-4">
                             <div className="hidden md:block">
                                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/20">
-                                    <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                    </svg>
+                                    <Building className="h-8 w-8 text-white" />
                                 </div>
                             </div>
                             <Link 
                                 href="/instituciones/create"
                                 className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-white font-medium transition-colors flex items-center space-x-2"
                             >
-                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                </svg>
+                                <Plus className="h-5 w-5" />
                                 <span>Nueva Institución</span>
                             </Link>
                         </div>
@@ -156,9 +143,7 @@ export default function Index() {
                                 <p className="text-3xl font-bold text-[#189BAF]">{stats.total}</p>
                             </div>
                             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#189BAF]/10">
-                                <svg className="h-6 w-6 text-[#189BAF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                </svg>
+                                <Building className="h-6 w-6 text-[#189BAF]" />
                             </div>
                         </div>
                         <div className="mt-4">

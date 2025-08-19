@@ -9,6 +9,8 @@ use App\Models\Cliente;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\EstudioReporte;
 
 class EstudioController extends Controller
 {
@@ -364,21 +366,41 @@ class EstudioController extends Controller
      */
     public function editRecoleccion(Estudio $estudio)
     {
-        $estudio->load(['medico', 'paciente', 'institucion', 'cliente']);
+        // Cargar solo campos necesarios del estudio y relaciones mínimas
+        $estudio = Estudio::select([
+            'ID', 'CLAVE_INTERNA', 'FECHA_SOLICITUD_RECOLECCION', 'ID_MEDICO', 'ID_PACIENTE', 
+            'ID_INSTITUCION', 'ID_CLIENTE', 'MUESTRA_TIPO', 'MUESTRA_TIPO_ESTUDIO', 'MUESTRA_INICIALES',
+            'MUESTRA_GENERO', 'MUESTRA_EDAD', 'MUESTRA_SITIO_LESION', 'MUESTRA_DIAGNOSTICO_CLINICO',
+            'MUESTRA_DIRECCION', 'MUESTRA_NUMERO_EXT', 'MUESTRA_NUMERO_INT', 'MUESTRA_COLONIA',
+            'MUESTRA_MUNICIPIO', 'MUESTRA_CIUDAD', 'MUESTRA_ESTADO', 'MUESTRA_CODIGO_POSTAL',
+            'MUESTRA_HORARIOS', 'ESTUDIO_COMENTARIOS'
+        ])->with([
+            'medico:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
+            'paciente:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
+            'institucion:ID_INSTITUCION,INSTITUCION_NOMBRE',
+            'cliente:ID_CLIENTE,CLIENTE_NOMBRE'
+        ])->findOrFail($estudio->ID);
         
-        // Datos para selects
+        // Datos para selects (solo campos necesarios)
         $medicos = Usuario::where('USUARIO_TIPO', 'medico')
             ->where('USUARIO_ESTADO', 'activo')
             ->select('ID_USUARIO', 'USUARIO_NOMBRE', 'USUARIO_APELLIDOS')
+            ->orderBy('USUARIO_NOMBRE')
             ->get();
             
         $pacientes = Usuario::where('USUARIO_TIPO', 'paciente')
             ->where('USUARIO_ESTADO', 'activo')
             ->select('ID_USUARIO', 'USUARIO_NOMBRE', 'USUARIO_APELLIDOS')
+            ->orderBy('USUARIO_NOMBRE')
             ->get();
             
-        $instituciones = Institucion::select('ID_INSTITUCION', 'INSTITUCION_NOMBRE')->get();
-        $clientes = Cliente::select('ID_CLIENTE', 'CLIENTE_NOMBRE')->get();
+        $instituciones = Institucion::select('ID_INSTITUCION', 'INSTITUCION_NOMBRE')
+            ->orderBy('INSTITUCION_NOMBRE')
+            ->get();
+            
+        $clientes = Cliente::select('ID_CLIENTE', 'CLIENTE_NOMBRE')
+            ->orderBy('CLIENTE_NOMBRE')
+            ->get();
 
         return Inertia::render('estudios/edit/recoleccion', [
             'estudio' => $estudio,
@@ -397,9 +419,22 @@ class EstudioController extends Controller
      */
     public function editRecepcion(Estudio $estudio)
     {
-        $estudio->load(['medico', 'paciente', 'institucion', 'cliente']);
+        // Cargar solo campos necesarios para recepción
+        $estudio = Estudio::select([
+            'ID', 'CLAVE_INTERNA', 'FECHA_RECEPCION', 'FECHA_ENVIO_LABORATORIO', 'ID_PACIENTE',
+            'MUESTRA_FOLIO_SOBRE', 'MUESTRA_FOLIO_KIT_BL', 'MUESTRA_OTROS_ROTULOS', 'MUESTRA_BLOQUES',
+            'MUESTRA_LAMINILLAS', 'MUESTRA_ENVIO_TIPO', 'MUESTRA_ENVIO', 'MUESTRA_GUIA', 'MUESTRA_GUIA_MENSAJERIA',
+            'MUESTRA_GUIA_ESPECIALIZADA', 'MUESTRA_GUIA_ESPECIALIZADA_MENSAJERIA', 'MUESTRA_LIQ_CONDICION',
+            'MUESTRA_LIQ_CONDICION_PRESENCIA', 'MUESTRA_LIQ_CANTIDAD_ADECUADA', 'MUESTRA_LIQ_CANTIDAD_ML',
+            'MUESTRA_LIQ_HEMOLISIS', 'MUESTRA_LIQ_AMP_INDICACION', 'MUESTRA_LIQ_AMP_RAZON', 'ESTUDIO_COMENTARIOS'
+        ])->with([
+            'medico:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
+            'paciente:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
+            'institucion:ID_INSTITUCION,INSTITUCION_NOMBRE',
+            'cliente:ID_CLIENTE,CLIENTE_NOMBRE'
+        ])->findOrFail($estudio->ID);
 
-        // Obtener pacientes para el formulario
+        // Obtener pacientes para el formulario (solo campos necesarios)
         $pacientes = Usuario::where('USUARIO_TIPO', 'paciente')
             ->where('USUARIO_ESTADO', 'activo')
             ->select('ID_USUARIO', 'USUARIO_NOMBRE', 'USUARIO_APELLIDOS', 'USUARIO_CORREO', 'USUARIO_TELEFONO')
@@ -418,7 +453,18 @@ class EstudioController extends Controller
      */
     public function editLaboratorio(Estudio $estudio)
     {
-        $estudio->load(['medico', 'paciente', 'institucion', 'cliente']);
+        // Cargar solo campos necesarios para laboratorio
+        $estudio = Estudio::select([
+            'ID', 'CLAVE_INTERNA', 'FECHA_RECEPCION_LABORATORIO', 'FECHA_ENTREGA_PROCESAMIENTO',
+            'FECHA_OBTENCION_RESULTADOS', 'FECHA_RETORNO_MATERIAL', 'FECHA_RECEPCION_RESULTADOS_FISICOS',
+            'R_METODO_PROCESO', 'R_RAZON_ADECUADO_PROCESAMIENTO', 'R_INTERPRETACION', 'R_COMPLETOS',
+            'MUESTRA_GUIA_RETORNO', 'MUESTRA_GUIA_RETORNO_MENSAJERIA', 'ESTUDIO_COMENTARIOS'
+        ])->with([
+            'medico:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
+            'paciente:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
+            'institucion:ID_INSTITUCION,INSTITUCION_NOMBRE',
+            'cliente:ID_CLIENTE,CLIENTE_NOMBRE'
+        ])->findOrFail($estudio->ID);
 
         return Inertia::render('estudios/edit/laboratorio', [
             'estudio' => $estudio,
@@ -430,9 +476,53 @@ class EstudioController extends Controller
      */
     public function editInforme(Estudio $estudio)
     {
-        $estudio->load(['medico', 'paciente', 'institucion', 'cliente', 'correosCopia']);
+        // Cargar solo campos necesarios para informe
+        $estudio = Estudio::select([
+            'ID', 'CLAVE_INTERNA', 'FECHA_INFORME', 'FECHA_RESULTADOS_CORREO', 'ESTUDIO_FACTURADO',
+            'ESTUDIO_ESTADO', 'ESTUDIO_COMENTARIOS', 'R_BENEFICIARIO', 'ID_MEDICO'
+        ])->with([
+            'medico:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS,USUARIO_CORREO,USUARIO_TELEFONO',
+            'paciente:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
+            'institucion:ID_INSTITUCION,INSTITUCION_NOMBRE',
+            'cliente:ID_CLIENTE,CLIENTE_NOMBRE',
+            'correosCopia:ID,ID_ESTUDIO,ID_USUARIO,NOMBRE,CORREO,ENVIAR'
+        ])->findOrFail($estudio->ID);
         
-        $medicos = Usuario::where('USUARIO_TIPO', 'medico')->get();
+        // Si no hay correos_copias para este estudio, buscar los correos_copias que tengan el mismo ID_USUARIO (médico)
+        if ($estudio->correosCopia->isEmpty() && $estudio->ID_MEDICO) {
+            // Buscar correos_copias que tengan el mismo ID_USUARIO que el médico del estudio
+            $correosDelMedico = \App\Models\CorreoCopia::select('ID_USUARIO', 'NOMBRE', 'CORREO', 'ENVIAR')
+                ->where('ID_USUARIO', $estudio->ID_MEDICO)
+                ->get();
+            
+            // Si encontramos correos del médico, copiarlos para este estudio
+            if ($correosDelMedico->isNotEmpty()) {
+                foreach ($correosDelMedico as $correoOriginal) {
+                    try {
+                        \App\Models\CorreoCopia::create([
+                            'ID_ESTUDIO' => $estudio->ID,
+                            'ID_USUARIO' => $correoOriginal->ID_USUARIO, // Mantener la referencia al usuario original
+                            'NOMBRE' => $correoOriginal->NOMBRE,
+                            'CORREO' => $correoOriginal->CORREO,
+                            'ENVIAR' => $correoOriginal->ENVIAR,
+                        ]);
+                    } catch (\Exception $e) {
+                        // Continuar con el siguiente si hay error (correo duplicado, etc.)
+                        continue;
+                    }
+                }
+                
+                // Recargar la relación para obtener los correos recién copiados
+                $estudio->load('correosCopia:ID,ID_ESTUDIO,ID_USUARIO,NOMBRE,CORREO,ENVIAR');
+            }
+        }
+        
+        // Solo campos necesarios para el dropdown de médicos
+        $medicos = Usuario::where('USUARIO_TIPO', 'medico')
+            ->where('USUARIO_ESTADO', 'activo')
+            ->select('ID_USUARIO', 'USUARIO_NOMBRE', 'USUARIO_APELLIDOS', 'USUARIO_CORREO')
+            ->orderBy('USUARIO_NOMBRE')
+            ->get();
 
         return Inertia::render('estudios/edit/informe', [
             'estudio' => $estudio,
@@ -502,16 +592,65 @@ class EstudioController extends Controller
     public function updateInforme(Request $request, Estudio $estudio)
     {
         $request->validate([
-            'FECHA_INFORME' => 'nullable|date',
-            // Más validaciones según los campos específicos
+            'FechaInforme' => 'nullable|date',
+            'HoraInforme' => 'nullable',
+            'FechaResultadosCorreo' => 'nullable|date', 
+            'HoraResultadosCorreo' => 'nullable',
+            'EstudioFacturado' => 'nullable|string',
+            'EstudioEstado' => 'nullable|string',
+            'EstudioComentarios' => 'nullable|string',
+            'Beneficiario' => 'nullable|string',
+            'EnviarAdjunto' => 'nullable|boolean',
+            '_sendEmail' => 'nullable|boolean',
+            '_complete' => 'nullable|boolean'
         ]);
 
-        $estudio->update($request->only([
-            'FECHA_INFORME',
-            // Más campos se agregarán según especificación
-        ]));
+        // Combinar fecha y hora de informe
+        if ($request->FechaInforme && $request->HoraInforme) {
+            $fechaInforme = $request->FechaInforme . ' ' . $request->HoraInforme . ':00';
+        } else {
+            $fechaInforme = null;
+        }
 
-        return back()->with('success', 'Información de informe actualizada.');
+        // Combinar fecha y hora de resultados por correo
+        $fechaResultadosCorreo = null;
+        if ($request->_sendEmail && $request->FechaResultadosCorreo && $request->HoraResultadosCorreo) {
+            $fechaResultadosCorreo = $request->FechaResultadosCorreo . ' ' . $request->HoraResultadosCorreo . ':00';
+        }
+
+        // Determinar estado del estudio
+        $estadoEstudio = $request->EstudioEstado ?: $estudio->ESTUDIO_ESTADO;
+        if ($request->_complete) {
+            $estadoEstudio = 'Resultados Enviados';
+        } elseif ($request->_sendEmail) {
+            $estadoEstudio = 'Resultados Completos';
+        }
+
+        // Actualizar el estudio
+        $estudio->update([
+            'FECHA_INFORME' => $fechaInforme,
+            'FECHA_RESULTADOS_CORREO' => $fechaResultadosCorreo,
+            'ESTUDIO_FACTURADO' => $request->EstudioFacturado ?: $estudio->ESTUDIO_FACTURADO,
+            'ESTUDIO_ESTADO' => $estadoEstudio,
+            'ESTUDIO_COMENTARIOS' => $request->EstudioComentarios ?: $estudio->ESTUDIO_COMENTARIOS,
+            'R_BENEFICIARIO' => $request->Beneficiario ?: $estudio->R_BENEFICIARIO,
+        ]);
+
+        // Enviar correos electrónicos si se solicita
+        if ($request->_sendEmail) {
+            $this->enviarCorreosReporte($estudio, $request->EnviarAdjunto ?? false);
+        }
+
+        // Determinar mensaje de éxito
+        if ($request->_complete) {
+            $mensaje = 'Estudio completado exitosamente.';
+        } elseif ($request->_sendEmail) {
+            $mensaje = 'Información guardada y correo enviado exitosamente.';
+        } else {
+            $mensaje = 'Información de informe actualizada.';
+        }
+
+        return back()->with('success', $mensaje);
     }
 
     /**
@@ -623,5 +762,69 @@ class EstudioController extends Controller
         $correoCopia->delete();
 
         return response()->json(['message' => 'Correo eliminado exitosamente']);
+    }
+
+    /**
+     * Enviar correos electrónicos del reporte a todos los destinatarios
+     */
+    private function enviarCorreosReporte(Estudio $estudio, bool $enviarAdjunto = false)
+    {
+        try {
+            // Cargar las relaciones necesarias y correos de copia
+            $estudio->load(['correosCopia', 'medico', 'cliente']);
+            
+            // Crear la instancia del Mailable
+            $mail = new EstudioReporte($estudio, $enviarAdjunto);
+            
+            // Lista de correos a enviar
+            $correosDestino = [];
+            
+            // Agregar correos de copia de la base de datos
+            foreach ($estudio->correosCopia as $correoCopia) {
+                if (!empty($correoCopia->CORREO) && filter_var($correoCopia->CORREO, FILTER_VALIDATE_EMAIL)) {
+                    $correosDestino[] = [
+                        'email' => $correoCopia->CORREO,
+                        'name' => $correoCopia->NOMBRE ?? 'Destinatario'
+                    ];
+                }
+            }
+            
+            // Si no hay correos de copia, enviar al médico y cliente si tienen correo
+            if (empty($correosDestino)) {
+                // Correo del médico
+                if ($estudio->medico && !empty($estudio->medico->USUARIO_CORREO)) {
+                    $correosDestino[] = [
+                        'email' => $estudio->medico->USUARIO_CORREO,
+                        'name' => $estudio->medico->USUARIO_NOMBRE . ' ' . $estudio->medico->USUARIO_APELLIDOS
+                    ];
+                }
+                
+                // Correo del cliente
+                if ($estudio->cliente && !empty($estudio->cliente->CLIENTE_CORREO)) {
+                    $correosDestino[] = [
+                        'email' => $estudio->cliente->CLIENTE_CORREO,
+                        'name' => $estudio->cliente->CLIENTE_NOMBRE
+                    ];
+                }
+            }
+            
+            // Enviar correos
+            $enviadosExitosos = 0;
+            foreach ($correosDestino as $destinatario) {
+                try {
+                    Mail::to($destinatario['email'], $destinatario['name'])->send($mail);
+                    $enviadosExitosos++;
+                } catch (\Exception $e) {
+                    \Log::error('Error enviando correo a ' . $destinatario['email'] . ': ' . $e->getMessage());
+                    continue; // Continuar con el siguiente destinatario
+                }
+            }
+            
+            \Log::info("Correos enviados exitosamente: {$enviadosExitosos} de " . count($correosDestino) . " para estudio {$estudio->CLAVE_INTERNA}");
+            
+        } catch (\Exception $e) {
+            \Log::error('Error general enviando correos para estudio ' . $estudio->CLAVE_INTERNA . ': ' . $e->getMessage());
+            // No lanzar la excepción para que no interrumpa el flujo principal
+        }
     }
 }

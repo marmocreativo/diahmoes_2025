@@ -106,65 +106,15 @@ const navGroups: NavGroup[] = [
                 icon: TestTube,
             },
             {
-                title: 'Nuevo Estudio',
-                href: '/estudios/create',
+                title: 'Nuevo Estudio PRM',
+                href: '/estudios/create?prefijo=PRM',
                 icon: Plus,
             },
             {
-                title: 'En Proceso',
-                href: '/estudios?estado=en_proceso',
-                icon: Clock,
-            },
-            {
-                title: 'Completados',
-                href: '/estudios?estado=completado',
-                icon: Activity,
-            },
-            {
-                title: 'Reportes',
-                href: '/estudios/reportes',
-                icon: FileText,
-            },
-        ]
-    },
-    {
-        title: 'Reportes y Análisis',
-        items: [
-            {
-                title: 'Dashboard Estadísticas',
-                href: '/reportes/dashboard',
-                icon: BarChart3,
-            },
-            {
-                title: 'Reportes por Institución',
-                href: '/reportes/instituciones',
-                icon: Building2,
-            },
-            {
-                title: 'Reportes por Cliente',
-                href: '/clientes/reporte/actividad',
-                icon: Briefcase,
-            },
-            {
-                title: 'Análisis de Envío Correos',
-                href: '/clientes/reporte/envio-correos',
-                icon: Mail,
-            },
-            {
-                title: 'Reportes por Médico',
-                href: '/reportes/medicos',
-                icon: Stethoscope,
-            },
-            {
-                title: 'Análisis Geográfico',
-                href: '/reportes/geografico',
-                icon: MapPin,
-            },
-            {
-                title: 'Utilización Mensajerías',
-                href: '/mensajerias/reporte/utilizacion',
-                icon: Truck,
-            },
+                title: 'Nuevo Estudio PRV',
+                href: '/estudios/create?prefijo=PRV',
+                icon: Plus,
+            }
         ]
     },
 ];

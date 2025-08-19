@@ -152,7 +152,7 @@ class MensajeriaController extends Controller
                 'estadisticas' => $mensajeria->getEstadisticas(),
                 'resumen' => $mensajeria->getResumen(),
                 // Estudios recientes
-                'estudios_recientes' => $mensajeria->getEstudiosRecientes(10)->map(function ($estudio) {
+                'estudios_recientes' => $mensajeria->getEstudiosRecientes(10)->map(function ($estudio) use ($mensajeria) {
                     return [
                         'ID' => $estudio->ID,
                         'CLAVE_INTERNA' => $estudio->CLAVE_INTERNA,
