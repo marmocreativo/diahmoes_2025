@@ -6,6 +6,7 @@ use App\Models\Estudio;
 use App\Models\Usuario;
 use App\Models\Institucion;
 use App\Models\Cliente;
+use App\Models\CorreoCopia;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Validation\Rule;
@@ -366,22 +367,7 @@ class EstudioController extends Controller
      */
     public function editRecoleccion(Estudio $estudio)
     {
-        // Cargar solo campos necesarios del estudio y relaciones mínimas
-        $estudio = Estudio::select([
-            'ID', 'CLAVE_INTERNA', 'FECHA_SOLICITUD_RECOLECCION', 'ID_MEDICO', 'ID_PACIENTE', 
-            'ID_INSTITUCION', 'ID_CLIENTE', 'MUESTRA_TIPO', 'MUESTRA_TIPO_ESTUDIO', 'MUESTRA_INICIALES',
-            'MUESTRA_GENERO', 'MUESTRA_EDAD', 'MUESTRA_SITIO_LESION', 'MUESTRA_DIAGNOSTICO_CLINICO',
-            'MUESTRA_DIRECCION', 'MUESTRA_NUMERO_EXT', 'MUESTRA_NUMERO_INT', 'MUESTRA_COLONIA',
-            'MUESTRA_MUNICIPIO', 'MUESTRA_CIUDAD', 'MUESTRA_ESTADO', 'MUESTRA_CODIGO_POSTAL',
-            'MUESTRA_HORARIOS', 'ESTUDIO_COMENTARIOS'
-        ])->with([
-            'medico:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
-            'paciente:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
-            'institucion:ID_INSTITUCION,INSTITUCION_NOMBRE',
-            'cliente:ID_CLIENTE,CLIENTE_NOMBRE'
-        ])->findOrFail($estudio->ID);
-        
-        // Datos para selects (solo campos necesarios)
+        // Datos para selects de IDs (solo campos necesarios para dropdowns)
         $medicos = Usuario::where('USUARIO_TIPO', 'medico')
             ->where('USUARIO_ESTADO', 'activo')
             ->select('ID_USUARIO', 'USUARIO_NOMBRE', 'USUARIO_APELLIDOS')
@@ -407,10 +393,7 @@ class EstudioController extends Controller
             'medicos' => $medicos,
             'pacientes' => $pacientes,
             'instituciones' => $instituciones,
-            'clientes' => $clientes,
-            'tiposMuestra' => Estudio::getTiposMuestra(),
-            'tiposEstudio' => Estudio::getTiposEstudio(),
-            'generos' => Estudio::getGeneros(),
+            'clientes' => $clientes
         ]);
     }
 
@@ -421,12 +404,14 @@ class EstudioController extends Controller
     {
         // Cargar solo campos necesarios para recepción
         $estudio = Estudio::select([
-            'ID', 'CLAVE_INTERNA', 'FECHA_RECEPCION', 'FECHA_ENVIO_LABORATORIO', 'ID_PACIENTE',
+            'ID', 'CLAVE_INTERNA', 'FECHA_RECEPCION', 'FECHA_ENVIO_LABORATORIO', 'ID_PACIENTE', 'ID_MEDICO',
             'MUESTRA_FOLIO_SOBRE', 'MUESTRA_FOLIO_KIT_BL', 'MUESTRA_OTROS_ROTULOS', 'MUESTRA_BLOQUES',
             'MUESTRA_LAMINILLAS', 'MUESTRA_ENVIO_TIPO', 'MUESTRA_ENVIO', 'MUESTRA_GUIA', 'MUESTRA_GUIA_MENSAJERIA',
             'MUESTRA_GUIA_ESPECIALIZADA', 'MUESTRA_GUIA_ESPECIALIZADA_MENSAJERIA', 'MUESTRA_LIQ_CONDICION',
             'MUESTRA_LIQ_CONDICION_PRESENCIA', 'MUESTRA_LIQ_CANTIDAD_ADECUADA', 'MUESTRA_LIQ_CANTIDAD_ML',
-            'MUESTRA_LIQ_HEMOLISIS', 'MUESTRA_LIQ_AMP_INDICACION', 'MUESTRA_LIQ_AMP_RAZON', 'ESTUDIO_COMENTARIOS'
+            'MUESTRA_LIQ_HEMOLISIS', 'MUESTRA_LIQ_AMP_INDICACION', 'MUESTRA_LIQ_AMP_RAZON', 'ESTUDIO_COMENTARIOS',
+            'MUESTRA_GENERO', 'MUESTRA_EDAD', 'MUESTRA_CLAVE', 'MUESTRA_INICIALES', 'MUESTRA_SITIO_LESION',
+            'MUESTRA_TIPO_ESTUDIO', 'MUESTRA_TIPO', 'MUESTRA_DIAGNOSTICO_CLINICO', 'MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA'
         ])->with([
             'medico:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
             'paciente:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
@@ -441,10 +426,35 @@ class EstudioController extends Controller
             ->orderBy('USUARIO_NOMBRE')
             ->get();
 
+        // Cargar correos de copia según la lógica especificada
+        $correosExistentes = [];
+        
+        // 1. Buscar correos con ID_ESTUDIO
+        $correosPorEstudio = CorreoCopia::where('ID_ESTUDIO', $estudio->ID)
+            ->select('ID', 'NOMBRE', 'CORREO', 'ID_ESTUDIO')
+            ->orderBy('NOMBRE')
+            ->get();
+            
+        if ($correosPorEstudio->count() > 0) {
+            $correosExistentes = $correosPorEstudio;
+        } else {
+            // 2. Si no hay correos con ID_ESTUDIO, buscar con ID_MEDICO
+            if ($estudio->ID_MEDICO) {
+                $correosPorMedico = CorreoCopia::where('ID_USUARIO', $estudio->ID_MEDICO)
+                    ->whereNull('ID_ESTUDIO')
+                    ->select('ID', 'NOMBRE', 'CORREO', 'ID_USUARIO')
+                    ->orderBy('NOMBRE')
+                    ->get();
+                    
+                $correosExistentes = $correosPorMedico;
+            }
+        }
+
         return Inertia::render('estudios/edit/recepcion', [
             'estudio' => $estudio,
             'pacientes' => $pacientes,
             'tiposEnvio' => Estudio::getTiposEnvio(),
+            'correosExistentes' => $correosExistentes,
         ]);
     }
 
@@ -536,16 +546,77 @@ class EstudioController extends Controller
      */
     public function updateRecoleccion(Request $request, Estudio $estudio)
     {
+        // LOGS PARA DEBUG
+        \Log::info('🔴 updateRecoleccion ejecutado');
+        \Log::info('📊 Request data recibida:', ['data' => $request->all()]);
+        \Log::info('🔢 ID del estudio: ' . $estudio->ID);
+        \Log::info('📋 Estudio antes de actualizar:', ['estudio' => $estudio->toArray()]);
+
         $request->validate([
-            'FECHA_SOLICITUD_RECOLECCION' => 'nullable|date',
-            // Aquí se agregarán más validaciones según los campos específicos
+            'FECHA_SOLICITUD_RECOLECCION' => 'nullable|string', // Cambiado a string porque puede venir con hora
+            'CLAVE_INTERNA' => 'nullable|string',
+            'FOLIO_MERCK' => 'nullable|string',
+            'ID_CLIENTE' => 'nullable|integer',
+            'ID_INSTITUCION' => 'nullable|integer', 
+            'ID_MEDICO' => 'nullable|integer',
+            'MUESTRA_GUIA_MENSAJERIA' => 'nullable|string',
+            'MUESTRA_GUIA' => 'nullable|string',
+            'MUESTRA_REFERENCIAS' => 'nullable|string',
+            'MUESTRA_DIRECCION' => 'nullable|string',
+            'MUESTRA_NUMERO_EXT' => 'nullable|string',
+            'MUESTRA_NUMERO_INT' => 'nullable|string',
+            'MUESTRA_COLONIA' => 'nullable|string',
+            'MUESTRA_MUNICIPIO' => 'nullable|string',
+            'MUESTRA_CIUDAD' => 'nullable|string',
+            'MUESTRA_ESTADO' => 'nullable|string',
+            'MUESTRA_ENVIO_TIPO' => 'nullable|string',
+            'MUESTRA_CODIGO_POSTAL' => 'nullable|string',
+            'MUESTRA_HORARIOS' => 'nullable|string',
+            'NO_APLICA' => 'nullable|boolean',
         ]);
 
-        // Actualizar solo los campos del paso de recolección
-        $estudio->update($request->only([
+        // Campos a actualizar
+        $fieldsToUpdate = [
             'FECHA_SOLICITUD_RECOLECCION',
-            // Más campos se agregarán según especificación
-        ]));
+            'CLAVE_INTERNA',
+            'FOLIO_MERCK', 
+            'ID_CLIENTE',
+            'ID_INSTITUCION',
+            'ID_MEDICO',
+            'MUESTRA_GUIA_MENSAJERIA',
+            'MUESTRA_GUIA',
+            'MUESTRA_REFERENCIAS',
+            'MUESTRA_DIRECCION',
+            'MUESTRA_NUMERO_EXT',
+            'MUESTRA_NUMERO_INT',
+            'MUESTRA_COLONIA',
+            'MUESTRA_MUNICIPIO',
+            'MUESTRA_CIUDAD',
+            'MUESTRA_ESTADO',
+            'MUESTRA_ENVIO_TIPO',
+            'MUESTRA_CODIGO_POSTAL',
+            'MUESTRA_HORARIOS'
+        ];
+
+        $dataToUpdate = $request->only($fieldsToUpdate);
+        
+        // Filtrar valores null y convertirlos a cadenas vacías para campos que no permiten null
+        $dataToUpdate = array_map(function($value) {
+            return $value === null ? '' : $value;
+        }, $dataToUpdate);
+        
+        // Manejar el campo NO_APLICA especial para MUESTRA_ENVIO
+        if ($request->has('NO_APLICA')) {
+            $dataToUpdate['MUESTRA_ENVIO'] = $request->NO_APLICA ? 'no aplica' : '';
+        }
+        
+        \Log::info('📤 Datos filtrados para actualizar (después de limpiar nulls):', ['datos' => $dataToUpdate]);
+
+        // Actualizar el estudio
+        $updated = $estudio->update($dataToUpdate);
+        
+        \Log::info('💾 Resultado de update: ' . ($updated ? 'éxito' : 'falló'));
+        \Log::info('📋 Estudio después de actualizar:', ['estudio_actualizado' => $estudio->fresh()->toArray()]);
 
         return back()->with('success', 'Información de recolección actualizada.');
     }
@@ -555,17 +626,113 @@ class EstudioController extends Controller
      */
     public function updateRecepcion(Request $request, Estudio $estudio)
     {
-        $request->validate([
-            'FECHA_RECEPCION' => 'nullable|date',
-            // Más validaciones según los campos específicos
-        ]);
+        \Log::info('🔴 updateRecepcion iniciado');
+        \Log::info('📊 Datos recibidos:', $request->all());
+        \Log::info('🔢 ID del estudio: ' . $estudio->ID);
 
-        $estudio->update($request->only([
-            'FECHA_RECEPCION',
-            // Más campos se agregarán según especificación
-        ]));
+        try {
+            $request->validate([
+                'FECHA_RECEPCION' => 'nullable|date',
+                'ID_PACIENTE' => 'nullable|integer|exists:usuarios,ID_USUARIO',
+                'CREAR_NUEVO_PACIENTE' => 'nullable|boolean',
+                'NOMBRE_USUARIO' => 'nullable|string|max:255',
+                'APELLIDOS_USUARIO' => 'nullable|string|max:255',
+                'CORREO_USUARIO' => 'nullable|email|max:255',
+                'TELEFONO_USUARIO' => 'nullable|string|max:20',
+                'MUESTRA_GENERO' => 'nullable|string|max:50',
+                'MUESTRA_EDAD' => 'nullable|string|max:10',
+                'MUESTRA_CLAVE' => 'nullable|string|max:255',
+                'MUESTRA_FOLIO_SOBRE' => 'nullable|string|max:255',
+                'MUESTRA_FOLIO_KIT_BL' => 'nullable|string|max:255',
+                'MUESTRA_OTROS_ROTULOS' => 'nullable|string',
+                'MUESTRA_INICIALES' => 'nullable|string|max:10',
+                'MUESTRA_SITIO_LESION' => 'nullable|string|max:255',
+                'MUESTRA_TIPO_ESTUDIO' => 'nullable|string|max:100',
+                'MUESTRA_TIPO' => 'nullable|string|max:100',
+                'MUESTRA_BLOQUES' => 'nullable|string|max:255',
+                'MUESTRA_LAMINILLAS' => 'nullable|string|max:255',
+                'MUESTRA_DIAGNOSTICO_CLINICO' => 'nullable|string|max:500',
+                'MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA' => 'nullable|string',
+                '_next' => 'nullable|string'
+            ]);
 
-        return back()->with('success', 'Información de recepción actualizada.');
+            \Log::info('✅ Validación exitosa');
+
+            // Campos a actualizar
+            $camposActualizar = [
+                'FECHA_RECEPCION',
+                'ID_PACIENTE',
+                'MUESTRA_GENERO',
+                'MUESTRA_EDAD',
+                'MUESTRA_CLAVE',
+                'MUESTRA_FOLIO_SOBRE',
+                'MUESTRA_FOLIO_KIT_BL',
+                'MUESTRA_OTROS_ROTULOS',
+                'MUESTRA_INICIALES',
+                'MUESTRA_SITIO_LESION',
+                'MUESTRA_TIPO_ESTUDIO',
+                'MUESTRA_TIPO',
+                'MUESTRA_BLOQUES',
+                'MUESTRA_LAMINILLAS',
+                'MUESTRA_DIAGNOSTICO_CLINICO',
+                'MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA'
+            ];
+
+            $datosActualizar = $request->only($camposActualizar);
+            
+            // Filtrar valores null para evitar problemas con columnas NOT NULL
+            $datosActualizar = array_filter($datosActualizar, function($value) {
+                return $value !== null && $value !== '';
+            });
+            
+            \Log::info('📤 Datos a actualizar (filtrados):', $datosActualizar);
+
+            // Crear nuevo paciente si es necesario
+            if ($request->CREAR_NUEVO_PACIENTE && 
+                $request->NOMBRE_USUARIO && 
+                $request->APELLIDOS_USUARIO && 
+                $request->CORREO_USUARIO) {
+                
+                \Log::info('👤 Creando nuevo paciente');
+                
+                $nuevoPaciente = Usuario::create([
+                    'USUARIO_NOMBRE' => $request->NOMBRE_USUARIO,
+                    'USUARIO_APELLIDOS' => $request->APELLIDOS_USUARIO,
+                    'USUARIO_CORREO' => $request->CORREO_USUARIO,
+                    'USUARIO_TELEFONO' => $request->TELEFONO_USUARIO,
+                    'USUARIO_TIPO' => 'paciente',
+                    'USUARIO_ESTADO' => 'activo',
+                    'password' => bcrypt('default123') // Password temporal
+                ]);
+                
+                $datosActualizar['ID_PACIENTE'] = $nuevoPaciente->ID_USUARIO;
+                \Log::info('✅ Nuevo paciente creado con ID: ' . $nuevoPaciente->ID_USUARIO);
+            }
+
+            $estudio->update($datosActualizar);
+            \Log::info('✅ Estudio actualizado exitosamente');
+
+            // Manejar navegación
+            if ($request->_next === 'laboratorio') {
+                \Log::info('🔄 Navegando a laboratorio');
+                return redirect()->route('estudios.edit.laboratorio', $estudio->ID)->with('success', 'Información de recepción actualizada. Continuando con laboratorio.');
+            }
+
+            \Log::info('✅ updateRecepcion completado exitosamente');
+            return back()->with('success', 'Información de recepción actualizada.');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('❌ Error de validación:', $e->errors());
+            throw $e;
+        } catch (\Exception $e) {
+            \Log::error('❌ Error en updateRecepcion:', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
     }
 
     /**
@@ -573,17 +740,131 @@ class EstudioController extends Controller
      */
     public function updateLaboratorio(Request $request, Estudio $estudio)
     {
-        $request->validate([
-            'FECHA_ENVIO_LABORATORIO' => 'nullable|date',
-            // Más validaciones según los campos específicos
-        ]);
+        \Log::info('🔴 updateLaboratorio iniciado');
+        \Log::info('📊 Datos recibidos:', $request->all());
+        \Log::info('🔢 ID del estudio: ' . $estudio->ID);
 
-        $estudio->update($request->only([
-            'FECHA_ENVIO_LABORATORIO',
-            // Más campos se agregarán según especificación
-        ]));
+        try {
+            $request->validate([
+                // Fechas del laboratorio
+                'FECHA_RECEPCION_LABORATORIO' => 'nullable|date',
+                'HORA_RECEPCION_LABORATORIO' => 'nullable|string|max:10',
+                'FECHA_OBTENCION_RESULTADOS' => 'nullable|date',
+                'HORA_OBTENCION_RESULTADOS' => 'nullable|string|max:10',
+                // Estudio solicitado y métodos
+                'R_ESTUDIO_SOLICITADO' => 'nullable|string|max:255',
+                'R_METODO_PROCESO' => 'nullable|string|max:255',
+                'R_OTRO_METODO_PROCESO' => 'nullable|string|max:255',
+                // Condiciones de la muestra líquida
+                'MUESTRA_LIQ_CONDICION' => 'nullable|string|max:255',
+                'MUESTRA_LIQ_CONDICION_PRESENCIA' => 'nullable|string|max:255',
+                'MUESTRA_LIQ_CANTIDAD_ADECUADA' => 'nullable|string|max:50',
+                'MUESTRA_LIQ_CANTIDAD_ML' => 'nullable|string|max:50',
+                'MUESTRA_LIQ_HEMOLISIS' => 'nullable|string|max:50',
+                'MUESTRA_LIQ_AMP_INDICACION' => 'nullable|string|max:50',
+                'MUESTRA_LIQ_AMP_RAZON' => 'nullable|string|max:255',
+                // Análisis histopatológico
+                'R_PRESERVACION_H_E' => 'nullable|string|max:100',
+                'R_NUMERO_CELULAS_TUMORALES' => 'nullable|string|max:100',
+                'R_AREA_TUMORAL' => 'nullable|string|max:100',
+                'R_PORCENTAJE_TUMOR_TEJIDO' => 'nullable|string|max:100',
+                'R_ENRIQUECIMIENTO' => 'nullable|string|max:100',
+                'R_ADECUADO_PROCESAMIENTO' => 'nullable|string|max:100',
+                'R_RAZON_ADECUADO_PROCESAMIENTO' => 'nullable|string|max:255',
+                // Resultados genéticos
+                'R_ESTATUS_KRAS' => 'nullable|string|max:100',
+                'R_GENOTIPO_KRAS' => 'nullable|string|max:255',
+                'R_ESTATUS_NRAS' => 'nullable|string|max:100',
+                'R_GENOTIPO_NRAS' => 'nullable|string|max:255',
+                'R_ESTATUS_BRAF' => 'nullable|string|max:100',
+                'R_GENOTIPO_BRAF' => 'nullable|string|max:255',
+                // Otros resultados
+                'R_RESULTADO_HISTOPATOLOGICO' => 'nullable|string',
+                'R_COMPLETOS' => 'nullable|boolean',
+                'ESTUDIO_NOTAS' => 'nullable|string',
+                'ESTUDIO_COMENTARIOS' => 'nullable|string',
+                '_next' => 'nullable|string'
+            ]);
 
-        return back()->with('success', 'Información de laboratorio actualizada.');
+            \Log::info('✅ Validación exitosa');
+
+            // Campos a actualizar - usando los nombres reales que envía el frontend
+            $camposActualizar = [
+                'FECHA_RECEPCION_LABORATORIO',
+                'FECHA_OBTENCION_RESULTADOS',
+                'R_ESTUDIO_SOLICITADO',
+                'R_METODO_PROCESO',
+                'R_OTRO_METODO_PROCESO',
+                'MUESTRA_LIQ_CONDICION',
+                'MUESTRA_LIQ_CONDICION_PRESENCIA',
+                'MUESTRA_LIQ_CANTIDAD_ADECUADA',
+                'MUESTRA_LIQ_CANTIDAD_ML',
+                'MUESTRA_LIQ_HEMOLISIS',
+                'MUESTRA_LIQ_AMP_INDICACION',
+                'MUESTRA_LIQ_AMP_RAZON',
+                'R_PRESERVACION_H_E',
+                'R_NUMERO_CELULAS_TUMORALES',
+                'R_AREA_TUMORAL',
+                'R_PORCENTAJE_TUMOR_TEJIDO',
+                'R_ENRIQUECIMIENTO',
+                'R_ADECUADO_PROCESAMIENTO',
+                'R_RAZON_ADECUADO_PROCESAMIENTO',
+                'R_ESTATUS_KRAS',
+                'R_GENOTIPO_KRAS',
+                'R_ESTATUS_NRAS',
+                'R_GENOTIPO_NRAS',
+                'R_ESTATUS_BRAF',
+                'R_GENOTIPO_BRAF',
+                'R_RESULTADO_HISTOPATOLOGICO',
+                'R_COMPLETOS',
+                'ESTUDIO_NOTAS',
+                'ESTUDIO_COMENTARIOS'
+            ];
+
+            $datosActualizar = $request->only($camposActualizar);
+
+            // Combinar fecha y hora si están presentes
+            if ($request->FECHA_RECEPCION_LABORATORIO && $request->HORA_RECEPCION_LABORATORIO) {
+                $datosActualizar['FECHA_RECEPCION_LABORATORIO'] = $request->FECHA_RECEPCION_LABORATORIO . ' ' . $request->HORA_RECEPCION_LABORATORIO . ':00';
+                \Log::info('📅 Fecha recepción laboratorio combinada: ' . $datosActualizar['FECHA_RECEPCION_LABORATORIO']);
+            }
+
+            if ($request->FECHA_OBTENCION_RESULTADOS && $request->HORA_OBTENCION_RESULTADOS) {
+                $datosActualizar['FECHA_OBTENCION_RESULTADOS'] = $request->FECHA_OBTENCION_RESULTADOS . ' ' . $request->HORA_OBTENCION_RESULTADOS . ':00';
+                \Log::info('📅 Fecha obtención resultados combinada: ' . $datosActualizar['FECHA_OBTENCION_RESULTADOS']);
+            }
+
+            // Filtrar valores null para evitar problemas con columnas NOT NULL
+            $datosActualizar = array_filter($datosActualizar, function($value) {
+                return $value !== null && $value !== '';
+            });
+            
+            \Log::info('📤 Datos a actualizar (filtrados):', $datosActualizar);
+
+            $estudio->update($datosActualizar);
+            \Log::info('✅ Estudio actualizado exitosamente');
+
+            // Manejar navegación
+            if ($request->_next === 'informe') {
+                \Log::info('🔄 Navegando a informe');
+                return redirect()->route('estudios.edit.informe', $estudio->ID)->with('success', 'Información de laboratorio actualizada. Continuando con informe.');
+            }
+
+            \Log::info('✅ updateLaboratorio completado exitosamente');
+            return back()->with('success', 'Información de laboratorio actualizada.');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('❌ Error de validación:', $e->errors());
+            throw $e;
+        } catch (\Exception $e) {
+            \Log::error('❌ Error en updateLaboratorio:', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
     }
 
     /**
@@ -651,6 +932,104 @@ class EstudioController extends Controller
         }
 
         return back()->with('success', $mensaje);
+    }
+
+    /**
+     * Show the form for editing the specified resource - Vista Completa
+     */
+    public function editFull(Estudio $estudio)
+    {
+        return Inertia::render('estudios/edit/full', [
+            'estudio' => $estudio
+        ]);
+    }
+
+    /**
+     * Update the specified resource in storage - Vista Completa
+     */
+    public function updateFull(Request $request, Estudio $estudio)
+    {
+        // Validación de todos los campos
+        $request->validate([
+            // Campos básicos
+            'FECHA_SOLICITUD_RECOLECCION' => 'nullable|string',
+            'HORA_SOLICITUD_RECOLECCION' => 'nullable|string',
+            'ID_MEDICO' => 'nullable|integer',
+            'ID_PACIENTE' => 'nullable|integer',
+            'ID_INSTITUCION' => 'nullable|integer',
+            'ID_CLIENTE' => 'nullable|integer',
+            
+            // Campos de muestra
+            'MUESTRA_TIPO' => 'nullable|string',
+            'MUESTRA_TIPO_ESTUDIO' => 'nullable|string',
+            'MUESTRA_INICIALES' => 'nullable|string',
+            'MUESTRA_GENERO' => 'nullable|string',
+            'MUESTRA_EDAD' => 'nullable|string',
+            'MUESTRA_SITIO_LESION' => 'nullable|string',
+            'MUESTRA_DIAGNOSTICO_CLINICO' => 'nullable|string',
+            
+            // Dirección
+            'MUESTRA_DIRECCION' => 'nullable|string',
+            'MUESTRA_NUMERO_EXT' => 'nullable|string',
+            'MUESTRA_NUMERO_INT' => 'nullable|string',
+            'MUESTRA_COLONIA' => 'nullable|string',
+            'MUESTRA_MUNICIPIO' => 'nullable|string',
+            'MUESTRA_CIUDAD' => 'nullable|string',
+            'MUESTRA_ESTADO' => 'nullable|string',
+            'MUESTRA_CODIGO_POSTAL' => 'nullable|string',
+            'MUESTRA_HORARIOS' => 'nullable|string',
+            
+            // Recepción
+            'FECHA_RECEPCION' => 'nullable|string',
+            'HORA_RECEPCION' => 'nullable|string',
+            'FECHA_ENVIO_LABORATORIO' => 'nullable|string',
+            'HORA_ENVIO_LABORATORIO' => 'nullable|string',
+            
+            // Otros campos que se necesiten...
+            'ESTUDIO_COMENTARIOS' => 'nullable|string',
+        ]);
+
+        // Combinar fechas y horas si están presentes
+        $fechaCompleta = null;
+        if ($request->FECHA_SOLICITUD_RECOLECCION && $request->HORA_SOLICITUD_RECOLECCION) {
+            $fechaCompleta = $request->FECHA_SOLICITUD_RECOLECCION . ' ' . $request->HORA_SOLICITUD_RECOLECCION . ':00';
+        }
+
+        $fechaRecepcion = null;
+        if ($request->FECHA_RECEPCION && $request->HORA_RECEPCION) {
+            $fechaRecepcion = $request->FECHA_RECEPCION . ' ' . $request->HORA_RECEPCION . ':00';
+        }
+
+        $fechaEnvioLab = null;
+        if ($request->FECHA_ENVIO_LABORATORIO && $request->HORA_ENVIO_LABORATORIO) {
+            $fechaEnvioLab = $request->FECHA_ENVIO_LABORATORIO . ' ' . $request->HORA_ENVIO_LABORATORIO . ':00';
+        }
+
+        // Preparar datos para actualización
+        $updateData = $request->only([
+            'ID_MEDICO', 'ID_PACIENTE', 'ID_INSTITUCION', 'ID_CLIENTE',
+            'MUESTRA_TIPO', 'MUESTRA_TIPO_ESTUDIO', 'MUESTRA_INICIALES', 'MUESTRA_GENERO',
+            'MUESTRA_EDAD', 'MUESTRA_SITIO_LESION', 'MUESTRA_DIAGNOSTICO_CLINICO',
+            'MUESTRA_DIRECCION', 'MUESTRA_NUMERO_EXT', 'MUESTRA_NUMERO_INT',
+            'MUESTRA_COLONIA', 'MUESTRA_MUNICIPIO', 'MUESTRA_CIUDAD', 'MUESTRA_ESTADO',
+            'MUESTRA_CODIGO_POSTAL', 'MUESTRA_HORARIOS', 'ESTUDIO_COMENTARIOS'
+        ]);
+
+        // Agregar fechas combinadas
+        if ($fechaCompleta) {
+            $updateData['FECHA_SOLICITUD_RECOLECCION'] = $fechaCompleta;
+        }
+        if ($fechaRecepcion) {
+            $updateData['FECHA_RECEPCION'] = $fechaRecepcion;
+        }
+        if ($fechaEnvioLab) {
+            $updateData['FECHA_ENVIO_LABORATORIO'] = $fechaEnvioLab;
+        }
+
+        // Actualizar el estudio
+        $estudio->update($updateData);
+
+        return back()->with('success', 'Estudio actualizado exitosamente.');
     }
 
     /**
@@ -747,10 +1126,12 @@ class EstudioController extends Controller
         $correoCopia = $estudio->correosCopia()->create([
             'NOMBRE' => $request->nombre,
             'CORREO' => $request->correo,
-            'ID_ESTUDIO' => $estudio->ID
+            'ID_ESTUDIO' => $estudio->ID,
+            'ID_USUARIO' => auth()->id() // Agregar el ID del usuario logueado
         ]);
 
-        return response()->json($correoCopia, 201);
+        // Redireccionar de vuelta a la página de recepción con mensaje de éxito
+        return redirect()->back()->with('success', 'Correo agregado exitosamente');
     }
 
     /**
@@ -761,7 +1142,8 @@ class EstudioController extends Controller
         $correoCopia = $estudio->correosCopia()->findOrFail($correoId);
         $correoCopia->delete();
 
-        return response()->json(['message' => 'Correo eliminado exitosamente']);
+        // Redireccionar de vuelta a la página de recepción con mensaje de éxito
+        return redirect()->back()->with('success', 'Correo eliminado exitosamente');
     }
 
     /**

@@ -182,6 +182,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('estudios/{estudio:ID}/informe', [EstudioController::class, 'updateInforme'])
         ->name('estudios.update.informe');
     
+    // Ruta para edición completa en una sola vista
+    Route::get('estudios/{estudio:ID}/edit/full', [EstudioController::class, 'editFull'])
+        ->name('estudios.edit.full');
+    Route::patch('estudios/{estudio:ID}/full', [EstudioController::class, 'updateFull'])
+        ->name('estudios.update.full');
+    
     // Ruta para generar PDF del estudio
     Route::get('estudios/{estudio:ID}/pdf', [EstudioController::class, 'generatePdf'])
         ->name('estudios.pdf');
