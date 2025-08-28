@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
@@ -6,91 +6,106 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Save, X } from 'lucide-react';
 import { type BreadcrumbItem, type EstudioCreateProps, type EstudioFormData } from '@/types';
 
-// Importar componente principal
-import FormularioCompleto from './create/formulario-completo';
-
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
     { title: 'Estudios', href: '/estudios' },
     { title: 'Crear Estudio', href: '/estudios/create' },
 ];
 
-
 export default function CrearEstudio() {
     const { medicos, pacientes, instituciones, clientes, mensajerias, tiposMuestra, tiposEstudio, generos, tiposEnvio, datosAutomaticos } = 
         usePage<EstudioCreateProps>().props;
 
-    // Estado local para formulario (rápido, sin re-renders de Inertia)
-    const [localData, setLocalData] = useState<EstudioFormData>({
-        // Datos automáticos del backend
-        ...datosAutomaticos,
-        
-        // Campos requeridos
-        FolioMerck: '',
-        FechaSolicitudRecoleccion: new Date().toISOString().split('T')[0],
-        HoraSolicitudRecoleccion: new Date().toTimeString().slice(0, 5),
+    // Referencias para inputs simples - no causan re-renders
+    const formRef = useRef<HTMLFormElement>(null);
+    
+    // Solo estado mínimo para campos dependientes que requieren procesamiento inmediato
+    const [dependentFields, setDependentFields] = useState({
         IdCliente: 0,
         IdMedico: 0,
         IdInstitucion: 0,
-        
-        // Campos opcionales con valores por defecto
-        UsuarioTipo: 'medico',
-        PassUsuario: '135DIAHMOES',
         NoAplica: false,
-        
-        // Resto de campos opcionales
-        NombreCliente: '',
-        CorreoCliente: '',
-        EnviarCorreoCliente: false,
-        NombreUsuario: '',
-        ApellidosUsuario: '',
-        CorreoUsuario: '',
-        TelefonoUsuario: '',
-        NombreInstitucion: '',
-        CorreoInstitucion: '',
-        TelefonoInstitucion: '',
-        MuestraGuiaMensajeria: 'ninguna',
-        MuestraGuia: '',
-        MuestraDirigirse: '',
-        MuestraPreguntar: '',
-        MuestraDireccion: '',
-        MuestraNumeroExt: '',
-        MuestraNumeroInt: '',
-        MuestraColonia: '',
-        MuestraMunicipio: '',
-        MuestraCiudad: '',
-        MuestraEstado: 'ninguno',
         MuestraEnvioTipo: 'ninguno',
-        MuestraCodigoPostal: '',
-        MuestraHorarios: '',
+        MuestraEstado: 'ninguno',
+        // Nuevos campos para mostrar/ocultar secciones
+        showClienteForm: false,
+        showMedicoForm: false,
+        showInstitucionForm: false,
     });
 
     const { post, processing, errors } = useForm();
 
-    // Función optimizada para manejar cambios (solo actualiza estado local)
-    const handleDataChange = (key: string, value: any) => {
-        setLocalData(prev => ({
-            ...prev,
-            [key]: value
-        }));
-    };
+    // Función para obtener todos los valores del formulario al momento de enviar
+    const getFormData = useCallback((): EstudioFormData => {
+        const form = formRef.current;
+        if (!form) return {} as EstudioFormData;
+
+        const formData = new FormData(form);
+        const data: Partial<EstudioFormData> = {};
+
+        // Convertir FormData a objeto con tipos correctos
+        for (const [key, value] of formData.entries()) {
+            const stringValue = value as string;
+            
+            // Manejar checkboxes
+            if (key === 'NoAplica' || key === 'EnviarCorreoCliente') {
+                const checkbox = form.querySelector(`[name="${key}"]`) as HTMLInputElement;
+                data[key as keyof EstudioFormData] = checkbox?.checked || false;
+            } 
+            // Manejar números
+            else if (['IdCliente', 'IdMedico', 'IdInstitucion'].includes(key)) {
+                data[key as keyof EstudioFormData] = parseInt(stringValue) || 0;
+            } 
+            // Strings normales
+            else {
+                data[key as keyof EstudioFormData] = stringValue;
+            }
+        }
+
+        // Agregar datos automáticos del backend
+        return {
+            ...datosAutomaticos,
+            ...data,
+        } as EstudioFormData;
+    }, [datosAutomaticos]);
+
+    // Manejar cambios en campos dependientes (pocos re-renders)
+    const handleDependentFieldChange = useCallback((key: string, value: string | number | boolean) => {
+        setDependentFields(prev => {
+            const newState = {
+                ...prev,
+                [key]: value
+            };
+
+            // Lógica para mostrar/ocultar formularios
+            if (key === 'IdCliente') {
+                newState.showClienteForm = value === 0;
+            }
+            if (key === 'IdMedico') {
+                newState.showMedicoForm = value === 0;
+            }
+            if (key === 'IdInstitucion') {
+                newState.showInstitucionForm = value === 0;
+            }
+
+            return newState;
+        });
+    }, []);
 
     const handleSubmit = (e: React.FormEvent, guardar: string) => {
         e.preventDefault();
         
-        // Crear datos temporales con el valor de Guardar
         const submitData = {
-            ...localData,
+            ...getFormData(),
             Guardar: guardar
         };
         
-        // Usar router.post para enviar con datos personalizados
         router.post('/estudios', submitData, {
             onSuccess: () => {
-                // Manejar éxito si es necesario
+                // Manejar éxito
             },
             onError: () => {
-                // Los errores se manejan automáticamente por Inertia
+                // Errores manejados por Inertia
             }
         });
     };
@@ -116,11 +131,11 @@ export default function CrearEstudio() {
                     </Button>
                 </div>
 
-                {/* Mostrar errores de validación si existen */}
+                {/* Mostrar errores */}
                 {Object.keys(errors).length > 0 && (
                     <Card className="border-red-200 bg-red-50">
                         <CardContent className="p-4">
-                            <h4 className="font-semibold text-red-800 mb-2">Por favor, corrija los siguientes errores:</h4>
+                            <h4 className="font-semibold text-red-800 mb-2">Corrija los siguientes errores:</h4>
                             <ul className="list-disc list-inside text-red-700">
                                 {Object.entries(errors).map(([field, message]) => (
                                     <li key={field}>{String(message)}</li>
@@ -130,24 +145,589 @@ export default function CrearEstudio() {
                     </Card>
                 )}
 
-                {/* Formulario Principal */}
-                <form>
-                    <FormularioCompleto
-                        data={localData}
-                        setData={handleDataChange}
-                        errors={errors}
-                        medicos={medicos}
-                        pacientes={pacientes}
-                        instituciones={instituciones}
-                        clientes={clientes}
-                        mensajerias={mensajerias}
-                        tiposMuestra={tiposMuestra}
-                        tiposEstudio={tiposEstudio}
-                        generos={generos}
-                        tiposEnvio={tiposEnvio}
-                    />
+                {/* Formulario Principal - HTML Puro para performance */}
+                <form ref={formRef} onSubmit={(e) => e.preventDefault()}>
+                    
+                    {/* Campos Hidden con datos automáticos */}
+                    <input type="hidden" name="IdAleatorio" value={datosAutomaticos.IdAleatorio} />
+                    <input type="hidden" name="Seriado" value={datosAutomaticos.Seriado} />
+                    <input type="hidden" name="Anio" value={datosAutomaticos.Anio} />
+                    <input type="hidden" name="SiguienteNumero" value={datosAutomaticos.SiguienteNumero} />
+                    <input type="hidden" name="Prefijo" value={datosAutomaticos.Prefijo} />
+                    <input type="hidden" name="ClaveInterna" value={datosAutomaticos.ClaveInterna} />
+                    <input type="hidden" name="UsuarioTipo" value="medico" />
+                    <input type="hidden" name="PassUsuario" value="135DIAHMOES" />
 
-                    {/* Botones de acción - formulario simple */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        
+                        {/* Columna Izquierda */}
+                        <div className="space-y-6">
+                            
+                            {/* Sección 1: Información Básica */}
+                            <Card>
+                                <CardContent className="p-6">
+                                    <h3 className="text-lg font-semibold mb-4">Información Básica</h3>
+                                    <div className="grid grid-cols-1 gap-4">
+                                        
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">
+                                                Clave Interna
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={datosAutomaticos.ClaveInterna}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600"
+                                                disabled
+                                                readOnly
+                                            />
+                                            <p className="text-xs text-gray-500 mt-1">Esta clave se genera automáticamente</p>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">
+                                                Folio Merck *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                name="FolioMerck"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                placeholder="Ingrese folio Merck"
+                                                required
+                                            />
+                                            {errors.FolioMerck && (
+                                                <p className="text-red-500 text-sm mt-1">{errors.FolioMerck}</p>
+                                            )}
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">
+                                                    Fecha Solicitud *
+                                                </label>
+                                                <input
+                                                    type="date"
+                                                    name="FechaSolicitudRecoleccion"
+                                                    defaultValue={new Date().toISOString().split('T')[0]}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                    required
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">
+                                                    Hora Solicitud *
+                                                </label>
+                                                <input
+                                                    type="time"
+                                                    name="HoraSolicitudRecoleccion"
+                                                    defaultValue={new Date().toTimeString().slice(0, 5)}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Sección 2: Cliente */}
+                            <Card>
+                                <CardContent className="p-6">
+                                    <h3 className="text-lg font-semibold mb-4">Información del Cliente</h3>
+                                    <div className="space-y-4">
+
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">
+                                                Cliente *
+                                            </label>
+                                            <select
+                                                name="IdCliente"
+                                                value={dependentFields.IdCliente}
+                                                onChange={(e) => handleDependentFieldChange('IdCliente', parseInt(e.target.value))}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                required
+                                            >
+                                                <option value=''>Selecciona</option>
+                                                <option value={0}>Nuevo Cliente</option>
+                                                <option value="">Es el mismo Médico</option>
+                                                <option value="">Es el mismo Paciente</option>
+                                                {clientes.map(cliente => (
+                                                    <option key={cliente.ID_CLIENTE} value={cliente.ID_CLIENTE}>
+                                                        {cliente.CLIENTE_NOMBRE}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            {errors.IdCliente && (
+                                                <p className="text-red-500 text-sm mt-1">{errors.IdCliente}</p>
+                                            )}
+                                        </div>
+
+                                        {/* Formulario de nuevo cliente */}
+                                        {dependentFields.showClienteForm && (
+                                            <div className="space-y-4 p-4 bg-gray-50 rounded-md border">
+                                                <h4 className="font-medium text-gray-800">Datos del Nuevo Cliente</h4>
+                                                
+                                                <div>
+                                                    <label className="block text-sm font-medium mb-1">
+                                                        Nombre del Cliente *
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        name="NombreCliente"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                        placeholder="Nombre del cliente"
+                                                        required
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-medium mb-1">
+                                                        Correo del Cliente *
+                                                    </label>
+                                                    <input
+                                                        type="email"
+                                                        name="CorreoCliente"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                        placeholder="cliente@ejemplo.com"
+                                                        required
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="flex items-center">
+                                                        <input
+                                                            type="checkbox"
+                                                            name="EnviarCorreoCliente"
+                                                            className="mr-2"
+                                                        />
+                                                        <span className="text-sm font-medium">Enviar correos electrónicos al cliente</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Sección 3: Médico */}
+                            <Card>
+                                <CardContent className="p-6">
+                                    <h3 className="text-lg font-semibold mb-4">Médico</h3>
+                                    <div className="space-y-4">
+
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">
+                                                Médico *
+                                            </label>
+                                            <select
+                                                name="IdMedico"
+                                                value={dependentFields.IdMedico}
+                                                onChange={(e) => handleDependentFieldChange('IdMedico', parseInt(e.target.value))}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                required
+                                            >
+                                                <option value=''>Selecciona</option>
+                                                <option value={0}>Nuevo Médico</option>
+                                                {medicos.map(medico => (
+                                                    <option key={medico.ID_USUARIO} value={medico.ID_USUARIO}>
+                                                        {medico.USUARIO_NOMBRE} {medico.USUARIO_APELLIDOS}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Formulario de nuevo médico */}
+                                        {dependentFields.showMedicoForm && (
+                                            <div className="space-y-4 p-4 bg-gray-50 rounded-md border">
+                                                <h4 className="font-medium text-gray-800">Datos del Nuevo Médico</h4>
+                                                
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-1">
+                                                            Nombre *
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            name="NombreUsuario"
+                                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                            placeholder="Nombre"
+                                                            required
+                                                        />
+                                                    </div>
+
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-1">
+                                                            Apellidos *
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            name="ApellidosUsuario"
+                                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                            placeholder="Apellidos"
+                                                            required
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-medium mb-1">
+                                                        Correo *
+                                                    </label>
+                                                    <input
+                                                        type="email"
+                                                        name="CorreoUsuario"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                        placeholder="medico@ejemplo.com"
+                                                        required
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-medium mb-1">
+                                                        Teléfono
+                                                    </label>
+                                                    <input
+                                                        type="tel"
+                                                        name="TelefonoUsuario"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                        placeholder="55-1234-5678"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Sección 4: Institución */}
+                            <Card>
+                                <CardContent className="p-6">
+                                    <h3 className="text-lg font-semibold mb-4">Información de la Institución</h3>
+                                    <div className="space-y-4">
+
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">
+                                                Institución *
+                                            </label>
+                                            <select
+                                                name="IdInstitucion"
+                                                value={dependentFields.IdInstitucion}
+                                                onChange={(e) => handleDependentFieldChange('IdInstitucion', parseInt(e.target.value))}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                required
+                                            >
+                                                <option value=''>Selecciona</option>
+                                                <option value={0}>Nueva Institución</option>
+                                                {instituciones.map(inst => (
+                                                    <option key={inst.ID_INSTITUCION} value={inst.ID_INSTITUCION}>
+                                                        {inst.INSTITUCION_NOMBRE}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Formulario de nueva institución */}
+                                        {dependentFields.showInstitucionForm && (
+                                            <div className="space-y-4 p-4 bg-gray-50 rounded-md border">
+                                                <h4 className="font-medium text-gray-800">Datos de la Nueva Institución</h4>
+                                                
+                                                <div>
+                                                    <label className="block text-sm font-medium mb-1">
+                                                        Nombre de la Institución *
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        name="NombreInstitucion"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                        placeholder="Nombre de la institución"
+                                                        required
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-medium mb-1">
+                                                        Correo de la Institución *
+                                                    </label>
+                                                    <input
+                                                        type="email"
+                                                        name="CorreoInstitucion"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                        placeholder="institucion@ejemplo.com"
+                                                        required
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-medium mb-1">
+                                                        Teléfono de la Institución
+                                                    </label>
+                                                    <input
+                                                        type="tel"
+                                                        name="TelefonoInstitucion"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                        placeholder="55-1234-5678"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                        </div>
+
+                        {/* Columna Derecha */}
+                        <div className="space-y-6">
+                            
+                            {/* Sección 5: Dirección de Recolección */}
+                            <Card>
+                                <CardContent className="p-6">
+                                    <h3 className="text-lg font-semibold mb-4">Dirección de Recolección</h3>
+                                    
+                                    <div className="mb-4">
+                                        <label className="flex items-center">
+                                            <input
+                                                type="checkbox"
+                                                name="NoAplica"
+                                                checked={dependentFields.NoAplica}
+                                                onChange={(e) => handleDependentFieldChange('NoAplica', e.target.checked)}
+                                                className="mr-2"
+                                            />
+                                            <span className="text-sm font-medium">No Aplica Envío</span>
+                                        </label>
+                                    </div>
+
+                                    {/* Solo mostrar campos de envío si NoAplica es false */}
+                                    {!dependentFields.NoAplica && (
+                                        <div className="space-y-4">
+                                            
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">
+                                                    Tipo de Envío
+                                                </label>
+                                                <select
+                                                    name="MuestraEnvioTipo"
+                                                    value={dependentFields.MuestraEnvioTipo}
+                                                    onChange={(e) => handleDependentFieldChange('MuestraEnvioTipo', e.target.value)}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                >
+                                                    <option value="ninguno">Seleccione tipo</option>
+                                                    {Object.entries(tiposEnvio).map(([key, value]) => (
+                                                        <option key={key} value={key}>
+                                                            {value}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">
+                                                    Mensajería
+                                                </label>
+                                                <select
+                                                    name="MuestraGuiaMensajeria"
+                                                    defaultValue="ninguna"
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                >
+                                                    <option value="ninguna">Seleccione mensajería</option>
+                                                    {mensajerias.map(mensajeria => (
+                                                        <option key={mensajeria.ID} value={mensajeria.NOMBRE}>
+                                                            {mensajeria.NOMBRE}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">
+                                                    Guía
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    name="MuestraGuia"
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                    placeholder="Número de guía"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">
+                                                    Dirigirse a
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    name="MuestraDirigirse"
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                    placeholder="Persona de contacto"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">
+                                                    Preguntar por
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    name="MuestraPreguntar"
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                    placeholder="Persona específica"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">
+                                                    Dirección
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    name="MuestraDireccion"
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                    placeholder="Calle y número"
+                                                />
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium mb-1">
+                                                        Número Exterior
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        name="MuestraNumeroExt"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-medium mb-1">
+                                                        Número Interior
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        name="MuestraNumeroInt"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">
+                                                    Colonia
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    name="MuestraColonia"
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">
+                                                    Municipio
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    name="MuestraMunicipio"
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">
+                                                    Ciudad
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    name="MuestraCiudad"
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">
+                                                    Estado
+                                                </label>
+                                                <select
+                                                    name="MuestraEstado"
+                                                    value={dependentFields.MuestraEstado}
+                                                    onChange={(e) => handleDependentFieldChange('MuestraEstado', e.target.value)}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                >
+                                                    <option value="ninguno">Seleccione estado</option>
+                                                    <option value="Aguascalientes">Aguascalientes</option>
+                                                    <option value="Baja California">Baja California </option>
+                                                    <option value="Baja California Sur">Baja California Sur </option>
+                                                    <option value="Campeche">Campeche </option>
+                                                    <option value="Chiapas">Chiapas </option>
+                                                    <option value="Chihuahua">Chihuahua </option>
+                                                    <option value="Coahuila">Coahuila </option>
+                                                    <option value="Colima">Colima </option>
+                                                    <option value="Ciudad de México">Ciudad de México</option>
+                                                    <option value="Durango">Durango </option>
+                                                    <option value="Estado de México">Estado de México </option>
+                                                    <option value="Guanajuato">Guanajuato </option>
+                                                    <option value="Guerrero">Guerrero </option>
+                                                    <option value="Hidalgo">Hidalgo </option>
+                                                    <option value="Jalisco">Jalisco </option>
+                                                    <option value="Michoacán">Michoacán </option>
+                                                    <option value="Morelos">Morelos </option>
+                                                    <option value="Nayarit">Nayarit </option>
+                                                    <option value="Nuevo León">Nuevo León </option>
+                                                    <option value="Oaxaca">Oaxaca </option>
+                                                    <option value="Puebla">Puebla </option>
+                                                    <option value="Querétaro">Querétaro </option>
+                                                    <option value="Quintana Roo">Quintana Roo </option>
+                                                    <option value="San Luis Potosí">San Luis Potosí </option>
+                                                    <option value="Sinaloa">Sinaloa </option>
+                                                    <option value="Sonora">Sonora </option>
+                                                    <option value="Tabasco">Tabasco </option>
+                                                    <option value="Tamaulipas">Tamaulipas </option>
+                                                    <option value="Tlaxcala">Tlaxcala </option>
+                                                    <option value="Veracruz">Veracruz </option>
+                                                    <option value="Yucatán">Yucatán </option>
+                                                    <option value="Zacatecas">Zacatecas</option>
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">
+                                                    Código Postal
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    name="MuestraCodigoPostal"
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                    pattern="[0-9]{5}"
+                                                    placeholder="12345"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">
+                                                    Horarios de Atención
+                                                </label>
+                                                <textarea
+                                                    name="MuestraHorarios"
+                                                    rows={3}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                    placeholder="Ejemplo: Lunes a Viernes de 9:00 a 18:00"
+                                                />
+                                            </div>
+
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                        </div>
+
+                    </div>
+
+                    {/* Botones de acción */}
                     <Card className="mt-6">
                         <CardContent className="p-4">
                             <div className="flex justify-end gap-2">

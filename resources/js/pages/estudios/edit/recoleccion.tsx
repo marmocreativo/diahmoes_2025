@@ -1,5 +1,5 @@
-import { useMemo, useCallback, useEffect } from 'react';
-import { Head, router, usePage, Link, useForm } from '@inertiajs/react';
+import { useState, useRef, useCallback } from 'react';
+import { Head, router, usePage, Link } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,182 +12,155 @@ interface EditRecoleccionProps {
     pacientes: any[];
     instituciones: any[];
     clientes: any[];
+    mensajerias: any[];
     [key: string]: any;
 }
 
 export default function EditRecoleccionOptimized() {
-    const { estudio, medicos, pacientes, instituciones, clientes } = usePage<EditRecoleccionProps>().props;
+    const { estudio, medicos = [], pacientes = [], instituciones = [], clientes = [], mensajerias = [] } = usePage<EditRecoleccionProps>().props;
 
-    const { data, setData, patch, processing } = useForm({
-        CLAVE_INTERNA: estudio.CLAVE_INTERNA || '',
-        FOLIO_MERCK: estudio.FOLIO_MERCK || '',
-        FECHA_SOLICITUD_RECOLECCION: estudio.FECHA_SOLICITUD_RECOLECCION ? 
-            new Date(estudio.FECHA_SOLICITUD_RECOLECCION).toISOString().split('T')[0] : '',
-        HORA_SOLICITUD_RECOLECCION: estudio.FECHA_SOLICITUD_RECOLECCION ? 
-            new Date(estudio.FECHA_SOLICITUD_RECOLECCION).toTimeString().slice(0, 5) : '',
-        ID_CLIENTE: estudio.ID_CLIENTE || '',
-        ID_INSTITUCION: estudio.ID_INSTITUCION || '',
-        ID_MEDICO: estudio.ID_MEDICO || '',
-        MUESTRA_GUIA_MENSAJERIA: estudio.MUESTRA_GUIA_MENSAJERIA || '',
-        MUESTRA_GUIA: estudio.MUESTRA_GUIA || '',
-        MUESTRA_REFERENCIAS: estudio.MUESTRA_REFERENCIAS || '',
-        MUESTRA_DIRECCION: estudio.MUESTRA_DIRECCION || '',
-        MUESTRA_NUMERO_EXT: estudio.MUESTRA_NUMERO_EXT || '',
-        MUESTRA_NUMERO_INT: estudio.MUESTRA_NUMERO_INT || '',
-        MUESTRA_COLONIA: estudio.MUESTRA_COLONIA || '',
-        MUESTRA_MUNICIPIO: estudio.MUESTRA_MUNICIPIO || '',
-        MUESTRA_CIUDAD: estudio.MUESTRA_CIUDAD || '',
-        MUESTRA_ESTADO: estudio.MUESTRA_ESTADO || '',
-        MUESTRA_ENVIO_TIPO: estudio.MUESTRA_ENVIO_TIPO || '',
-        MUESTRA_CODIGO_POSTAL: estudio.MUESTRA_CODIGO_POSTAL || '',
-        MUESTRA_HORARIOS: estudio.MUESTRA_HORARIOS || '',
-        NO_APLICA: estudio.MUESTRA_ENVIO === 'no aplica' ? true : false,
+    // Referencias para inputs simples - no causan re-renders
+    const formRef = useRef<HTMLFormElement>(null);
+    
+    // Solo estado mínimo para campos dependientes
+    const [dependentFields, setDependentFields] = useState({
+        NoAplica: estudio.MUESTRA_ENVIO === 'no aplica',
+        processing: false,
     });
 
-    const breadcrumbs: BreadcrumbItem[] = useMemo(() => [
+    const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
         { title: 'Estudios', href: '/estudios' },
         { title: `${estudio.CLAVE_INTERNA}`, href: `/estudios/${estudio.ID}` },
         { title: 'Recolección', href: `/estudios/${estudio.ID}/edit/recoleccion` },
-    ], [estudio]);
+    ];
 
-    // Función para preparar los datos antes de enviar
-    const prepareFormData = useCallback((additionalData: any = {}) => {
-        const formData = { ...data, ...additionalData };
-        
-        // Combinar fecha y hora si están presentes
-        if (formData.FECHA_SOLICITUD_RECOLECCION && formData.HORA_SOLICITUD_RECOLECCION) {
-            formData.FECHA_SOLICITUD_RECOLECCION = formData.FECHA_SOLICITUD_RECOLECCION + ' ' + formData.HORA_SOLICITUD_RECOLECCION + ':00';
-            console.log('📅 Fecha combinada:', formData.FECHA_SOLICITUD_RECOLECCION);
+    // Función para obtener todos los valores del formulario
+    const getFormData = useCallback(() => {
+        const form = formRef.current;
+        if (!form) return {};
+
+        const formData = new FormData(form);
+        const data: any = {};
+
+        // Convertir FormData a objeto
+        for (const [key, value] of formData.entries()) {
+            const stringValue = value as string;
+            
+            // Manejar checkboxes
+            if (key === 'NO_APLICA') {
+                const checkbox = form.querySelector(`[name="${key}"]`) as HTMLInputElement;
+                data[key] = checkbox?.checked || false;
+            }
+            // Manejar números
+            else if (['ID_CLIENTE', 'ID_MEDICO', 'ID_INSTITUCION'].includes(key)) {
+                data[key] = parseInt(stringValue) || null;
+            }
+            // Strings normales
+            else {
+                data[key] = stringValue;
+            }
         }
-        
-        return formData;
-    }, [data]);
 
-    // Log para monitorear cambios en los datos del formulario
-    useEffect(() => {
-        console.log('🔄 Datos del formulario actualizados:', data);
-    }, [data]);
+        // Combinar fecha y hora si están presentes
+        if (data.FECHA_SOLICITUD_RECOLECCION && data.HORA_SOLICITUD_RECOLECCION) {
+            data.FECHA_SOLICITUD_RECOLECCION = data.FECHA_SOLICITUD_RECOLECCION + ' ' + data.HORA_SOLICITUD_RECOLECCION + ':00';
+        }
 
-    // Log inicial al cargar el componente
-    useEffect(() => {
-        console.log('🎬 Componente recolección cargado');
-        console.log('📋 Estudio inicial:', estudio);
-        console.log('📝 Datos iniciales del formulario:', data);
-        console.log('🔧 Processing inicial:', processing);
+        return data;
+    }, []);
+
+    // Manejar cambios en campos dependientes
+    const handleDependentFieldChange = useCallback((key: string, value: boolean) => {
+        setDependentFields(prev => ({
+            ...prev,
+            [key]: value
+        }));
     }, []);
 
     const handleSave = useCallback((e?: React.MouseEvent) => {
-        console.log('🔴 handleSave ejecutado');
         e?.preventDefault();
         
-        console.log('📊 Datos actuales del form:', data);
-        console.log('🔢 ID del estudio:', estudio.ID);
+        if (dependentFields.processing) return;
         
-        const formData = prepareFormData();
-        console.log('📤 Datos a enviar:', formData);
-        console.log('🎯 URL de patch:', `/estudios/${estudio.ID}/recoleccion`);
+        setDependentFields(prev => ({ ...prev, processing: true }));
+        const formData = getFormData();
         
         router.patch(`/estudios/${estudio.ID}/recoleccion`, formData, {
-            onSuccess: (response) => {
-                console.log('✅ Datos guardados exitosamente');
-                console.log('📥 Respuesta del servidor:', response);
-                alert('✅ Datos guardados exitosamente');
+            onSuccess: () => {
+                console.log('Datos guardados exitosamente');
             },
             onError: (errors) => {
-                console.error('❌ Error al guardar:', errors);
-                console.error('🔍 Detalles del error:', JSON.stringify(errors, null, 2));
-            },
-            onStart: () => {
-                console.log('🚀 Iniciando petición patch...');
+                console.error('Error al guardar:', errors);
             },
             onFinish: () => {
-                console.log('🏁 Petición patch finalizada');
+                setDependentFields(prev => ({ ...prev, processing: false }));
             }
         });
-    }, [estudio.ID, data, prepareFormData, router]);
+    }, [estudio.ID, getFormData, dependentFields.processing]);
 
     const handleNext = useCallback((e?: React.MouseEvent) => {
-        console.log('🟡 handleNext ejecutado');
         e?.preventDefault();
         
-        console.log('📊 Datos actuales del form (Next):', data);
-        console.log('🔢 ID del estudio (Next):', estudio.ID);
+        if (dependentFields.processing) return;
         
-        const formData = prepareFormData({ _next: 'recepcion' });
-        console.log('📤 Datos a enviar (Next):', formData);
-        console.log('🎯 URL de patch (Next):', `/estudios/${estudio.ID}/recoleccion`);
+        setDependentFields(prev => ({ ...prev, processing: true }));
+        const formData = { ...getFormData(), _next: 'recepcion' };
         
         router.patch(`/estudios/${estudio.ID}/recoleccion`, formData, {
-            onSuccess: (response) => {
-                console.log('✅ Datos guardados exitosamente (Next)');
-                console.log('📥 Respuesta del servidor (Next):', response);
-                console.log('🔄 Navegando a recepción...');
+            onSuccess: () => {
                 router.visit(`/estudios/${estudio.ID}/edit/recepcion`);
             },
             onError: (errors) => {
-                console.error('❌ Error al guardar (Next):', errors);
-                console.error('🔍 Detalles del error (Next):', JSON.stringify(errors, null, 2));
-            },
-            onStart: () => {
-                console.log('🚀 Iniciando petición patch (Next)...');
+                console.error('Error al guardar:', errors);
             },
             onFinish: () => {
-                console.log('🏁 Petición patch finalizada (Next)');
+                setDependentFields(prev => ({ ...prev, processing: false }));
             }
         });
-    }, [estudio.ID, data, prepareFormData, router]);
+    }, [estudio.ID, getFormData, dependentFields.processing]);
 
     const handleSaveAndExit = useCallback((e?: React.MouseEvent) => {
-        console.log('🔵 handleSaveAndExit ejecutado');
         e?.preventDefault();
         
-        console.log('📊 Datos actuales del form (Salir):', data);
-        console.log('🔢 ID del estudio (Salir):', estudio.ID);
+        if (dependentFields.processing) return;
         
-        const formData = prepareFormData();
-        console.log('📤 Datos a enviar (Salir):', formData);
-        console.log('🎯 URL de patch (Salir):', `/estudios/${estudio.ID}/recoleccion`);
+        setDependentFields(prev => ({ ...prev, processing: true }));
+        const formData = getFormData();
         
         router.patch(`/estudios/${estudio.ID}/recoleccion`, formData, {
-            onSuccess: (response) => {
-                console.log('✅ Datos guardados exitosamente (Salir)');
-                console.log('📥 Respuesta del servidor (Salir):', response);
-                console.log('🔄 Navegando a lista de estudios...');
+            onSuccess: () => {
                 router.visit('/estudios');
             },
             onError: (errors) => {
-                console.error('❌ Error al guardar (Salir):', errors);
-                console.error('🔍 Detalles del error (Salir):', JSON.stringify(errors, null, 2));
-            },
-            onStart: () => {
-                console.log('🚀 Iniciando petición patch (Salir)...');
+                console.error('Error al guardar:', errors);
             },
             onFinish: () => {
-                console.log('🏁 Petición patch finalizada (Salir)');
+                setDependentFields(prev => ({ ...prev, processing: false }));
             }
         });
-    }, [estudio.ID, data, prepareFormData, router]);
+    }, [estudio.ID, getFormData, dependentFields.processing]);
 
-    const inputClass = "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
-    const selectClass = "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white";
-    const textareaClass = "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none";
-    const labelClass = "block text-sm font-medium text-gray-700 mb-1";
+    // Preparar fecha y hora iniciales
+    const fechaInicial = estudio.FECHA_SOLICITUD_RECOLECCION ? 
+        new Date(estudio.FECHA_SOLICITUD_RECOLECCION).toISOString().split('T')[0] : '';
+    const horaInicial = estudio.FECHA_SOLICITUD_RECOLECCION ? 
+        new Date(estudio.FECHA_SOLICITUD_RECOLECCION).toTimeString().slice(0, 5) : '';
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Editar Estudio - ${estudio.CLAVE_INTERNA} - Recolección`} />
             
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
-                {/* Header con clave interna y estado */}
+                
+                {/* Header con información del estudio y pasos */}
                 <div className="bg-white rounded-lg p-6 shadow-sm">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-4">
                             <div className="flex items-center gap-2">
                                 <FileText className="h-6 w-6 text-[#189BAF]" />
                                 <h1 className="text-2xl font-bold text-gray-800">{estudio.CLAVE_INTERNA}</h1>
                             </div>
-                            <Badge className="bg-[#189BAF] text-white">1. Recolección</Badge>
                         </div>
                         <Link href={`/estudios/${estudio.ID}`}>
                             <Button variant="outline">
@@ -197,83 +170,106 @@ export default function EditRecoleccionOptimized() {
                         </Link>
                     </div>
                     
-                    {/* Barra de progreso del estado */}
-                    <div className="mt-4">
-                        <div className="flex justify-between text-sm text-gray-600 mb-2">
-                            <span>{estudio.ESTUDIO_ESTADO}</span>
+                    {/* Pasos del proceso */}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                            <Badge className="bg-[#189BAF] text-white">1. Recolección</Badge>
+                            <div className="w-8 h-0.5 bg-gray-300"></div>
+                            <Badge variant="outline">2. Recepción</Badge>
+                            <div className="w-8 h-0.5 bg-gray-300"></div>
+                            <Badge variant="outline">3. Laboratorio</Badge>
+                            <div className="w-8 h-0.5 bg-gray-300"></div>
+                            <Badge variant="outline">4. Informe</Badge>
                         </div>
+                    </div>
+                    
+                    {/* Barra de progreso */}
+                    <div className="mt-4">
                         <div className="w-full bg-gray-200 rounded-full h-2">
                             <div className="bg-[#189BAF] h-2 rounded-full" style={{ width: '25%' }}></div>
                         </div>
                     </div>
                 </div>
 
-                <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+                {/* Formulario Principal - HTML Puro para performance */}
+                <form ref={formRef} onSubmit={(e) => e.preventDefault()}>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* COLUMNA IZQUIERDA */}
+                        
+                        {/* Columna Izquierda */}
                         <div className="space-y-6">
-                            {/* Información básica */}
+                            
+                            {/* Información Básica */}
                             <div className="bg-white rounded-lg p-6 shadow-sm">
                                 <h3 className="text-lg font-semibold mb-4">Información Básica</h3>
                                 
                                 <div className="space-y-4">
                                     <div>
-                                        <label className={labelClass}>Clave Interna</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Clave Interna
+                                        </label>
                                         <input
                                             type="text"
-                                            className={inputClass}
-                                            value={data.CLAVE_INTERNA}
-                                            onChange={(e) => setData('CLAVE_INTERNA', e.target.value)}
+                                            name="CLAVE_INTERNA"
+                                            defaultValue={estudio.CLAVE_INTERNA || ''}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
                                         />
                                     </div>
                                     
                                     <div>
-                                        <label className={labelClass}>Folio Merck</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Folio Merck
+                                        </label>
                                         <input
                                             type="text"
-                                            className={inputClass}
-                                            value={data.FOLIO_MERCK}
-                                            onChange={(e) => setData('FOLIO_MERCK', e.target.value)}
+                                            name="FOLIO_MERCK"
+                                            defaultValue={estudio.FOLIO_MERCK || ''}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
                                         />
                                     </div>
                                     
-                                    <div>
-                                        <label className={labelClass}>Fecha <small>(dd/mm/aaaa)</small></label>
-                                        <input
-                                            type="date"
-                                            className={inputClass}
-                                            value={data.FECHA_SOLICITUD_RECOLECCION}
-                                            onChange={(e) => setData('FECHA_SOLICITUD_RECOLECCION', e.target.value)}
-                                        />
-                                    </div>
-                                    
-                                    <div>
-                                        <label className={labelClass}>Hora <small>(00:00)</small></label>
-                                        <input
-                                            type="time"
-                                            className={inputClass}
-                                            value={data.HORA_SOLICITUD_RECOLECCION}
-                                            onChange={(e) => setData('HORA_SOLICITUD_RECOLECCION', e.target.value)}
-                                        />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Fecha
+                                            </label>
+                                            <input
+                                                type="date"
+                                                name="FECHA_SOLICITUD_RECOLECCION"
+                                                defaultValue={fechaInicial}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                            />
+                                        </div>
+                                        
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Hora
+                                            </label>
+                                            <input
+                                                type="time"
+                                                name="HORA_SOLICITUD_RECOLECCION"
+                                                defaultValue={horaInicial}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Cliente */}
                             <div className="bg-white rounded-lg p-6 shadow-sm">
-                                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                                    💰 Cliente
-                                </h3>
+                                <h3 className="text-lg font-semibold mb-4">Cliente</h3>
                                 
                                 <div>
-                                    <label className={labelClass}>Cambiar al cliente</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Cambiar Cliente
+                                    </label>
                                     <select
-                                        className={selectClass}
-                                        value={data.ID_CLIENTE}
-                                        onChange={(e) => setData('ID_CLIENTE', parseInt(e.target.value))}
+                                        name="ID_CLIENTE"
+                                        defaultValue={estudio.ID_CLIENTE || ''}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
                                     >
                                         <option value="">Seleccionar cliente</option>
-                                        {clientes.map((cliente) => (
+                                        {clientes.map((cliente: any) => (
                                             <option key={cliente.ID_CLIENTE} value={cliente.ID_CLIENTE}>
                                                 {cliente.CLIENTE_NOMBRE}
                                             </option>
@@ -284,19 +280,19 @@ export default function EditRecoleccionOptimized() {
 
                             {/* Institución */}
                             <div className="bg-white rounded-lg p-6 shadow-sm">
-                                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                                    🏢 Institución
-                                </h3>
+                                <h3 className="text-lg font-semibold mb-4">Institución</h3>
                                 
                                 <div>
-                                    <label className={labelClass}>Cambiar la Institución</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Cambiar Institución
+                                    </label>
                                     <select
-                                        className={selectClass}
-                                        value={data.ID_INSTITUCION}
-                                        onChange={(e) => setData('ID_INSTITUCION', parseInt(e.target.value))}
+                                        name="ID_INSTITUCION"
+                                        defaultValue={estudio.ID_INSTITUCION || ''}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
                                     >
                                         <option value="">Seleccionar institución</option>
-                                        {instituciones.map((institucion) => (
+                                        {instituciones.map((institucion: any) => (
                                             <option key={institucion.ID_INSTITUCION} value={institucion.ID_INSTITUCION}>
                                                 {institucion.INSTITUCION_NOMBRE}
                                             </option>
@@ -307,19 +303,19 @@ export default function EditRecoleccionOptimized() {
 
                             {/* Médico */}
                             <div className="bg-white rounded-lg p-6 shadow-sm">
-                                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                                    👨‍⚕️ Médico
-                                </h3>
+                                <h3 className="text-lg font-semibold mb-4">Médico</h3>
                                 
                                 <div>
-                                    <label className={labelClass}>Cambiar Médico</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Cambiar Médico
+                                    </label>
                                     <select
-                                        className={selectClass}
-                                        value={data.ID_MEDICO}
-                                        onChange={(e) => setData('ID_MEDICO', parseInt(e.target.value))}
+                                        name="ID_MEDICO"
+                                        defaultValue={estudio.ID_MEDICO || ''}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
                                     >
                                         <option value="">Seleccionar médico</option>
-                                        {medicos.map((medico) => (
+                                        {medicos.map((medico: any) => (
                                             <option key={medico.ID_USUARIO} value={medico.ID_USUARIO}>
                                                 {medico.USUARIO_NOMBRE} {medico.USUARIO_APELLIDOS}
                                             </option>
@@ -329,129 +325,158 @@ export default function EditRecoleccionOptimized() {
                             </div>
                         </div>
 
-                        {/* COLUMNA DERECHA - Dirección de Recolección */}
+                        {/* Columna Derecha - Dirección de Recolección */}
                         <div className="space-y-6">
                             <div className="bg-white rounded-lg p-6 shadow-sm">
-                                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                                    🏢 Dirección de Recolección
-                                </h3>
+                                <h3 className="text-lg font-semibold mb-4">Dirección de Recolección</h3>
                                 
                                 {/* Checkbox No Aplica */}
                                 <div className="mb-4">
                                     <label className="flex items-center">
                                         <input
                                             type="checkbox"
+                                            name="NO_APLICA"
+                                            defaultChecked={dependentFields.NoAplica}
+                                            onChange={(e) => handleDependentFieldChange('NoAplica', e.target.checked)}
                                             className="mr-2"
-                                            checked={data.NO_APLICA}
-                                            onChange={(e) => setData('NO_APLICA', e.target.checked)}
                                         />
-                                        No aplica
+                                        <span className="text-sm font-medium">No Aplica Envío</span>
                                     </label>
                                 </div>
 
-                                {/* Formulario de dirección - Se oculta si "No aplica" está marcado */}
-                                {!data.NO_APLICA && (
+                                {/* Formulario de dirección */}
+                                {!dependentFields.NoAplica && (
                                     <div className="space-y-4">
+                                        
                                         <div>
-                                            <label className={labelClass}>Mensajería <small>(En caso de ya estar disponible)</small></label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Mensajería
+                                            </label>
                                             <select
-                                                className={selectClass}
-                                                value={data.MUESTRA_GUIA_MENSAJERIA}
-                                                onChange={(e) => setData('MUESTRA_GUIA_MENSAJERIA', e.target.value)}
+                                                name="MUESTRA_GUIA_MENSAJERIA"
+                                                defaultValue={estudio.MUESTRA_GUIA_MENSAJERIA || ''}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
                                             >
-                                                <option value="">Seleccionar</option>
-                                                <option value="Fedex">Fedex</option>
-                                                <option value="DHL">DHL</option>
-                                                <option value="Punto a Punto">Punto a Punto</option>
-                                                <option value="Porteo">Porteo</option>
-                                                <option value="GOAX">GOAX</option>
-                                                <option value="3d">3d</option>
-                                                <option value="Soluciones">Soluciones</option>
-                                                <option value="Voydevolada">Voydevolada</option>
-                                                <option value="Otra">Otra</option>
+                                                <option value="">Seleccionar mensajería</option>
+                                                {mensajerias.map((mensajeria: any) => (
+                                                    <option key={mensajeria.ID} value={mensajeria.NOMBRE}>
+                                                        {mensajeria.NOMBRE}
+                                                    </option>
+                                                ))}
                                             </select>
                                         </div>
 
                                         <div>
-                                            <label className={labelClass}>No. de Guía <small>(En caso de ya estar disponible)</small></label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Número de Guía
+                                            </label>
                                             <input
                                                 type="text"
-                                                className={inputClass}
-                                                value={data.MUESTRA_GUIA}
-                                                onChange={(e) => setData('MUESTRA_GUIA', e.target.value)}
+                                                name="MUESTRA_GUIA"
+                                                defaultValue={estudio.MUESTRA_GUIA || ''}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                placeholder="Número de guía"
                                             />
                                         </div>
 
                                         <div>
-                                            <label className={labelClass}>Referencias</label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Referencias
+                                            </label>
                                             <textarea
-                                                className={textareaClass}
-                                                rows={4}
-                                                value={data.MUESTRA_REFERENCIAS}
-                                                onChange={(e) => setData('MUESTRA_REFERENCIAS', e.target.value)}
+                                                name="MUESTRA_REFERENCIAS"
+                                                defaultValue={estudio.MUESTRA_REFERENCIAS || ''}
+                                                rows={3}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                placeholder="Referencias para encontrar la dirección"
                                             />
                                         </div>
 
-                                        <div className="grid grid-cols-3 gap-4">
-                                            <div className="col-span-2">
-                                                <label className={labelClass}>Dirección</label>
-                                                <textarea
-                                                    className={textareaClass}
-                                                    rows={4}
-                                                    value={data.MUESTRA_DIRECCION}
-                                                    onChange={(e) => setData('MUESTRA_DIRECCION', e.target.value)}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Dirección
+                                            </label>
+                                            <textarea
+                                                name="MUESTRA_DIRECCION"
+                                                defaultValue={estudio.MUESTRA_DIRECCION || ''}
+                                                rows={3}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                placeholder="Calle y número"
+                                            />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Número Exterior
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    name="MUESTRA_NUMERO_EXT"
+                                                    defaultValue={estudio.MUESTRA_NUMERO_EXT || ''}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
                                                 />
                                             </div>
-                                            <div className="space-y-4">
-                                                <div>
-                                                    <label className={labelClass}>Número Exterior</label>
-                                                    <input
-                                                        type="text"
-                                                        className={inputClass}
-                                                        value={data.MUESTRA_NUMERO_EXT}
-                                                        onChange={(e) => setData('MUESTRA_NUMERO_EXT', e.target.value)}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className={labelClass}>Número Interior</label>
-                                                    <input
-                                                        type="text"
-                                                        className={inputClass}
-                                                        value={data.MUESTRA_NUMERO_INT}
-                                                        onChange={(e) => setData('MUESTRA_NUMERO_INT', e.target.value)}
-                                                    />
-                                                </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Número Interior
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    name="MUESTRA_NUMERO_INT"
+                                                    defaultValue={estudio.MUESTRA_NUMERO_INT || ''}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                />
                                             </div>
                                         </div>
 
                                         <div>
-                                            <label className={labelClass}>Colonia</label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Colonia
+                                            </label>
                                             <input
                                                 type="text"
-                                                className={inputClass}
-                                                value={data.MUESTRA_COLONIA}
-                                                onChange={(e) => setData('MUESTRA_COLONIA', e.target.value)}
+                                                name="MUESTRA_COLONIA"
+                                                defaultValue={estudio.MUESTRA_COLONIA || ''}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
                                             />
                                         </div>
 
                                         <div>
-                                            <label className={labelClass}>Municipio</label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Municipio
+                                            </label>
                                             <input
                                                 type="text"
-                                                className={inputClass}
-                                                value={data.MUESTRA_MUNICIPIO}
-                                                onChange={(e) => setData('MUESTRA_MUNICIPIO', e.target.value)}
+                                                name="MUESTRA_MUNICIPIO"
+                                                defaultValue={estudio.MUESTRA_MUNICIPIO || ''}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
                                             />
                                         </div>
 
                                         <div>
-                                            <label className={labelClass}>Localidad (Estado)</label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Ciudad
+                                            </label>
+                                            <input
+                                                type="text"
+                                                name="MUESTRA_CIUDAD"
+                                                defaultValue={estudio.MUESTRA_CIUDAD || ''}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Estado
+                                            </label>
                                             <select
-                                                className={selectClass}
-                                                value={data.MUESTRA_ESTADO}
-                                                onChange={(e) => setData('MUESTRA_ESTADO', e.target.value)}
+                                                name="MUESTRA_ESTADO"
+                                                defaultValue={estudio.MUESTRA_ESTADO || ''}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
                                             >
-                                                <option value="">Selección</option>
+                                                <option value="">Seleccione estado</option>
                                                 <option value="Aguascalientes">Aguascalientes</option>
                                                 <option value="Baja California">Baja California</option>
                                                 <option value="Baja California Sur">Baja California Sur</option>
@@ -488,37 +513,47 @@ export default function EditRecoleccionOptimized() {
                                         </div>
 
                                         <div>
-                                            <label className={labelClass}>Tipo de Envío</label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Tipo de Envío
+                                            </label>
                                             <select
-                                                className={selectClass}
-                                                value={data.MUESTRA_ENVIO_TIPO}
-                                                onChange={(e) => setData('MUESTRA_ENVIO_TIPO', e.target.value)}
+                                                name="MUESTRA_ENVIO_TIPO"
+                                                defaultValue={estudio.MUESTRA_ENVIO_TIPO || ''}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
                                             >
-                                                <option value="">Seleccionar</option>
+                                                <option value="">Seleccionar tipo</option>
                                                 <option value="Local">Local</option>
                                                 <option value="Nacional">Nacional</option>
                                             </select>
                                         </div>
 
                                         <div>
-                                            <label className={labelClass}>Código Postal</label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Código Postal
+                                            </label>
                                             <input
                                                 type="text"
-                                                className={inputClass}
-                                                value={data.MUESTRA_CODIGO_POSTAL}
-                                                onChange={(e) => setData('MUESTRA_CODIGO_POSTAL', e.target.value)}
+                                                name="MUESTRA_CODIGO_POSTAL"
+                                                defaultValue={estudio.MUESTRA_CODIGO_POSTAL || ''}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                pattern="[0-9]{5}"
+                                                placeholder="12345"
                                             />
                                         </div>
 
                                         <div>
-                                            <label className={labelClass}>Horarios</label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Horarios de Atención
+                                            </label>
                                             <textarea
-                                                className={textareaClass}
-                                                rows={4}
-                                                value={data.MUESTRA_HORARIOS}
-                                                onChange={(e) => setData('MUESTRA_HORARIOS', e.target.value)}
+                                                name="MUESTRA_HORARIOS"
+                                                defaultValue={estudio.MUESTRA_HORARIOS || ''}
+                                                rows={3}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                placeholder="Ejemplo: Lunes a Viernes de 9:00 a 18:00"
                                             />
                                         </div>
+
                                     </div>
                                 )}
                             </div>
@@ -526,14 +561,14 @@ export default function EditRecoleccionOptimized() {
                     </div>
 
                     {/* Botones de navegación */}
-                    <div className="bg-white rounded-lg p-4 shadow-sm">
+                    <div className="bg-white rounded-lg p-4 shadow-sm mt-6">
                         <div className="flex justify-between">
                             <Button 
                                 type="button"
                                 variant="outline" 
                                 className="bg-red-600 text-white hover:bg-red-700"
                                 onClick={handleSaveAndExit}
-                                disabled={processing}
+                                disabled={dependentFields.processing}
                             >
                                 <ChevronLeft className="h-4 w-4 mr-2" />
                                 Guardar y Salir
@@ -543,7 +578,7 @@ export default function EditRecoleccionOptimized() {
                                     type="button"
                                     variant="secondary"
                                     onClick={handleSave}
-                                    disabled={processing}
+                                    disabled={dependentFields.processing}
                                     className="bg-blue-600 text-white hover:bg-blue-700"
                                 >
                                     <Save className="h-4 w-4 mr-2" />
@@ -553,7 +588,7 @@ export default function EditRecoleccionOptimized() {
                                     type="button"
                                     className="bg-yellow-600 hover:bg-yellow-700 text-white"
                                     onClick={handleNext}
-                                    disabled={processing}
+                                    disabled={dependentFields.processing}
                                 >
                                     Guardar y Siguiente
                                     <ChevronRight className="h-4 w-4 ml-2" />

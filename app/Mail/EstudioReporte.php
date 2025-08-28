@@ -2,14 +2,11 @@
 
 namespace App\Mail;
 
-use App\Models\Estudio;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Content;
-use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Http;
 
 class EstudioReporte extends Mailable
 {
@@ -17,80 +14,83 @@ class EstudioReporte extends Mailable
 
     public $estudio;
     public $enviarAdjunto;
+    public $info;
 
     /**
      * Create a new message instance.
      */
-    public function __construct(Estudio $estudio, bool $enviarAdjunto = false)
+    public function __construct($estudio, $enviarAdjunto = false)
     {
         $this->estudio = $estudio;
         $this->enviarAdjunto = $enviarAdjunto;
+        
+        // Preparar datos como en el legacy
+        $this->info = [
+            'FOLIO' => $estudio->CLAVE_INTERNA,
+            'ID' => $estudio->ID,
+            'ALEATORIO' => $estudio->ID_ALEATORIO
+        ];
     }
 
     /**
-     * Get the message envelope.
+     * Build the message.
      */
-    public function envelope(): Envelope
+    public function build()
     {
-        return new Envelope(
-            subject: 'DIAHMOES - Reporte ' . ($this->estudio->FOLIO_MERCK ?? $this->estudio->CLAVE_INTERNA),
-        );
-    }
+        $subject = 'Enlace de Reporte ' . $this->estudio->CLAVE_INTERNA . 
+                  ' | PX: ' . ($this->estudio->MUESTRA_INICIALES ?: 'N/A') . 
+                  ' | Diahmoes';
 
-    /**
-     * Get the message content definition.
-     */
-    public function content(): Content
-    {
-        return new Content(
-            view: $this->enviarAdjunto ? 'emails.adjunto' : 'emails.enlace',
-            with: [
-                'estudio' => $this->estudio,
-            ],
-        );
-    }
+        $email = $this->from('resultados@diahmoes.com.mx', 'Reporte Diahmoes')
+                      ->subject($subject);
 
-    /**
-     * Get the attachments for the message.
-     *
-     * @return array<int, \Illuminate\Mail\Mailables\Attachment>
-     */
-    public function attachments(): array
-    {
-        if (!$this->enviarAdjunto) {
-            return [];
+        // Elegir vista según si se envía adjunto o no
+        if ($this->enviarAdjunto) {
+            $email->view('emails.adjunto', ['info' => $this->info]);
+            
+            // Generar y adjuntar PDF
+            $this->attachPdf();
+        } else {
+            $email->view('emails.enlace', ['info' => $this->info]);
         }
 
-        // Generar el PDF y adjuntarlo
+        return $email;
+    }
+
+    /**
+     * Generar y adjuntar el PDF del estudio
+     */
+    private function attachPdf()
+    {
         try {
-            $this->estudio->load(['medico', 'paciente', 'institucion', 'cliente']);
-            
-            $data = [
-                'estudio' => $this->estudio,
-                'paciente' => $this->estudio->paciente,
-                'medico' => $this->estudio->medico,
-                'institucion' => $this->estudio->institucion,
-                'cliente' => $this->estudio->cliente
-            ];
-            
-            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.estudio', $data);
-            $pdf->setPaper('A4', 'portrait');
-            $pdf->setOptions([
-                'isHtml5ParserEnabled' => true,
-                'isPhpEnabled' => true,
-                'defaultFont' => 'Arial'
+            // URL para generar el PDF (usando la ruta pública existente)
+            $pdfUrl = route('estudios.pdf.public', [
+                'id' => $this->info['ID'],
+                'aleatorio' => $this->info['ALEATORIO']
             ]);
+
+            // Descargar el PDF usando HTTP client
+            $response = Http::timeout(30)->get($pdfUrl);
             
-            $filename = 'DIAHMOES_' . ($this->estudio->CLAVE_INTERNA ?? $this->estudio->folio_completo) . '.pdf';
-            
-            return [
-                Attachment::fromData(fn () => $pdf->output(), $filename)
-                    ->withMime('application/pdf'),
-            ];
+            if ($response->successful()) {
+                $filename = 'DIAHMOES_' . $this->info['FOLIO'] . '.pdf';
+                
+                // Adjuntar el contenido del PDF
+                $this->attachData(
+                    $response->body(), 
+                    $filename, 
+                    [
+                        'mime' => 'application/pdf',
+                    ]
+                );
+                
+                \Log::info("PDF adjuntado exitosamente: {$filename}");
+            } else {
+                \Log::error('Error al generar PDF para adjunto: ' . $response->status());
+            }
         } catch (\Exception $e) {
-            // Si hay error generando el PDF, no adjuntar nada
-            \Log::error('Error generando PDF para adjuntar: ' . $e->getMessage());
-            return [];
+            \Log::error('Error adjuntando PDF: ' . $e->getMessage());
+            // Continuar sin adjunto si hay error
         }
     }
 }

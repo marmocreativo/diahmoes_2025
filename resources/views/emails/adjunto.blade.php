@@ -1,9 +1,9 @@
 <!doctype html>
 <html>
-  <head>
+<head>
     <meta name="viewport" content="width=device-width" />
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <title>Reporte DIAHMOES</title>
+    <title>Reporte Adjunto</title>
     <style>
       /* -------------------------------------
           GLOBAL RESETS
@@ -292,41 +292,35 @@
         }
       }
     </style>
-  </head>
-  <body class="">
+</head>
+<body class="">
     <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="body">
-      <tr>
-        <td>&nbsp;</td>
-        <td class="container">
-          <div class="content">
-            <!-- START CENTERED WHITE CONTAINER -->
-            <span class="preheader">Diahmoes</span>
-            <table role="presentation" class="main">
-
-              <!-- START MAIN CONTENT AREA -->
-              <tr>
-                <td class="wrapper">
-                  <table role="presentation" border="0" cellpadding="0" cellspacing="0">
-                    <tr>
-                      <td>
-                        <img src="{{ asset('assets/logo.jpg') }}" alt="DIAHMOES">
-                        <p>REPORTE {{ $estudio->FOLIO_MERCK ?? $estudio->CLAVE_INTERNA }}</p>
-                        <p>Adjunto a este correo podrás encontrar el reporte {{ $estudio->FOLIO_MERCK ?? $estudio->CLAVE_INTERNA }}</p>
-                        
-                        <p>Si tienes problemas para ver el adjunto puedes copiar y pegar la siguiente dirección en tu navegador</p>
-                        <p>{{ route('estudios.pdf.public', ['id' => $estudio->ID, 'aleatorio' => $estudio->ID_ALEATORIO]) }}</p>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-
-            <!-- END MAIN CONTENT AREA -->
-            </table>
-          </div>
-        </td>
-        <td>&nbsp;</td>
-      </tr>
+        <tr>
+            <td>&nbsp;</td>
+            <td class="container">
+                <div class="content">
+                    <table role="presentation" class="main">
+                        <tr>
+                            <td class="wrapper">
+                                <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td>
+                                            <img src="{{ asset('assets/logo.jpg') }}" alt="Diahmoes Logo">
+                                            <p>REPORTE {{ $info['FOLIO'] }}</p>
+                                            <p>Adjunto a este correo podrás encontrar el reporte {{ $info['FOLIO'] }}</p>
+                                            
+                                            <p>Si tienes problemas para ver el adjunto puedes copiar y pegar la siguiente dirección en tu navegador</p>
+                                            <p>{{ route('estudios.pdf.public', ['id' => $info['ID'], 'aleatorio' => $info['ALEATORIO']]) }}</p>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+            <td>&nbsp;</td>
+        </tr>
     </table>
-  </body>
+</body>
 </html>
