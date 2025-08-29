@@ -6,6 +6,7 @@ use App\Http\Controllers\EstudioController;
 use App\Http\Controllers\InstitucionController;
 use App\Http\Controllers\MensajeriaController;
 use App\Http\Controllers\UsuarioController;
+use App\Http\Controllers\ConfiguracionController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -596,20 +597,33 @@ Route::middleware(['auth', 'verified'])->group(function () {
     |--------------------------------------------------------------------------
     */
     
-    // Configuración general del sistema
-    Route::get('/configuracion', function() {
-        return Inertia::render('Configuracion/Index');
-    })->name('configuracion.index');
-    
-    // Configuración de mensajerías
-    Route::get('/configuracion/mensajerias', function() {
-        return redirect()->route('mensajerias.index');
-    })->name('configuracion.mensajerias');
-    
-    // Configuración de clientes
-    Route::get('/configuracion/clientes', function() {
-        return redirect()->route('clientes.index');
-    })->name('configuracion.clientes');
+    // Página principal de configuración
+    Route::get('/configuracion', [ConfiguracionController::class, 'index'])
+        ->name('configuracion.index');
+
+    // 🧪 Ruta de prueba para debugging
+    Route::any('/configuracion/test', [ConfiguracionController::class, 'test'])
+        ->name('configuracion.test');
+
+    // 📊 Información del sistema para debugging
+    Route::get('/configuracion/system-info', [ConfiguracionController::class, 'getSystemInfo'])
+        ->name('configuracion.system-info');
+
+    // Herramientas de mantenimiento - con middleware adicional para API responses
+    Route::middleware(['web'])->group(function () {
+        
+        Route::post('/configuracion/run-migrations', [ConfiguracionController::class, 'runMigrations'])
+            ->name('configuracion.run-migrations');
+
+        Route::get('/configuracion/download-backup', [ConfiguracionController::class, 'downloadBackup'])
+            ->name('configuracion.download-backup');
+
+        Route::post('/configuracion/test-email', [ConfiguracionController::class, 'testEmail'])
+            ->name('configuracion.test-email');
+
+        Route::post('/configuracion/mail-config-test', [ConfiguracionController::class, 'testMailConfig'])
+            ->name('configuracion.mail-config-test');
+    });
     
 });
 

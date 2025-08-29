@@ -19,81 +19,112 @@ class EstudioController extends Controller
      * Display a listing of the resource.
      */
     public function index(Request $request)
-    {
-        $query = Estudio::with(['medico', 'paciente', 'institucion', 'cliente']);
-        
-        // Aplicar filtros
-        if ($request->filled('search')) {
-            $search = $request->get('search');
-            $query->where(function($q) use ($search) {
-                $q->where('CLAVE_INTERNA', 'like', "%{$search}%")
-                  ->orWhere('FOLIO_MERCK', 'like', "%{$search}%")
-                  ->orWhere('MUESTRA_INICIALES', 'like', "%{$search}%")
-                  ->orWhere('MUESTRA_CLAVE', 'like', "%{$search}%");
-            });
-        }
-        
-        if ($request->filled('estado')) {
-            $query->where('ESTUDIO_ESTADO', $request->get('estado'));
-        }
-        
-        if ($request->filled('tipo_estudio')) {
-            $query->where('MUESTRA_TIPO_ESTUDIO', $request->get('tipo_estudio'));
-        }
-        
-        if ($request->filled('institucion')) {
-            $query->where('ID_INSTITUCION', $request->get('institucion'));
-        }
-        
-        if ($request->filled('medico')) {
-            $query->where('ID_MEDICO', $request->get('medico'));
-        }
-        
-        if ($request->filled('fecha_desde')) {
-            $query->where('FECHA_SOLICITUD_RECOLECCION', '>=', $request->get('fecha_desde'));
-        }
-        
-        if ($request->filled('fecha_hasta')) {
-            $query->where('FECHA_SOLICITUD_RECOLECCION', '<=', $request->get('fecha_hasta'));
-        }
-        
-        // Ordenamiento: SIEMPRE por ANIO desc, SERIADO desc como base
-        $query->orderBy('ANIO', 'desc')
-              ->orderBy('SERIADO', 'desc');
-        
-        // Si se especifica un ordenamiento adicional, agregarlo como tercer criterio
-        if ($request->has('sort') && $request->get('sort') !== 'ANIO') {
-            $sortBy = $request->get('sort');
-            $direction = $request->get('direction', 'desc');
-            $query->orderBy($sortBy, $direction);
-        }
-        
-        $estudios = $query->paginate(15)->withQueryString();
-        
-        // Obtener datos para filtros
-        $medicos = Usuario::where('USUARIO_TIPO', 'medico')
-            ->where('USUARIO_ESTADO', 'activo')
-            ->select('ID_USUARIO', 'USUARIO_NOMBRE', 'USUARIO_APELLIDOS')
-            ->get();
+        {
+            $query = Estudio::with(['medico', 'paciente', 'institucion', 'cliente']);
             
-        $instituciones = Institucion::select('ID_INSTITUCION', 'INSTITUCION_NOMBRE')
-            ->orderBy('INSTITUCION_NOMBRE')
-            ->get();
+            // Aplicar filtros de búsqueda ampliada
+            if ($request->filled('search')) {
+                $search = $request->get('search');
+                $query->where(function($q) use ($search) {
+                    $q->where('CLAVE_INTERNA', 'like', "%{$search}%")
+                    ->orWhere('FOLIO_MERCK', 'like', "%{$search}%")
+                    ->orWhere('MUESTRA_CLAVE', 'like', "%{$search}%")
+                    ->orWhere('MUESTRA_TIPO', 'like', "%{$search}%")
+                    ->orWhere('MUESTRA_INICIALES', 'like', "%{$search}%")
+                    ->orWhere('R_ESTUDIO_SOLICITADO', 'like', "%{$search}%")
+                    // Búsqueda por nombre del médico
+                    ->orWhereHas('medico', function($subQ) use ($search) {
+                        $subQ->where('USUARIO_NOMBRE', 'like', "%{$search}%")
+                            ->orWhere('USUARIO_APELLIDOS', 'like', "%{$search}%")
+                            ->orWhere(\DB::raw('CONCAT(USUARIO_NOMBRE, " ", USUARIO_APELLIDOS)'), 'like', "%{$search}%");
+                    })
+                    // Búsqueda por nombre de institución
+                    ->orWhereHas('institucion', function($subQ) use ($search) {
+                        $subQ->where('INSTITUCION_NOMBRE', 'like', "%{$search}%");
+                    });
+                });
+            }
             
-        $clientes = Cliente::select('ID_CLIENTE', 'CLIENTE_NOMBRE')
-            ->orderBy('CLIENTE_NOMBRE')
-            ->get();
-        
-        return Inertia::render('estudios/index', [
-            'estudios' => $estudios,
-            'filters' => $request->only(['search', 'estado', 'tipo_estudio', 'institucion', 'medico', 'fecha_desde', 'fecha_hasta', 'sort', 'direction']),
-            'medicos' => $medicos,
-            'instituciones' => $instituciones,
-            'clientes' => $clientes,
-            'estados' => Estudio::getEstados() ?? [],
-            'tiposEstudio' => Estudio::getTiposEstudio() ?? [],
-        ]);
-    }
+            // Filtros específicos por estado (usando las constantes actualizadas)
+            if ($request->filled('estado')) {
+                $estado = $request->get('estado');
+                $query->where('ESTUDIO_ESTADO', $estado);
+            }
+            
+            if ($request->filled('tipo_estudio')) {
+                $query->where('MUESTRA_TIPO_ESTUDIO', $request->get('tipo_estudio'));
+            }
+            
+            if ($request->filled('institucion')) {
+                $query->where('ID_INSTITUCION', $request->get('institucion'));
+            }
+            
+            if ($request->filled('medico')) {
+                $query->where('ID_MEDICO', $request->get('medico'));
+            }
+            
+            // Filtros por fechas
+            if ($request->filled('fecha_desde')) {
+                $query->where('FECHA_SOLICITUD_RECOLECCION', '>=', $request->get('fecha_desde'));
+            }
+            
+            if ($request->filled('fecha_hasta')) {
+                $query->where('FECHA_SOLICITUD_RECOLECCION', '<=', $request->get('fecha_hasta'));
+            }
+            
+            // Filtro por urgentes (más de 24 horas en laboratorio)
+            if ($request->filled('urgentes') && $request->get('urgentes') === '1') {
+                $query->where('ESTUDIO_ESTADO', Estudio::ESTADO_LABORATORIO_RECEPCION)
+                    ->whereNotNull('FECHA_ENVIO_LABORATORIO')
+                    ->where('FECHA_ENVIO_LABORATORIO', '!=', '0000-00-00 00:00:00')
+                    ->where('FECHA_ENVIO_LABORATORIO', '<=', now()->subHours(24));
+            }
+            
+            // Filtro por resultados completos
+            if ($request->filled('resultados_completos') && $request->get('resultados_completos') === '1') {
+                $query->where('R_COMPLETOS', 'si');
+            }
+            
+            // Ordenamiento: SIEMPRE por ANIO desc, SERIADO desc como base
+            $query->orderBy('ANIO', 'desc')
+                ->orderBy('SERIADO', 'desc');
+            
+            // Si se especifica un ordenamiento adicional, agregarlo como tercer criterio
+            if ($request->has('sort') && $request->get('sort') !== 'ANIO') {
+                $sortBy = $request->get('sort');
+                $direction = $request->get('direction', 'desc');
+                $query->orderBy($sortBy, $direction);
+            }
+            
+            $estudios = $query->paginate(20)->withQueryString();
+            
+            // Obtener datos para filtros
+            $medicos = Usuario::where('USUARIO_TIPO', 'medico')
+                ->where('USUARIO_ESTADO', 'activo')
+                ->select('ID_USUARIO', 'USUARIO_NOMBRE', 'USUARIO_APELLIDOS')
+                ->get();
+                
+            $instituciones = Institucion::select('ID_INSTITUCION', 'INSTITUCION_NOMBRE')
+                ->orderBy('INSTITUCION_NOMBRE')
+                ->get();
+                
+            $clientes = Cliente::select('ID_CLIENTE', 'CLIENTE_NOMBRE')
+                ->orderBy('CLIENTE_NOMBRE')
+                ->get();
+            return Inertia::render('estudios/index', [
+                'estudios' => $estudios,
+                'filters' => $request->only([
+                    'search', 'estado', 'tipo_estudio', 'institucion', 'medico', 
+                    'fecha_desde', 'fecha_hasta', 'urgentes', 'resultados_completos',
+                    'sort', 'direction'
+                ]),
+                'medicos' => $medicos,
+                'instituciones' => $instituciones,
+                'clientes' => $clientes,
+                'estados' => Estudio::getEstados() ?? [],
+                'tiposEstudio' => Estudio::getTiposEstudio() ?? [],
+            ]);
+        }
 
     /**
      * Show the form for creating a new resource.

@@ -132,15 +132,19 @@ class Estudio extends Model
     const TIPO_ESTUDIO_BRAF = 'BRAF';
     const TIPO_ESTUDIO_PANEL = 'PANEL';
 
-    // Constantes para estados del estudio
-    const ESTADO_PENDIENTE = 'pendiente';
-    const ESTADO_EN_PROCESO = 'en_proceso';
-    const ESTADO_COMPLETADO = 'completado';
-    const ESTADO_CANCELADO = 'cancelado';
+
+    // Constantes para estados del estudio - CORREGIDAS
+    const ESTADO_PENDIENTE = 'Solicitud Recolección';
+    const ESTADO_LABORATORIO_RECEPCION = 'Recepción Laboratorio';
+    const ESTADO_LABORATORIO_COMPLETO = 'Resultados Completos';
+    const ESTADO_COMPLETADO = 'Resultados Enviados';
+    const ESTADO_RETORNO = 'Retorno Material';
+    const ESTADO_TERMINADO = 'Terminado';
+    const ESTADO_CANCELADO = 'Cancelado';
 
     // Constantes para género
-    const GENERO_MASCULINO = 'M';
-    const GENERO_FEMENINO = 'F';
+    const GENERO_MASCULINO = 'Masculino';
+    const GENERO_FEMENINO = 'Femenino';
 
     // Constantes para envío
     const ENVIO_APLICA = 'aplica';
@@ -198,7 +202,7 @@ class Estudio extends Model
         return $this->hasMany(CorreoCopia::class, 'ID_ESTUDIO', 'ID');
     }
 
-    // Scopes
+    // Scopes - ACTUALIZADOS
     public function scopePendientes($query)
     {
         return $query->where('ESTUDIO_ESTADO', self::ESTADO_PENDIENTE);
@@ -206,12 +210,25 @@ class Estudio extends Model
 
     public function scopeEnProceso($query)
     {
-        return $query->where('ESTUDIO_ESTADO', self::ESTADO_EN_PROCESO);
+        return $query->whereIn('ESTUDIO_ESTADO', [
+            self::ESTADO_LABORATORIO_RECEPCION,
+            self::ESTADO_LABORATORIO_COMPLETO
+        ]);
     }
 
     public function scopeCompletados($query)
     {
         return $query->where('ESTUDIO_ESTADO', self::ESTADO_COMPLETADO);
+    }
+
+    public function scopeTerminados($query)
+    {
+        return $query->where('ESTUDIO_ESTADO', self::ESTADO_TERMINADO);
+    }
+
+    public function scopeConRetorno($query)
+    {
+        return $query->where('ESTUDIO_ESTADO', self::ESTADO_RETORNO);
     }
 
     public function scopePorTipoEstudio($query, $tipo)
@@ -275,15 +292,22 @@ class Estudio extends Model
         }
     }
 
+    // MÉTODO CORREGIDO
     public function getEstadoFormateadoAttribute()
     {
         switch ($this->ESTUDIO_ESTADO) {
             case self::ESTADO_PENDIENTE:
-                return 'Pendiente';
-            case self::ESTADO_EN_PROCESO:
-                return 'En Proceso';
+                return 'Solicitud Recolección';
+            case self::ESTADO_LABORATORIO_RECEPCION:
+                return 'Recepción Laboratorio';
+            case self::ESTADO_LABORATORIO_COMPLETO:
+                return 'Resultados Completos';
             case self::ESTADO_COMPLETADO:
-                return 'Completado';
+                return 'Resultados Enviados';
+            case self::ESTADO_RETORNO:
+                return 'Retorno Material';
+            case self::ESTADO_TERMINADO:
+                return 'Terminado';
             case self::ESTADO_CANCELADO:
                 return 'Cancelado';
             default:
@@ -354,12 +378,16 @@ class Estudio extends Model
         ];
     }
 
+    // MÉTODO CORREGIDO
     public static function getEstados()
     {
         return [
-            self::ESTADO_PENDIENTE => 'Pendiente',
-            self::ESTADO_EN_PROCESO => 'En Proceso',
-            self::ESTADO_COMPLETADO => 'Completado',
+            self::ESTADO_PENDIENTE => 'Solicitud Recolección',
+            self::ESTADO_LABORATORIO_RECEPCION => 'Recepción Laboratorio',
+            self::ESTADO_LABORATORIO_COMPLETO => 'Resultados Completos',
+            self::ESTADO_COMPLETADO => 'Resultados Enviados',
+            self::ESTADO_RETORNO => 'Retorno Material',
+            self::ESTADO_TERMINADO => 'Terminado',
             self::ESTADO_CANCELADO => 'Cancelado',
         ];
     }
@@ -408,17 +436,23 @@ class Estudio extends Model
         return $diasTranscurridos && $diasTranscurridos > 7;
     }
 
+    // MÉTODO ACTUALIZADO
     public function puedeSerEditado()
     {
         return in_array($this->ESTUDIO_ESTADO, [
             self::ESTADO_PENDIENTE,
-            self::ESTADO_EN_PROCESO
+            self::ESTADO_LABORATORIO_RECEPCION,
+            self::ESTADO_LABORATORIO_COMPLETO
         ]);
     }
 
+    // MÉTODO ACTUALIZADO
     public function puedeSerCancelado()
     {
-        return $this->ESTUDIO_ESTADO !== self::ESTADO_COMPLETADO;
+        return !in_array($this->ESTUDIO_ESTADO, [
+            self::ESTADO_COMPLETADO,
+            self::ESTADO_TERMINADO
+        ]);
     }
 
     // Boot method para generar valores automáticos

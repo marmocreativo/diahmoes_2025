@@ -9,11 +9,13 @@ import { type BreadcrumbItem } from '@/types';
 interface EditInformeProps {
     estudio: any;
     medico: any;
-    correos_copias: any[]; // Agregar correos existentes
+    correos_copias: any[];
     [key: string]: any;
 }
 
+// 🔧 FIX: Interfaz compatible con FormDataConvertible
 interface CorreoCopia {
+    [key: string]: string | number | undefined; // Index signature requerida
     ID?: number;
     NOMBRE: string;
     CORREO: string;
@@ -49,7 +51,7 @@ export default function EditInformeFixed() {
     useEffect(() => {
         console.log('🔄 Cargando correos existentes:', correos_copias);
         if (correos_copias && correos_copias.length > 0) {
-            const correosFormateados = correos_copias.map(correo => ({
+            const correosFormateados: CorreoCopia[] = correos_copias.map(correo => ({
                 ID: correo.ID,
                 NOMBRE: correo.NOMBRE,
                 CORREO: correo.CORREO,
@@ -71,14 +73,26 @@ export default function EditInformeFixed() {
         setFormData(prev => ({ ...prev, [key]: value }));
     }, []);
 
+    // 🔧 FIX: Función para serializar correos compatible con FormData
+    const serializeCorreos = (correos: CorreoCopia[]) => {
+        return correos.map(correo => ({
+            ID: correo.ID?.toString() || '',
+            NOMBRE: correo.NOMBRE,
+            CORREO: correo.CORREO,
+            ID_ESTUDIO: correo.ID_ESTUDIO.toString(),
+            ENVIAR: correo.ENVIAR || 'no'
+        }));
+    };
+
     const handleSave = useCallback(() => {
         setProcessing(true);
-        const dataToSend = {
+        
+        // 🔧 FIX: Crear objeto compatible con FormDataConvertible
+        const dataToSend: Record<string, any> = {
             ...formData,
-            // Combinar fecha y hora para informe
             FECHA_INFORME: `${formData.FECHA_INFORME} ${formData.HORA_INFORME}:00`,
             FECHA_RESULTADOS_CORREO: `${formData.FECHA_RESULTADOS_CORREO} ${formData.HORA_RESULTADOS_CORREO}:00`,
-            correos_copias: listaCorreos
+            correos_copias: serializeCorreos(listaCorreos)
         };
         
         console.log('💾 Guardando datos:', dataToSend);
@@ -98,11 +112,12 @@ export default function EditInformeFixed() {
 
     const handleSaveAndSend = useCallback(() => {
         setProcessing(true);
-        const dataToSend = {
+        
+        const dataToSend: Record<string, any> = {
             ...formData,
             FECHA_INFORME: `${formData.FECHA_INFORME} ${formData.HORA_INFORME}:00`,
             FECHA_RESULTADOS_CORREO: `${formData.FECHA_RESULTADOS_CORREO} ${formData.HORA_RESULTADOS_CORREO}:00`,
-            correos_copias: listaCorreos,
+            correos_copias: serializeCorreos(listaCorreos),
             _action: 'enviar'
         };
         
@@ -123,11 +138,12 @@ export default function EditInformeFixed() {
 
     const handleSaveAndExit = useCallback(() => {
         setProcessing(true);
-        const dataToSend = {
+        
+        const dataToSend: Record<string, any> = {
             ...formData,
             FECHA_INFORME: `${formData.FECHA_INFORME} ${formData.HORA_INFORME}:00`,
             FECHA_RESULTADOS_CORREO: `${formData.FECHA_RESULTADOS_CORREO} ${formData.HORA_RESULTADOS_CORREO}:00`,
-            correos_copias: listaCorreos
+            correos_copias: serializeCorreos(listaCorreos)
         };
         
         router.patch(`/estudios/${estudio.ID}/informe`, dataToSend, {
@@ -149,7 +165,7 @@ export default function EditInformeFixed() {
 
     const agregarCorreoMedico = useCallback(() => {
         if (medico && medico.USUARIO_CORREO) {
-            const correoMedico = {
+            const correoMedico: CorreoCopia = {
                 NOMBRE: `${medico.USUARIO_NOMBRE} ${medico.USUARIO_APELLIDOS}`,
                 CORREO: medico.USUARIO_CORREO,
                 ID_ESTUDIO: estudio.ID,
@@ -166,12 +182,14 @@ export default function EditInformeFixed() {
 
     const agregarCorreo = useCallback(() => {
         if (nuevoCorreo.nombre.trim() && nuevoCorreo.correo.trim()) {
-            setListaCorreos(prev => [...prev, {
+            const nuevoCorreoObj: CorreoCopia = {
                 NOMBRE: nuevoCorreo.nombre.trim(),
                 CORREO: nuevoCorreo.correo.trim(),
                 ID_ESTUDIO: estudio.ID,
                 ENVIAR: 'si'
-            }]);
+            };
+            
+            setListaCorreos(prev => [...prev, nuevoCorreoObj]);
             setNuevoCorreo({ nombre: '', correo: '' });
         }
     }, [nuevoCorreo, estudio.ID]);
