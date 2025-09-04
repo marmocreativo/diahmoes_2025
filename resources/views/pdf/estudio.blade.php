@@ -23,6 +23,12 @@
             height: 80px;
             text-align: center;
         }
+        .logo-image {
+            max-height: 70px;
+            max-width: 200px;
+            height: auto;
+            width: auto;
+        }
         .title-cell {
             font-size: 14px;
             font-weight: bold;
@@ -107,12 +113,16 @@
             text-align: center;
         }
         .signature-image {
-            width: 200px;
+            max-width: 200px;
+            max-height: 80px;
             height: auto;
+            width: auto;
         }
         .footer-image {
             width: 100%;
+            max-height: 60px;
             height: auto;
+            object-fit: contain;
         }
         .mutation-table {
             width: 100%;
@@ -139,6 +149,12 @@
             border-top: 1px solid #000;
             margin: 20px 0;
         }
+        .patrocinio-image {
+            max-width: 300px;
+            max-height: 80px;
+            height: auto;
+            width: auto;
+        }
     </style>
 </head>
 <body>
@@ -146,10 +162,7 @@
     <table class="header-table">
         <tr>
             <td class="logo-cell">
-                {{-- Aquí iría el logo --}}
-                <div style="border: 1px solid #ccc; height: 70px; display: flex; align-items: center; justify-content: center;">
-                    <strong>DIAHMOES LOGO</strong>
-                </div>
+                <img src="{{ asset('assets/logo_reporte.jpg') }}" alt="DIAHMOES Logo" class="logo-image">
             </td>
         </tr>
         <tr>
@@ -353,16 +366,10 @@
     <!-- Firma y Footer -->
     <div class="signature-table">
         <div style="text-align: center; margin-bottom: 20px;">
-            {{-- Aquí iría la imagen de la firma --}}
-            <div style="border: 1px solid #ccc; height: 80px; width: 200px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
-                <strong>FIRMA</strong>
-            </div>
+            <img src="{{ asset('assets/firma_completa_2.jpg') }}" alt="Firma" class="signature-image">
         </div>
         <div>
-            {{-- Aquí iría el footer --}}
-            <div style="border: 1px solid #ccc; height: 60px; display: flex; align-items: center; justify-content: center;">
-                <strong>FOOTER</strong>
-            </div>
+            <img src="{{ asset('assets/footer_reporte.jpg') }}" alt="Footer" class="footer-image">
         </div>
     </div>
 
@@ -507,9 +514,7 @@
 
         <!-- Patrocinio -->
         <div style="margin-top: 30px; text-align: center;">
-            <div style="border: 1px solid #ccc; height: 80px; display: flex; align-items: center; justify-content: center;">
-                <strong>PATROCINIO</strong>
-            </div>
+            <img src="{{ asset('assets/patrocinio_reporte.jpg') }}" alt="Patrocinio" class="patrocinio-image">
         </div>
     </div>
 </body>
