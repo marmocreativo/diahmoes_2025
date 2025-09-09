@@ -111,6 +111,7 @@ export interface Estudio {
         USUARIO_NOMBRE: string;
         USUARIO_APELLIDOS: string;
         USUARIO_CORREO: string;
+        USUARIO_TELEFONO: string;
     };
     paciente?: {
         ID_USUARIO: number;

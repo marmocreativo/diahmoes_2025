@@ -18,7 +18,29 @@ export default function CrearEstudio() {
 
     // Referencias para inputs simples - no causan re-renders
     const formRef = useRef<HTMLFormElement>(null);
-    
+
+    // Agrega este estado al inicio del componente (junto con dependentFields)
+    const [medicoSearch, setMedicoSearch] = useState<{
+        isOpen: boolean;
+        searchText: string;
+        selectedMedico: { ID_USUARIO: number; USUARIO_NOMBRE: string; USUARIO_APELLIDOS: string; USUARIO_CORREO: string; } | null;
+    }>({
+        isOpen: false,
+        searchText: '',
+        selectedMedico: null
+    });
+
+    // Agrega este estado junto con medicoSearch (después del estado medicoSearch)
+    const [institucionSearch, setInstitucionSearch] = useState<{
+        isOpen: boolean;
+        searchText: string;
+        selectedInstitucion: { ID_INSTITUCION: number; INSTITUCION_NOMBRE: string; } | null;
+    }>({
+        isOpen: false,
+        searchText: '',
+        selectedInstitucion: null
+    });
+        
     // Solo estado mínimo para campos dependientes que requieren procesamiento inmediato
     const [dependentFields, setDependentFields] = useState({
         IdCliente: 0,
@@ -99,13 +121,18 @@ export default function CrearEstudio() {
             ...getFormData(),
             Guardar: guardar
         };
+
+        console.log('Datos enviados:', submitData); // Para debugging
         
         router.post('/estudios', submitData, {
             onSuccess: () => {
-                // Manejar éxito
+                console.log('Éxito');
             },
-            onError: () => {
-                // Errores manejados por Inertia
+            onError: (errors) => {
+                console.error('Errores de validación:', errors);
+            },
+            onFinish: () => {
+                console.log('Petición terminada');
             }
         });
     };
@@ -157,6 +184,7 @@ export default function CrearEstudio() {
                     <input type="hidden" name="ClaveInterna" value={datosAutomaticos.ClaveInterna} />
                     <input type="hidden" name="UsuarioTipo" value="medico" />
                     <input type="hidden" name="PassUsuario" value="135DIAHMOES" />
+                    <input type="hidden" name="NoAplica" value={dependentFields.NoAplica ? '1' : '0'} />
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         
@@ -317,25 +345,88 @@ export default function CrearEstudio() {
                                     <h3 className="text-lg font-semibold mb-4">Médico</h3>
                                     <div className="space-y-4">
 
-                                        <div>
+                                        <div className="relative">
                                             <label className="block text-sm font-medium mb-1">
                                                 Médico *
                                             </label>
-                                            <select
+                                            <input
+                                                type="text"
+                                                value={medicoSearch.searchText}
+                                                onChange={(e) => {
+                                                    setMedicoSearch({
+                                                        ...medicoSearch,
+                                                        searchText: e.target.value,
+                                                        isOpen: true
+                                                    });
+                                                }}
+                                                onFocus={() => setMedicoSearch({...medicoSearch, isOpen: true})}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                placeholder="Buscar médico..."
+                                                required
+                                            />
+                                            
+                                            {/* Lista desplegable */}
+                                            {medicoSearch.isOpen && (
+                                                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                                    {/* Opción "Nuevo Médico" */}
+                                                    <div
+                                                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b"
+                                                        onClick={() => {
+                                                            setMedicoSearch({
+                                                                isOpen: false,
+                                                                searchText: 'Nuevo Médico',
+                                                                selectedMedico: null
+                                                            });
+                                                            handleDependentFieldChange('IdMedico', 0);
+                                                        }}
+                                                    >
+                                                        <strong>Nuevo Médico</strong>
+                                                    </div>
+                                                    
+                                                    {/* Médicos filtrados */}
+                                                    {medicos
+                                                        .filter(medico => 
+                                                            `${medico.USUARIO_NOMBRE} ${medico.USUARIO_APELLIDOS}`
+                                                                .toLowerCase()
+                                                                .includes(medicoSearch.searchText.toLowerCase())
+                                                        )
+                                                        .map(medico => (
+                                                            <div
+                                                                key={medico.ID_USUARIO}
+                                                                className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                                                                onClick={() => {
+                                                                    setMedicoSearch({
+                                                                        isOpen: false,
+                                                                        searchText: `${medico.USUARIO_NOMBRE} ${medico.USUARIO_APELLIDOS}`,
+                                                                        selectedMedico: medico
+                                                                    });
+                                                                    handleDependentFieldChange('IdMedico', medico.ID_USUARIO);
+                                                                }}
+                                                            >
+                                                                {medico.USUARIO_NOMBRE} {medico.USUARIO_APELLIDOS}
+                                                            </div>
+                                                        ))
+                                                    }
+                                                    
+                                                    {/* Mensaje si no hay resultados */}
+                                                    {medicos.filter(medico => 
+                                                        `${medico.USUARIO_NOMBRE} ${medico.USUARIO_APELLIDOS}`
+                                                            .toLowerCase()
+                                                            .includes(medicoSearch.searchText.toLowerCase())
+                                                    ).length === 0 && medicoSearch.searchText && (
+                                                        <div className="px-3 py-2 text-gray-500 italic">
+                                                            No se encontraron médicos
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                            
+                                            {/* Input hidden para el formulario */}
+                                            <input
+                                                type="hidden"
                                                 name="IdMedico"
                                                 value={dependentFields.IdMedico}
-                                                onChange={(e) => handleDependentFieldChange('IdMedico', parseInt(e.target.value))}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
-                                                required
-                                            >
-                                                <option value=''>Selecciona</option>
-                                                <option value={0}>Nuevo Médico</option>
-                                                {medicos.map(medico => (
-                                                    <option key={medico.ID_USUARIO} value={medico.ID_USUARIO}>
-                                                        {medico.USUARIO_NOMBRE} {medico.USUARIO_APELLIDOS}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                            />
                                         </div>
 
                                         {/* Formulario de nuevo médico */}
@@ -408,25 +499,88 @@ export default function CrearEstudio() {
                                     <h3 className="text-lg font-semibold mb-4">Información de la Institución</h3>
                                     <div className="space-y-4">
 
-                                        <div>
+                                        <div className="relative">
                                             <label className="block text-sm font-medium mb-1">
                                                 Institución *
                                             </label>
-                                            <select
+                                            <input
+                                                type="text"
+                                                value={institucionSearch.searchText}
+                                                onChange={(e) => {
+                                                    setInstitucionSearch({
+                                                        ...institucionSearch,
+                                                        searchText: e.target.value,
+                                                        isOpen: true
+                                                    });
+                                                }}
+                                                onFocus={() => setInstitucionSearch({...institucionSearch, isOpen: true})}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                placeholder="Buscar institución..."
+                                                required
+                                            />
+                                            
+                                            {/* Lista desplegable */}
+                                            {institucionSearch.isOpen && (
+                                                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                                    {/* Opción "Nueva Institución" */}
+                                                    <div
+                                                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b"
+                                                        onClick={() => {
+                                                            setInstitucionSearch({
+                                                                isOpen: false,
+                                                                searchText: 'Nueva Institución',
+                                                                selectedInstitucion: null
+                                                            });
+                                                            handleDependentFieldChange('IdInstitucion', 0);
+                                                        }}
+                                                    >
+                                                        <strong>Nueva Institución</strong>
+                                                    </div>
+                                                    
+                                                    {/* Instituciones filtradas */}
+                                                    {instituciones
+                                                        .filter(inst => 
+                                                            inst.INSTITUCION_NOMBRE
+                                                                .toLowerCase()
+                                                                .includes(institucionSearch.searchText.toLowerCase())
+                                                        )
+                                                        .map(inst => (
+                                                            <div
+                                                                key={inst.ID_INSTITUCION}
+                                                                className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                                                                onClick={() => {
+                                                                    setInstitucionSearch({
+                                                                        isOpen: false,
+                                                                        searchText: inst.INSTITUCION_NOMBRE,
+                                                                        selectedInstitucion: inst
+                                                                    });
+                                                                    handleDependentFieldChange('IdInstitucion', inst.ID_INSTITUCION);
+                                                                }}
+                                                            >
+                                                                {inst.INSTITUCION_NOMBRE}
+                                                            </div>
+                                                        ))
+                                                    }
+                                                    
+                                                    {/* Mensaje si no hay resultados */}
+                                                    {instituciones.filter(inst => 
+                                                        inst.INSTITUCION_NOMBRE
+                                                            .toLowerCase()
+                                                            .includes(institucionSearch.searchText.toLowerCase())
+                                                    ).length === 0 && institucionSearch.searchText && (
+                                                        <div className="px-3 py-2 text-gray-500 italic">
+                                                            No se encontraron instituciones
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                            
+                                            {/* Input hidden para el formulario */}
+                                            <input
+                                                type="hidden"
                                                 name="IdInstitucion"
                                                 value={dependentFields.IdInstitucion}
-                                                onChange={(e) => handleDependentFieldChange('IdInstitucion', parseInt(e.target.value))}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
-                                                required
-                                            >
-                                                <option value=''>Selecciona</option>
-                                                <option value={0}>Nueva Institución</option>
-                                                {instituciones.map(inst => (
-                                                    <option key={inst.ID_INSTITUCION} value={inst.ID_INSTITUCION}>
-                                                        {inst.INSTITUCION_NOMBRE}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                            />
                                         </div>
 
                                         {/* Formulario de nueva institución */}
@@ -753,6 +907,15 @@ export default function CrearEstudio() {
                         </CardContent>
                     </Card>
                 </form>
+                {/**evento para cerrar busqueda */}
+                <div 
+                    className={medicoSearch.isOpen ? "fixed inset-0 z-0" : "hidden"}
+                    onClick={() => setMedicoSearch({...medicoSearch, isOpen: false})}
+                ></div>
+                <div 
+                    className={institucionSearch.isOpen ? "fixed inset-0 z-0" : "hidden"}
+                    onClick={() => setInstitucionSearch({...institucionSearch, isOpen: false})}
+                ></div>
             </div>
         </AppLayout>
     );

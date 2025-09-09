@@ -1,195 +1,82 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem, type EstudioIndexProps } from '@/types';
-import { Users, Plus, CheckCircle, FileText, AlertTriangle, Microscope, Building, ChevronsUpDown, Eye, Edit, Download, ArrowRight, Calendar, TestTube } from 'lucide-react';
-
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/dashboard',
-    },
-    {
-        title: 'Estudios',
-        href: '/estudios',
-    },
-];
-
-interface PageProps extends EstudioIndexProps {
-    [key: string]: any;
-}
+import { Search, X, Filter, Eye, Edit, Download, ArrowRight, Calendar, FileText, TestTube, Microscope, Plus, MessageCircle } from 'lucide-react';
+import { EstudioIndexProps } from '@/types/estudios';
+import WhatsAppDialog from '@/components/WhatsAppDialog';
 
 export default function EstudiosIndex() {
-    const { estudios, filters, medicos, instituciones, clientes, estados, tiposEstudio } = usePage<PageProps>().props;
+    // Tipar correctamente las props
+    const { estudios, filters, estados } = usePage<EstudioIndexProps>().props;
     
-    // Estados para filtros
+    // Estados para el buscador
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
+    const [showFilters, setShowFilters] = useState(false);
     const [selectedEstado, setSelectedEstado] = useState(filters?.estado || '');
-    const [selectedTipoEstudio, setSelectedTipoEstudio] = useState(filters?.tipo_estudio || '');
-    const [selectedInstitucion, setSelectedInstitucion] = useState(filters?.institucion || '');
-    const [selectedMedico, setSelectedMedico] = useState(filters?.medico || '');
     const [fechaDesde, setFechaDesde] = useState(filters?.fecha_desde || '');
     const [fechaHasta, setFechaHasta] = useState(filters?.fecha_hasta || '');
-    const [mostrarUrgentes, setMostrarUrgentes] = useState((filters as any)?.urgentes === '1');
-    const [mostrarCompletos, setMostrarCompletos] = useState((filters as any)?.resultados_completos === '1');
 
-    // Verificar si los datos están disponibles
-    if (!estudios) {
-        return (
-            <AppLayout breadcrumbs={breadcrumbs}>
-                <Head title="Estudios - DIAHMOES" />
-                <div className="flex h-full flex-1 flex-col gap-6 p-6">
-                    <div className="flex items-center justify-center h-64">
-                        <div className="text-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#189BAF] mx-auto"></div>
-                            <p className="mt-4 text-gray-600">Cargando estudios...</p>
-                        </div>
-                    </div>
-                </div>
-            </AppLayout>
-        );
-    }
+    // Estado para el dialog de WhatsApp
+    const [whatsappDialog, setWhatsappDialog] = useState<{
+        isOpen: boolean;
+        estudio: any;
+    }>({
+        isOpen: false,
+        estudio: null
+    });
 
-    // Estadísticas calculadas
-    
-    const stats = {
-        total: estudios?.meta?.total || 0,
-        pendientes: estudios?.data?.filter(e => e.ESTUDIO_ESTADO === 'Solicitud Recolección').length || 0,
-        laboratorio: estudios?.data?.filter(e => ['Recepción Laboratorio', 'Resultados Completos'].includes(e.ESTUDIO_ESTADO || '')).length || 0,
-        completados: estudios?.data?.filter(e => e.ESTUDIO_ESTADO === 'Resultados Enviados').length || 0,
+    const openWhatsAppDialog = (estudio: any) => {
+        setWhatsappDialog({
+            isOpen: true,
+            estudio
+        });
     };
+
+    const closeWhatsAppDialog = () => {
+        setWhatsappDialog({
+            isOpen: false,
+            estudio: null
+        });
+    };
+
+    // Búsqueda en tiempo real con debounce
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            if (searchTerm !== filters?.search) {
+                handleSearch();
+            }
+        }, 500); // Buscar 500ms después de que el usuario deje de escribir
+
+        return () => clearTimeout(timeoutId);
+    }, [searchTerm]);
 
     const handleSearch = () => {
         router.get('/estudios', {
             search: searchTerm,
             estado: selectedEstado,
-            tipo_estudio: selectedTipoEstudio,
-            institucion: selectedInstitucion,
-            medico: selectedMedico,
             fecha_desde: fechaDesde,
             fecha_hasta: fechaHasta,
-            urgentes: mostrarUrgentes ? '1' : '',
-            resultados_completos: mostrarCompletos ? '1' : '',
         }, {
             preserveState: true,
             replace: true,
         });
     };
 
-    const clearFilters = () => {
+    const clearSearch = () => {
         setSearchTerm('');
         setSelectedEstado('');
-        setSelectedTipoEstudio('');
-        setSelectedInstitucion('');
-        setSelectedMedico('');
         setFechaDesde('');
         setFechaHasta('');
-        setMostrarUrgentes(false);
-        setMostrarCompletos(false);
         router.get('/estudios', {}, {
             preserveState: true,
             replace: true,
         });
     };
 
-    const handleSort = (field: string) => {
-        const direction = filters.sort === field && filters.direction === 'asc' ? 'desc' : 'asc';
-        router.get('/estudios', {
-            ...filters,
-            sort: field,
-            direction,
-        }, {
-            preserveState: true,
-            replace: true,
-        });
-    };
-
-    const getEstadoColor = (estado: string) => {
-        switch (estado) {
-            case 'solicitud_recoleccion':
-                return 'bg-[#D68B41]/10 text-[#D68B41] border-[#D68B41]/20';
-            case 'recepcion_laboratorio':
-                return 'bg-[#189BAF]/10 text-[#189BAF] border-[#189BAF]/20';
-            case 'resultados_completos':
-                return 'bg-blue-100 text-blue-800 border-blue-200';
-            case 'resultados_enviados':
-                return 'bg-green-100 text-green-800 border-green-200';
-            case 'retorno_material':
-                return 'bg-purple-100 text-purple-800 border-purple-200';
-            case 'terminado':
-                return 'bg-gray-100 text-gray-800 border-gray-200';
-            case 'cancelado':
-                return 'bg-red-100 text-red-800 border-red-200';
-            default:
-                return 'bg-gray-100 text-gray-800 border-gray-200';
-        }
-    };
-
-    const getProgressValue = (estado: string) => {
-        switch (estado) {
-            case 'Solicitud Recolección':
-                return 0;
-            case 'Recepción Laboratorio':
-                return 25;
-            case 'Resultados Completos':
-                return 75;
-            case 'Resultados Enviados':
-                return 100;
-            case 'Cancelado':
-                return 100;
-            default:
-                return 0;
-        }
-    };
-
-    const getProgressColor = (estado: string) => {
-        return estado === 'cancelado' ? 'bg-red-500' : 'bg-green-500';
-    };
-
-    const getEstadoLabel = (estado: string) => {
-        const labels: Record<string, string> = {
-            'solicitud_recoleccion': 'Solicitud Recolección',
-            'recepcion_laboratorio': 'Recepción Laboratorio',
-            'resultados_completos': 'Resultados Completos',
-            'resultados_enviados': 'Resultados Enviados',
-            'retorno_material': 'Retorno Material',
-            'terminado': 'Terminado',
-            'cancelado': 'Cancelado'
-        };
-        return labels[estado] || estado;
-    };
-
-    const truncateText = (text: string, maxLength: number) => {
-        if (!text) return 'N/A';
-        return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
-    };
-
-    const formatDate = (dateString: string) => {
-        if (!dateString || dateString === '0000-00-00 00:00:00') return 'N/A';
-        return new Date(dateString).toLocaleDateString('es-MX');
-    };
-
-    // Función para determinar el siguiente paso
-    const getNextStep = (estado: string | undefined) => {
-        if (!estado) return null;
-        switch (estado) {
-            case 'solicitud_recoleccion':
-                return 'recepcion';
-            case 'recepcion_laboratorio':
-                return 'laboratorio';
-            case 'resultados_completos':
-                return 'informe';
-            default:
-                return null;
-        }
-    };
-
-    const canContinue = (estudio: any) => {
-        return !estudio.FECHA_RESULTADOS_CORREO || estudio.FECHA_RESULTADOS_CORREO === '0000-00-00 00:00:00';
-    };
+    const hasActiveFilters = searchTerm || selectedEstado || fechaDesde || fechaHasta;
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <AppLayout>
             <Head title="Estudios - DIAHMOES" />
             
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
@@ -203,11 +90,6 @@ export default function EstudiosIndex() {
                             </p>
                         </div>
                         <div className="flex items-center space-x-4">
-                            <div className="hidden md:block">
-                                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/20">
-                                    <FileText className="h-8 w-8 text-white" />
-                                </div>
-                            </div>
                             <Link 
                                 href="/estudios/create"
                                 className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-white font-medium transition-colors flex items-center space-x-2"
@@ -219,158 +101,142 @@ export default function EstudiosIndex() {
                     </div>
                 </div>
 
-                {/* Filtros */}
+                {/* Buscador Principal */}
                 <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-                        <div className="lg:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Buscar</label>
+                    <div className="flex items-center space-x-4">
+                        {/* Campo de búsqueda principal */}
+                        <div className="flex-1 relative">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <Search className="h-5 w-5 text-gray-400" />
+                            </div>
                             <input
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder="Clave, folio, muestra, médico, institución..."
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                placeholder="Buscar por clave, folio Merck, médico, paciente o institución..."
+                                className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
                             />
+                            {searchTerm && (
+                                <button
+                                    onClick={() => setSearchTerm('')}
+                                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                                >
+                                    <X className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                                </button>
+                            )}
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
-                            <select
-                                value={selectedEstado}
-                                onChange={(e) => setSelectedEstado(e.target.value)}
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                            >
-                                <option value="">Todos los estados</option>
-                                {Object.entries(estados || {}).map(([key, value]) => (
-                                    <option key={key} value={key}>{value}</option>
-                                ))}
-                            </select>
-                        </div>
+                        {/* Botón de filtros adicionales */}
+                        <button
+                            onClick={() => setShowFilters(!showFilters)}
+                            className={`flex items-center space-x-2 px-4 py-3 rounded-lg border transition-colors ${
+                                showFilters || hasActiveFilters
+                                    ? 'border-[#189BAF] bg-[#189BAF]/5 text-[#189BAF]'
+                                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
+                        >
+                            <Filter className="h-5 w-5" />
+                            <span>Filtros</span>
+                            {hasActiveFilters && (
+                                <span className="bg-[#189BAF] text-white text-xs px-2 py-1 rounded-full">
+                                    {[searchTerm, selectedEstado, fechaDesde, fechaHasta].filter(Boolean).length}
+                                </span>
+                            )}
+                        </button>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Tipo Estudio</label>
-                            <select
-                                value={selectedTipoEstudio}
-                                onChange={(e) => setSelectedTipoEstudio(e.target.value)}
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                        {/* Botón limpiar */}
+                        {hasActiveFilters && (
+                            <button
+                                onClick={clearSearch}
+                                className="px-4 py-3 text-gray-600 hover:text-gray-800 transition-colors"
+                                title="Limpiar filtros"
                             >
-                                <option value="">Todos los tipos</option>
-                                {Object.entries(tiposEstudio || {}).map(([key, value]) => (
-                                    <option key={key} value={key}>{value}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Médico</label>
-                            <select
-                                value={selectedMedico}
-                                onChange={(e) => setSelectedMedico(e.target.value)}
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                            >
-                                <option value="">Todos los médicos</option>
-                                {(medicos || []).map((medico) => (
-                                    <option key={medico.ID_USUARIO} value={medico.ID_USUARIO}>
-                                        {medico.USUARIO_NOMBRE} {medico.USUARIO_APELLIDOS}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Institución</label>
-                            <select
-                                value={selectedInstitucion}
-                                onChange={(e) => setSelectedInstitucion(e.target.value)}
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                            >
-                                <option value="">Todas las instituciones</option>
-                                {(instituciones || []).map((institucion) => (
-                                    <option key={institucion.ID_INSTITUCION} value={institucion.ID_INSTITUCION}>
-                                        {institucion.INSTITUCION_NOMBRE}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                                <X className="h-5 w-5" />
+                            </button>
+                        )}
                     </div>
 
-                    {/* Filtros adicionales */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Desde</label>
-                            <input
-                                type="date"
-                                value={fechaDesde}
-                                onChange={(e) => setFechaDesde(e.target.value)}
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                            />
-                        </div>
+                    {/* Filtros adicionales colapsables */}
+                    {showFilters && (
+                        <div className="mt-6 pt-6 border-t border-gray-200">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                                    <select
+                                        value={selectedEstado}
+                                        onChange={(e) => setSelectedEstado(e.target.value)}
+                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                    >
+                                        <option value="">Todos los estados</option>
+                                        {Object.entries(estados || {}).map(([key, value]) => (
+                                            <option key={key} value={key}>{value}</option>
+                                        ))}
+                                    </select>
+                                </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Hasta</label>
-                            <input
-                                type="date"
-                                value={fechaHasta}
-                                onChange={(e) => setFechaHasta(e.target.value)}
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                            />
-                        </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Desde</label>
+                                    <input
+                                        type="date"
+                                        value={fechaDesde}
+                                        onChange={(e) => setFechaDesde(e.target.value)}
+                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                    />
+                                </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Filtros Especiales</label>
-                            <div className="flex items-center space-x-4">
-                                <label className="flex items-center">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Hasta</label>
                                     <input
-                                        type="checkbox"
-                                        checked={mostrarUrgentes}
-                                        onChange={(e) => setMostrarUrgentes(e.target.checked)}
-                                        className="rounded border-gray-300 text-[#189BAF] focus:ring-[#189BAF]"
+                                        type="date"
+                                        value={fechaHasta}
+                                        onChange={(e) => setFechaHasta(e.target.value)}
+                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
                                     />
-                                    <span className="ml-2 text-sm text-gray-600">Urgentes</span>
-                                </label>
-                                <label className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        checked={mostrarCompletos}
-                                        onChange={(e) => setMostrarCompletos(e.target.checked)}
-                                        className="rounded border-gray-300 text-[#189BAF] focus:ring-[#189BAF]"
-                                    />
-                                    <span className="ml-2 text-sm text-gray-600">Completos</span>
-                                </label>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end space-x-2 mt-4">
+                                <button
+                                    onClick={handleSearch}
+                                    className="bg-[#189BAF] hover:bg-[#157a8c] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                >
+                                    Aplicar Filtros
+                                </button>
                             </div>
                         </div>
+                    )}
 
-                        <div className="flex items-end space-x-2">
-                            <button
-                                onClick={handleSearch}
-                                className="flex-1 bg-[#189BAF] hover:bg-[#157a8c] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                            >
-                                Buscar
-                            </button>
-                            <button
-                                onClick={clearFilters}
-                                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-                            >
-                                Limpiar
-                            </button>
+                    {/* Indicadores de búsqueda activa */}
+                    {searchTerm && (
+                        <div className="mt-4 flex items-center text-sm text-gray-600">
+                            <Search className="h-4 w-4 mr-1" />
+                            <span>Buscando: "{searchTerm}" en clave, folio, médico, paciente e institución</span>
                         </div>
-                    </div>
+                    )}
                 </div>
 
-                {/* Tabla de estudios */}
+                {/* Resultados */}
                 <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+                    {/* Contador de resultados */}
+                    <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
+                        <div className="flex items-center justify-between">
+                            <div className="text-sm text-gray-700">
+                                {estudios?.meta?.total || 0} estudios encontrados
+                                {searchTerm && ` para "${searchTerm}"`}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                                Página {estudios?.meta?.current_page || 1} de {estudios?.meta?.last_page || 1}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Tabla */}
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th 
-                                        onClick={() => handleSort('CLAVE_INTERNA')}
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                    >
-                                        <div className="flex items-center space-x-1">
-                                            <span>Clave / Folio</span>
-                                            <ChevronsUpDown className="h-4 w-4" />
-                                        </div>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Clave / Folio
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Paciente / Institución
@@ -381,17 +247,11 @@ export default function EstudiosIndex() {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Estudio Solicitado
                                     </th>
-                                    <th 
-                                        onClick={() => handleSort('FECHA_SOLICITUD_RECOLECCION')}
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                    >
-                                        <div className="flex items-center space-x-1">
-                                            <span>Fecha Solicitud</span>
-                                            <ChevronsUpDown className="h-4 w-4" />
-                                        </div>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Fecha Solicitud
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Progreso
+                                        Estado
                                     </th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Acciones
@@ -401,7 +261,7 @@ export default function EstudiosIndex() {
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {estudios?.data?.map((estudio) => (
                                     <tr key={estudio.ID} className="hover:bg-gray-50">
-                                        {/* Columna 1: Clave / Folio */}
+                                        {/* Clave / Folio */}
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm font-medium text-gray-900 font-mono">
                                                 {estudio.CLAVE_INTERNA || `${estudio.CLAVE}-${estudio.ANIO}-${String(estudio.SERIADO).padStart(3, '0')}`}
@@ -411,98 +271,68 @@ export default function EstudiosIndex() {
                                             )}
                                         </td>
 
-                                        {/* Columna 2: Paciente / Institución */}
+                                        {/* Paciente / Institución */}
                                         <td className="px-6 py-4">
                                             <div className="space-y-1">
-                                                {/* Iniciales del paciente */}
                                                 <div className="text-sm font-medium text-gray-900">
-                                                    {estudio.MUESTRA_INICIALES || 
-                                                     (estudio.paciente ? `${estudio.paciente.USUARIO_NOMBRE} ${estudio.paciente.USUARIO_APELLIDOS}` : 'N/A')}
+                                                    {estudio.paciente?.USUARIO_NOMBRE || 'N/A'} {estudio.paciente?.USUARIO_APELLIDOS || ''} <b>{estudio.MUESTRA_INICIALES || 'N/A'}</b>
                                                 </div>
                                                 
-                                                {/* Médico */}
                                                 {estudio.medico && (
                                                     <div className="text-xs text-gray-600">
-                                                        Dr. {truncateText(`${estudio.medico.USUARIO_NOMBRE} ${estudio.medico.USUARIO_APELLIDOS}`, 25)}
+                                                        Dr. {estudio.medico.USUARIO_NOMBRE} {estudio.medico.USUARIO_APELLIDOS}
                                                     </div>
                                                 )}
                                                 
-                                                {/* Institución */}
                                                 {estudio.institucion && (
                                                     <div className="text-xs text-gray-500">
-                                                        {truncateText(estudio.institucion.INSTITUCION_NOMBRE, 30)}
-                                                    </div>
-                                                )}
-                                                
-                                                {/* Cliente */}
-                                                {estudio.cliente && (
-                                                    <div className="text-xs text-gray-400">
-                                                        {truncateText(estudio.cliente.CLIENTE_NOMBRE, 25)}
+                                                        {estudio.institucion.INSTITUCION_NOMBRE}
                                                     </div>
                                                 )}
                                             </div>
                                         </td>
 
-                                        {/* Columna 3: Tipo */}
+                                        {/* Tipo */}
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className="px-3 py-1 rounded-full text-xs font-medium border bg-blue-50 text-blue-800 border-blue-200">
                                                 {estudio.MUESTRA_TIPO_ESTUDIO || 'N/A'}
                                             </span>
                                         </td>
 
-                                        {/* Columna 4: Estudio Solicitado */}
+                                        {/* Estudio Solicitado */}
                                         <td className="px-6 py-4">
                                             <div className="text-sm text-gray-900">
-                                                {truncateText(estudio.R_ESTUDIO_SOLICITADO || 'No especificado', 40)}
+                                                {estudio.R_ESTUDIO_SOLICITADO ? 
+                                                    (estudio.R_ESTUDIO_SOLICITADO.length > 40 ? 
+                                                        estudio.R_ESTUDIO_SOLICITADO.substring(0, 40) + '...' : 
+                                                        estudio.R_ESTUDIO_SOLICITADO
+                                                    ) : 'No especificado'
+                                                }
                                             </div>
                                         </td>
 
-                                        {/* Columna 5: Fecha Solicitud */}
+                                        {/* Fecha Solicitud */}
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {formatDate(estudio.FECHA_SOLICITUD_RECOLECCION)}
+                                            {estudio.FECHA_SOLICITUD_RECOLECCION && estudio.FECHA_SOLICITUD_RECOLECCION !== '0000-00-00 00:00:00' 
+                                                ? new Date(estudio.FECHA_SOLICITUD_RECOLECCION).toLocaleDateString('es-MX')
+                                                : 'N/A'
+                                            }
                                         </td>
 
-                                        {/* Columna 6: Progreso con barra */}
+                                        {/* Estado */}
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="w-full">
-                                                <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
-                                                    <span>{getProgressValue(estudio.ESTUDIO_ESTADO || 'Solicitud Recolección')}%</span>
-                                                </div>
-                                                <div className="w-full bg-gray-200 rounded-full h-2">
-                                                    <div 
-                                                        className={`h-2 rounded-full transition-all duration-300 ${getProgressColor(estudio.ESTUDIO_ESTADO || 'Solicitud Recolección')}`}
-                                                        style={{ 
-                                                            width: `${getProgressValue(estudio.ESTUDIO_ESTADO || 'Solicitud Recolección')}%` 
-                                                        }}
-                                                    ></div>
-                                                </div>
-                                                <div className="text-xs text-gray-500 mt-1">
-                                                    {getEstadoLabel(estudio.ESTUDIO_ESTADO || 'Solicitud Recolección')}
-                                                </div>
-                                            </div>
+                                            <span className="px-3 py-1 rounded-full text-xs font-medium border bg-gray-50 text-gray-800 border-gray-200">
+                                                {estudio.ESTUDIO_ESTADO || 'Sin estado'}
+                                            </span>
                                         </td>
 
-                                        {/* Columna 7: Acciones */}
+                                        {/* Acciones */}
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex items-center justify-end space-x-2">
-                                                {/* Botón de siguiente paso */}
-                                                {(() => {
-                                                    const nextStep = canContinue(estudio) ? getNextStep(estudio.ESTUDIO_ESTADO) : null;
-                                                    return nextStep && (
-                                                        <Link href={`/estudios/${estudio.ID}/edit/${nextStep}`}>
-                                                            <button 
-                                                                className="text-orange-600 hover:text-orange-700 transition-colors"
-                                                                title="Siguiente Paso"
-                                                            >
-                                                                <ArrowRight className="h-5 w-5" />
-                                                            </button>
-                                                        </Link>
-                                                    );
-                                                })()}
-                                                
                                                 <Link
                                                     href={`/estudios/${estudio.ID}`}
                                                     className="text-[#189BAF] hover:text-[#157a8c] transition-colors"
+                                                    title="Ver estudio"
                                                 >
                                                     <Eye className="h-5 w-5" />
                                                 </Link>
@@ -513,6 +343,14 @@ export default function EstudiosIndex() {
                                                     title="Descargar PDF"
                                                 >
                                                     <Download className="h-5 w-5" />
+                                                </button>
+
+                                                <button 
+                                                    onClick={() => openWhatsAppDialog(estudio)}
+                                                    className="text-green-600 hover:text-green-700 transition-colors"
+                                                    title="Enviar por WhatsApp"
+                                                >
+                                                    <MessageCircle className="h-5 w-5" />
                                                 </button>
                                                 
                                                 <div className="relative group">
@@ -566,7 +404,7 @@ export default function EstudiosIndex() {
                                     Mostrando {estudios?.meta?.from || 0} - {estudios?.meta?.to || 0} de {estudios?.meta?.total || 0} resultados
                                 </div>
                                 <div className="flex items-center space-x-2">
-                                    {estudios.links.map((link: any, index: number) => (
+                                    {estudios.links.map((link, index) => (
                                         <button
                                             key={index}
                                             onClick={() => link.url && router.get(link.url)}
@@ -587,6 +425,15 @@ export default function EstudiosIndex() {
                     )}
                 </div>
             </div>
+
+            {/* WhatsApp Dialog */}
+            {whatsappDialog.isOpen && (
+                <WhatsAppDialog
+                    estudio={whatsappDialog.estudio}
+                    isOpen={whatsappDialog.isOpen}
+                    onClose={closeWhatsAppDialog}
+                />
+            )}
         </AppLayout>
     );
 }

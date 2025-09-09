@@ -19,112 +19,63 @@ class EstudioController extends Controller
      * Display a listing of the resource.
      */
     public function index(Request $request)
-        {
-            $query = Estudio::with(['medico', 'paciente', 'institucion', 'cliente']);
-            
-            // Aplicar filtros de búsqueda ampliada
-            if ($request->filled('search')) {
-                $search = $request->get('search');
-                $query->where(function($q) use ($search) {
-                    $q->where('CLAVE_INTERNA', 'like', "%{$search}%")
-                    ->orWhere('FOLIO_MERCK', 'like', "%{$search}%")
-                    ->orWhere('MUESTRA_CLAVE', 'like', "%{$search}%")
-                    ->orWhere('MUESTRA_TIPO', 'like', "%{$search}%")
-                    ->orWhere('MUESTRA_INICIALES', 'like', "%{$search}%")
-                    ->orWhere('R_ESTUDIO_SOLICITADO', 'like', "%{$search}%")
-                    // Búsqueda por nombre del médico
-                    ->orWhereHas('medico', function($subQ) use ($search) {
-                        $subQ->where('USUARIO_NOMBRE', 'like', "%{$search}%")
-                            ->orWhere('USUARIO_APELLIDOS', 'like', "%{$search}%")
-                            ->orWhere(\DB::raw('CONCAT(USUARIO_NOMBRE, " ", USUARIO_APELLIDOS)'), 'like', "%{$search}%");
-                    })
-                    // Búsqueda por nombre de institución
-                    ->orWhereHas('institucion', function($subQ) use ($search) {
-                        $subQ->where('INSTITUCION_NOMBRE', 'like', "%{$search}%");
-                    });
-                });
-            }
-            
-            // Filtros específicos por estado (usando las constantes actualizadas)
-            if ($request->filled('estado')) {
-                $estado = $request->get('estado');
-                $query->where('ESTUDIO_ESTADO', $estado);
-            }
-            
-            if ($request->filled('tipo_estudio')) {
-                $query->where('MUESTRA_TIPO_ESTUDIO', $request->get('tipo_estudio'));
-            }
-            
-            if ($request->filled('institucion')) {
-                $query->where('ID_INSTITUCION', $request->get('institucion'));
-            }
-            
-            if ($request->filled('medico')) {
-                $query->where('ID_MEDICO', $request->get('medico'));
-            }
-            
-            // Filtros por fechas
-            if ($request->filled('fecha_desde')) {
-                $query->where('FECHA_SOLICITUD_RECOLECCION', '>=', $request->get('fecha_desde'));
-            }
-            
-            if ($request->filled('fecha_hasta')) {
-                $query->where('FECHA_SOLICITUD_RECOLECCION', '<=', $request->get('fecha_hasta'));
-            }
-            
-            // Filtro por urgentes (más de 24 horas en laboratorio)
-            if ($request->filled('urgentes') && $request->get('urgentes') === '1') {
-                $query->where('ESTUDIO_ESTADO', Estudio::ESTADO_LABORATORIO_RECEPCION)
-                    ->whereNotNull('FECHA_ENVIO_LABORATORIO')
-                    ->where('FECHA_ENVIO_LABORATORIO', '!=', '0000-00-00 00:00:00')
-                    ->where('FECHA_ENVIO_LABORATORIO', '<=', now()->subHours(24));
-            }
-            
-            // Filtro por resultados completos
-            if ($request->filled('resultados_completos') && $request->get('resultados_completos') === '1') {
-                $query->where('R_COMPLETOS', 'si');
-            }
-            
-            // Ordenamiento: SIEMPRE por ANIO desc, SERIADO desc como base
-            $query->orderBy('ANIO', 'desc')
-                ->orderBy('SERIADO', 'desc');
-            
-            // Si se especifica un ordenamiento adicional, agregarlo como tercer criterio
-            if ($request->has('sort') && $request->get('sort') !== 'ANIO') {
-                $sortBy = $request->get('sort');
-                $direction = $request->get('direction', 'desc');
-                $query->orderBy($sortBy, $direction);
-            }
-            
-            $estudios = $query->paginate(20)->withQueryString();
-            
-            // Obtener datos para filtros
-            $medicos = Usuario::where('USUARIO_TIPO', 'medico')
-                ->where('USUARIO_ESTADO', 'activo')
-                ->select('ID_USUARIO', 'USUARIO_NOMBRE', 'USUARIO_APELLIDOS')
-                ->get();
-                
-            $instituciones = Institucion::select('ID_INSTITUCION', 'INSTITUCION_NOMBRE')
-                ->orderBy('INSTITUCION_NOMBRE')
-                ->get();
-                
-            $clientes = Cliente::select('ID_CLIENTE', 'CLIENTE_NOMBRE')
-                ->orderBy('CLIENTE_NOMBRE')
-                ->get();
-            return Inertia::render('estudios/index', [
-                'estudios' => $estudios,
-                'filters' => $request->only([
-                    'search', 'estado', 'tipo_estudio', 'institucion', 'medico', 
-                    'fecha_desde', 'fecha_hasta', 'urgentes', 'resultados_completos',
-                    'sort', 'direction'
-                ]),
-                'medicos' => $medicos,
-                'instituciones' => $instituciones,
-                'clientes' => $clientes,
-                'estados' => Estudio::getEstados() ?? [],
-                'tiposEstudio' => Estudio::getTiposEstudio() ?? [],
-            ]);
-        }
+{
+    $query = Estudio::with(['medico', 'paciente', 'institucion', 'cliente']);
+    
+    // Búsqueda global simplificada
+    if ($request->filled('search')) {
+        $search = $request->get('search');
+        $query->where(function($q) use ($search) {
+            $q->where('CLAVE_INTERNA', 'like', "%{$search}%")
+              ->orWhere('FOLIO_MERCK', 'like', "%{$search}%")
+              ->orWhere('MUESTRA_INICIALES', 'like', "%{$search}%")
+              // Búsqueda por nombre completo del médico
+              ->orWhereHas('medico', function($subQ) use ($search) {
+                  $subQ->where('USUARIO_NOMBRE', 'like', "%{$search}%")
+                       ->orWhere('USUARIO_APELLIDOS', 'like', "%{$search}%")
+                       ->orWhere(\DB::raw('CONCAT(USUARIO_NOMBRE, " ", USUARIO_APELLIDOS)'), 'like', "%{$search}%");
+              })
+              // Búsqueda por nombre completo del paciente
+              ->orWhereHas('paciente', function($subQ) use ($search) {
+                  $subQ->where('USUARIO_NOMBRE', 'like', "%{$search}%")
+                       ->orWhere('USUARIO_APELLIDOS', 'like', "%{$search}%")
+                       ->orWhere(\DB::raw('CONCAT(USUARIO_NOMBRE, " ", USUARIO_APELLIDOS)'), 'like', "%{$search}%");
+              })
+              // Búsqueda por nombre de institución
+              ->orWhereHas('institucion', function($subQ) use ($search) {
+                  $subQ->where('INSTITUCION_NOMBRE', 'like', "%{$search}%");
+              });
+        });
+    }
+    
+    // Filtros adicionales opcionales (mantener solo los esenciales)
+    if ($request->filled('estado')) {
+        $query->where('ESTUDIO_ESTADO', $request->get('estado'));
+    }
+    
+    if ($request->filled('fecha_desde')) {
+        $query->where('FECHA_SOLICITUD_RECOLECCION', '>=', $request->get('fecha_desde'));
+    }
+    
+    if ($request->filled('fecha_hasta')) {
+        $query->where('FECHA_SOLICITUD_RECOLECCION', '<=', $request->get('fecha_hasta'));
+    }
+    
+    // Ordenamiento por defecto
+    $query->orderBy('ANIO', 'desc')
+          ->orderBy('SERIADO', 'desc');
+    
+    $estudios = $query->paginate(20)->withQueryString();
+    
+    // Datos mínimos para filtros opcionales
+    $estados = Estudio::getEstados() ?? [];
+    
+    return Inertia::render('estudios/index', [
+        'estudios' => $estudios,
+        'filters' => $request->only(['search', 'estado', 'fecha_desde', 'fecha_hasta']),
+        'estados' => $estados,
+    ]);
+}
 
     /**
      * Show the form for creating a new resource.
@@ -212,9 +163,10 @@ class EstudioController extends Controller
             'FolioMerck' => 'nullable|string|max:255',
             'FechaSolicitudRecoleccion' => 'required|date',
             'HoraSolicitudRecoleccion' => 'required',
-            'IdCliente' => 'required|integer|min:1',
-            'IdMedico' => 'required|integer|min:1',
-            'IdInstitucion' => 'required|integer|min:1',
+            'IdCliente' => 'required|integer|min:0',
+            'IdMedico' => 'required|integer|min:0',
+            'IdInstitucion' => 'required|integer|min:0',
+            'NoAplica' => 'nullable|boolean',
             
             // Campos de nuevos registros (si aplica)
             'NombreCliente' => 'nullable|string|max:255',
@@ -263,7 +215,8 @@ class EstudioController extends Controller
         $estudio->MUESTRA_CIUDAD = $request->NoAplica ? '' : ($request->MuestraCiudad ?: '');
         $estudio->MUESTRA_ESTADO = $request->NoAplica ? '' : ($request->MuestraEstado ?: '');
         $estudio->MUESTRA_CODIGO_POSTAL = $request->NoAplica ? '' : ($request->MuestraCodigoPostal ?: '');
-        $estudio->MUESTRA_ENVIO_TIPO = $request->NoAplica ? '' : ($request->MuestraEnvioTipo ?: '');
+        $noAplica = $request->has('NoAplica') && $request->NoAplica;
+        $estudio->MUESTRA_ENVIO_TIPO = $noAplica ? 'no aplica' : 'aplica';
         $estudio->MUESTRA_HORARIOS = $request->NoAplica ? '' : ($request->MuestraHorarios ?: '');
         
         // Establecer estado inicial y campos requeridos
@@ -298,17 +251,17 @@ class EstudioController extends Controller
         $estudio->R_METODO_PROCESO = '';
         $estudio->R_RAZON_ADECUADO_PROCESAMIENTO = '';
         $estudio->R_INTERPRETACION = '';
-        $estudio->FECHA_RECOLECCION = null;
-        $estudio->FECHA_RECEPCION = null;
-        $estudio->FECHA_ENVIO_LABORATORIO = null;
-        $estudio->FECHA_RECEPCION_LABORATORIO = null;
-        $estudio->FECHA_ENTREGA_PROCESAMIENTO = null;
-        $estudio->FECHA_OBTENCION_RESULTADOS = null;
-        $estudio->FECHA_INFORME = null;
-        $estudio->FECHA_RESULTADOS_CORREO = null;
-        $estudio->FECHA_RETORNO_MATERIAL = null;
-        $estudio->FECHA_RECEPCION_RESULTADOS_FISICOS = null;
-        $estudio->FECHA_FIN_PROCESO = null;
+        $estudio->FECHA_RECOLECCION = '0000-00-00 00:00:00';
+        $estudio->FECHA_RECEPCION = '0000-00-00 00:00:00';
+        $estudio->FECHA_ENVIO_LABORATORIO = '0000-00-00 00:00:00';
+        $estudio->FECHA_RECEPCION_LABORATORIO = '0000-00-00 00:00:00';
+        $estudio->FECHA_ENTREGA_PROCESAMIENTO = '0000-00-00 00:00:00';
+        $estudio->FECHA_OBTENCION_RESULTADOS = '0000-00-00 00:00:00';
+        $estudio->FECHA_INFORME = '0000-00-00 00:00:00';
+        $estudio->FECHA_RESULTADOS_CORREO = '0000-00-00 00:00:00';
+        $estudio->FECHA_RETORNO_MATERIAL = '0000-00-00 00:00:00';
+        $estudio->FECHA_RECEPCION_RESULTADOS_FISICOS = '0000-00-00 00:00:00';
+        $estudio->FECHA_FIN_PROCESO = '0000-00-00 00:00:00';
         $estudio->ESTUDIO_NOTAS = '';
         $estudio->ESTUDIO_COMENTARIOS = '';
         
@@ -936,10 +889,7 @@ class EstudioController extends Controller
  */
 public function updateInforme(Request $request, Estudio $estudio)
 {
-    \Log::info('🔴 updateInforme iniciado');
-    \Log::info('📊 Datos recibidos completos:', $request->all());
-    \Log::info('🔢 ID del estudio: ' . $estudio->ID);
-    \Log::info('📋 Estudio antes de actualizar:', $estudio->toArray());
+
 
     try {
         $request->validate([
@@ -965,44 +915,68 @@ public function updateInforme(Request $request, Estudio $estudio)
             '_action' => 'nullable|string'
         ]);
 
-        \Log::info('✅ Validación exitosa');
+
 
         // Combinar fecha y hora de informe
         $fechaInforme = null;
+
         if ($request->FECHA_INFORME) {
             // Si ya tiene hora (formato completo), usarla tal como viene
             if (strlen($request->FECHA_INFORME) > 10) {
                 $fechaInforme = $request->FECHA_INFORME;
-                \Log::info('📅 Fecha informe ya completa: ' . $fechaInforme);
             } 
             // Si solo es fecha, agregar la hora
             elseif ($request->HORA_INFORME) {
                 $fechaInforme = $request->FECHA_INFORME . ' ' . $request->HORA_INFORME . ':00';
-                \Log::info('📅 Fecha informe combinada: ' . $fechaInforme);
             }
             else {
                 $fechaInforme = $request->FECHA_INFORME;
-                \Log::info('📅 Fecha informe solo fecha: ' . $fechaInforme);
             }
+
+            // Validar que sea una fecha válida
+            $timestamp = strtotime($fechaInforme);
+            if ($timestamp === false || $timestamp < 0) {
+                // Fecha inválida, usar fecha actual
+                \Log::warning('Fecha inválida detectada: ' . $fechaInforme);
+                $fechaInforme = date('Y-m-d H:i:s');
+            } else {
+                // Convertir a formato estándar
+                $fechaInforme = date('Y-m-d H:i:s', $timestamp);
+            }
+        } else {
+            // Si no hay fecha, usar la fecha actual
+            $fechaInforme = date('Y-m-d H:i:s');
         }
 
         // Combinar fecha y hora de resultados por correo
         $fechaResultadosCorreo = null;
+
         if ($request->FECHA_RESULTADOS_CORREO) {
             // Si ya tiene hora (formato completo), usarla tal como viene
             if (strlen($request->FECHA_RESULTADOS_CORREO) > 10) {
                 $fechaResultadosCorreo = $request->FECHA_RESULTADOS_CORREO;
-                \Log::info('📅 Fecha resultados correo ya completa: ' . $fechaResultadosCorreo);
             } 
             // Si solo es fecha, agregar la hora
             elseif ($request->HORA_RESULTADOS_CORREO) {
                 $fechaResultadosCorreo = $request->FECHA_RESULTADOS_CORREO . ' ' . $request->HORA_RESULTADOS_CORREO . ':00';
-                \Log::info('📅 Fecha resultados correo combinada: ' . $fechaResultadosCorreo);
             }
             else {
                 $fechaResultadosCorreo = $request->FECHA_RESULTADOS_CORREO;
-                \Log::info('📅 Fecha resultados correo solo fecha: ' . $fechaResultadosCorreo);
             }
+
+            // Validar que sea una fecha válida
+            $timestamp = strtotime($fechaResultadosCorreo);
+            if ($timestamp === false || $timestamp < 0) {
+                // Fecha inválida, usar fecha actual
+                \Log::warning('Fecha inválida detectada en FECHA_RESULTADOS_CORREO: ' . $fechaResultadosCorreo);
+                $fechaResultadosCorreo = date('Y-m-d H:i:s');
+            } else {
+                // Convertir a formato estándar
+                $fechaResultadosCorreo = date('Y-m-d H:i:s', $timestamp);
+            }
+        } else {
+            // Si no hay fecha, usar la fecha actual
+            $fechaResultadosCorreo = date('Y-m-d H:i:s');
         }
 
         // Determinar estado del estudio
@@ -1010,7 +984,6 @@ public function updateInforme(Request $request, Estudio $estudio)
         if ($request->_action === 'enviar') {
             $estadoEstudio = 'Resultados Enviados';
             $fechaResultadosCorreo = $fechaResultadosCorreo ?: now();
-            \Log::info('📧 Acción de envío detectada, estado cambiado a: ' . $estadoEstudio);
         }
 
         // Preparar datos para actualizar el estudio
@@ -1025,33 +998,33 @@ public function updateInforme(Request $request, Estudio $estudio)
             return $value !== null && $value !== '';
         });
 
-        \Log::info('📤 Datos del estudio a actualizar:', $datosEstudio);
+
 
         // Actualizar el estudio
         $estudio->update($datosEstudio);
-        \Log::info('✅ Estudio actualizado exitosamente');
+
 
         // Manejar correos de copia
         if ($request->has('correos_copias') && is_array($request->correos_copias)) {
-            \Log::info('📧 Procesando correos de copia:', $request->correos_copias);
+
             
             // Obtener IDs de correos existentes para este estudio
             $correosExistentes = CorreoCopia::where('ID_ESTUDIO', $estudio->ID)
                 ->pluck('ID')
                 ->toArray();
-            \Log::info('📋 Correos existentes en BD:', $correosExistentes);
+
 
             $correosEnviados = collect($request->correos_copias)
                 ->pluck('ID')
                 ->filter()
                 ->toArray();
-            \Log::info('📋 Correos enviados desde frontend:', $correosEnviados);
+
 
             // Eliminar correos que ya no están en la lista
             $correosAEliminar = array_diff($correosExistentes, $correosEnviados);
             if (!empty($correosAEliminar)) {
                 CorreoCopia::whereIn('ID', $correosAEliminar)->delete();
-                \Log::info('🗑️ Correos eliminados:', $correosAEliminar);
+
             }
 
             // Actualizar o crear correos de copia
@@ -1065,7 +1038,6 @@ public function updateInforme(Request $request, Estudio $estudio)
                             'CORREO' => $correoData['CORREO'],
                             'ENVIAR' => $correoData['ENVIAR'] ?? 'si',
                         ]);
-                        \Log::info('📝 Correo actualizado ID: ' . $correoData['ID']);
                     }
                 } else {
                     // Crear nuevo correo
@@ -1076,14 +1048,12 @@ public function updateInforme(Request $request, Estudio $estudio)
                         'CORREO' => $correoData['CORREO'],
                         'ENVIAR' => $correoData['ENVIAR'] ?? 'si',
                     ]);
-                    \Log::info('✨ Nuevo correo creado ID: ' . $nuevoCorreo->ID);
                 }
             }
         }
 
         // Enviar correos si se solicita
         if ($request->_action === 'enviar') {
-            \Log::info('📮 Iniciando envío de correos...');
             $this->enviarCorreosReporte($estudio, $request->ENVIAR_ADJUNTO ?? false);
         }
 
@@ -1093,13 +1063,9 @@ public function updateInforme(Request $request, Estudio $estudio)
             $mensaje = 'Información guardada y correo enviado exitosamente.';
         }
 
-        \Log::info('✅ updateInforme completado exitosamente');
-        \Log::info('📋 Estudio después de actualizar:', $estudio->fresh()->toArray());
-
         return back()->with('success', $mensaje);
 
     } catch (\Illuminate\Validation\ValidationException $e) {
-        \Log::error('❌ Error de validación en updateInforme:', $e->errors());
         throw $e;
     } catch (\Exception $e) {
         \Log::error('❌ Error general en updateInforme:', [
@@ -1109,6 +1075,53 @@ public function updateInforme(Request $request, Estudio $estudio)
             'trace' => $e->getTraceAsString()
         ]);
         throw $e;
+    }
+}
+/**
+ * 
+ */
+public function enviarCorreoIndividual(Request $request, Estudio $estudio)
+{
+    try {
+        $request->validate([
+            'nombre' => 'required|string|max:255',
+            'correo' => 'required|email|max:255',
+            'enviar_adjunto' => 'boolean'
+        ]);
+
+        // Cargar relaciones necesarias
+        $estudio->load(['medico', 'cliente', 'institucion']);
+
+        // Verificar que el estudio tenga información completa
+        if (!$estudio->medico || !$estudio->cliente || !$estudio->institucion) {
+            throw new \Exception('El estudio no tiene la información completa necesaria');
+        }
+
+        // Enviar el correo usando Mail de Laravel
+        Mail::to($request->correo)->send(new \App\Mail\EstudioReporte($estudio, $request->enviar_adjunto ?? false));
+
+        \Log::info('Correo individual enviado exitosamente', [
+            'estudio_id' => $estudio->ID,
+            'destinatario' => $request->correo,
+            'nombre' => $request->nombre
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Correo enviado exitosamente a {$request->nombre}"
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Error enviando correo individual', [
+            'estudio_id' => $estudio->ID ?? null,
+            'destinatario' => $request->correo ?? null,
+            'error' => $e->getMessage()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al enviar correo: ' . $e->getMessage()
+        ], 500);
     }
 }
 
@@ -1262,33 +1275,40 @@ public function updateInforme(Request $request, Estudio $estudio)
      * Private method to generate PDF response
      */
     private function _generatePdfResponse(Estudio $estudio)
-    {
-        // Preparar datos para la vista
-        $data = [
-            'estudio' => $estudio,
-            'paciente' => $estudio->paciente,
-            'medico' => $estudio->medico,
-            'institucion' => $estudio->institucion,
-            'cliente' => $estudio->cliente
-        ];
-        
-        // Generar PDF usando DomPDF
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.estudio', $data);
-        
-        // Configurar opciones del PDF
-        $pdf->setPaper('A4', 'portrait');
-        $pdf->setOptions([
-            'isHtml5ParserEnabled' => true,
-            'isPhpEnabled' => true,
-            'defaultFont' => 'Arial'
-        ]);
-        
-        // Nombre del archivo
-        $filename = 'DIAHMOES_' . ($estudio->CLAVE_INTERNA ?? $estudio->folio_completo) . '.pdf';
-        
-        // Descargar o mostrar el PDF
-        return $pdf->stream($filename);
-    }
+{
+    // Preparar datos para la vista
+    $data = [
+        'estudio' => $estudio,
+        'paciente' => $estudio->paciente,
+        'medico' => $estudio->medico,
+        'institucion' => $estudio->institucion,
+        'cliente' => $estudio->cliente
+    ];
+    
+    // Generar PDF usando DomPDF
+    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.estudio', $data);
+    
+    // Configurar opciones del PDF
+    $pdf->setPaper('A4', 'portrait');
+    $pdf->setOptions([
+        'isHtml5ParserEnabled' => true,
+        'isPhpEnabled' => true,
+        'defaultFont' => 'Arial',
+        'isRemoteEnabled' => true, // Permite cargar recursos externos
+        'debugKeepTemp' => false,
+        'debugCss' => false,
+        'debugLayout' => false,
+        'debugLayoutLines' => false,
+        'debugLayoutBlocks' => false,
+        'debugLayoutInline' => false
+    ]);
+    
+    // Nombre del archivo
+    $filename = 'DIAHMOES_' . ($estudio->CLAVE_INTERNA ?? $estudio->folio_completo) . '.pdf';
+    
+    // Descargar o mostrar el PDF
+    return $pdf->stream($filename);
+}
 
     /**
      * Store a new correo copia for the study

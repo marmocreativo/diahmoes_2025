@@ -107,25 +107,6 @@ export default function Welcome() {
                             </div>
                         </div>
 
-                        {/* Botón de acción */}
-                        <div className="mb-12">
-                            {!auth.user ? (
-                                <Link
-                                    href={route('login')}
-                                    className="inline-block rounded-lg bg-[#189BAF] px-12 py-4 text-lg text-white font-semibold hover:bg-[#157a8c] transition-colors duration-200 shadow-lg"
-                                >
-                                    Acceder al Sistema
-                                </Link>
-                            ) : (
-                                <Link
-                                    href={route('dashboard')}
-                                    className="inline-block rounded-lg bg-[#189BAF] px-12 py-4 text-lg text-white font-semibold hover:bg-[#157a8c] transition-colors duration-200 shadow-lg"
-                                >
-                                    Ir al Dashboard
-                                </Link>
-                            )}
-                        </div>
-
                         {/* Footer */}
                         <footer className="text-center text-sm text-gray-500">
                             <p>&copy; 2025 DIAHMOES. Sistema de Gestión de Estudios Médicos.</p>

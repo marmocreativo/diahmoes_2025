@@ -3,8 +3,21 @@ import { Head, router, usePage, Link } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, Save, Eye, FileText, Mail, Plus, Trash2, Send } from 'lucide-react';
+import { ChevronLeft, Save, Eye, FileText, Mail, Plus, Trash2, Send, X } from 'lucide-react';
 import { type BreadcrumbItem } from '@/types';
+
+interface ResultadoEnvio {
+    nombre: string;
+    correo: string;
+    estado: 'pendiente' | 'enviando' | 'exito' | 'error';
+    mensaje?: string;
+}
+
+interface ModalEnvioState {
+    isOpen: boolean;
+    enviando: boolean;
+    resultados: ResultadoEnvio[];
+}
 
 interface EditInformeProps {
     estudio: any;
@@ -25,6 +38,13 @@ interface CorreoCopia {
 
 export default function EditInformeFixed() {
     const { estudio, medico, correos_copias = [] } = usePage<EditInformeProps>().props;
+
+    // Estado para el modal de Envio
+    const [modalEnvio, setModalEnvio] = useState<ModalEnvioState>({
+        isOpen: false,
+        enviando: false,
+        resultados: []
+    });
 
     // Estado para los campos del formulario
     const [formData, setFormData] = useState({
@@ -111,30 +131,147 @@ export default function EditInformeFixed() {
     }, [estudio.ID, formData, listaCorreos]);
 
     const handleSaveAndSend = useCallback(() => {
-        setProcessing(true);
-        
-        const dataToSend: Record<string, any> = {
-            ...formData,
-            FECHA_INFORME: `${formData.FECHA_INFORME} ${formData.HORA_INFORME}:00`,
-            FECHA_RESULTADOS_CORREO: `${formData.FECHA_RESULTADOS_CORREO} ${formData.HORA_RESULTADOS_CORREO}:00`,
-            correos_copias: serializeCorreos(listaCorreos),
-            _action: 'enviar'
-        };
-        
-        console.log('📧 Guardando y enviando:', dataToSend);
-        
-        router.patch(`/estudios/${estudio.ID}/informe`, dataToSend, {
-            onSuccess: () => {
-                alert('Estudio guardado y correo enviado exitosamente');
-            },
-            onError: (errors) => {
-                console.error('❌ Error al guardar y enviar:', errors);
-            },
-            onFinish: () => {
-                setProcessing(false);
+    setProcessing(true);
+    
+    const dataToSend: Record<string, any> = {
+        ...formData,
+        FECHA_INFORME: `${formData.FECHA_INFORME} ${formData.HORA_INFORME}:00`,
+        FECHA_RESULTADOS_CORREO: `${formData.FECHA_RESULTADOS_CORREO} ${formData.HORA_RESULTADOS_CORREO}:00`,
+        correos_copias: serializeCorreos(listaCorreos)
+    };
+    
+    console.log('Guardando datos antes de envío:', dataToSend);
+    
+    router.patch(`/estudios/${estudio.ID}/informe`, dataToSend, {
+        onSuccess: () => {
+            console.log('Datos guardados exitosamente, abriendo modal de envío');
+            setProcessing(false);
+            
+            // Filtrar correos que se van a enviar
+            const correosParaEnviar = listaCorreos.filter(correo => correo.ENVIAR === 'si');
+            
+            if (correosParaEnviar.length > 0) {
+                setModalEnvio({
+                    isOpen: true,
+                    enviando: false,
+                    resultados: correosParaEnviar.map(correo => ({
+                        nombre: correo.NOMBRE,
+                        correo: correo.CORREO,
+                        estado: 'pendiente' as const
+                    }))
+                });
+            } else {
+                alert('No hay correos marcados para enviar');
             }
-        });
-    }, [estudio.ID, formData, listaCorreos]);
+        },
+        onError: (errors) => {
+            console.error('Error al guardar:', errors);
+            setProcessing(false);
+        }
+    });
+}, [estudio.ID, formData, listaCorreos]);
+
+const enviarCorreos = useCallback(() => {
+    setModalEnvio(prev => ({ ...prev, enviando: true }));
+    
+    const correosParaEnviar = listaCorreos.filter(correo => correo.ENVIAR === 'si');
+    
+    // Enviar correos uno por uno
+    const enviarCorreoIndividual = async (index: number): Promise<void> => {
+        if (index >= correosParaEnviar.length) {
+            // Todos los correos procesados
+            setModalEnvio(prev => ({ ...prev, enviando: false }));
+            return;
+        }
+        
+        const correo = correosParaEnviar[index];
+        
+        // Actualizar estado a "enviando"
+        setModalEnvio(prev => ({
+            ...prev,
+            resultados: prev.resultados.map((resultado, i) => 
+                i === index 
+                    ? { ...resultado, estado: 'enviando' as const }
+                    : resultado
+            )
+        }));
+        
+        try {
+            // Obtener el token CSRF
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            if (!csrfToken) {
+                throw new Error('Token CSRF no encontrado');
+            }
+            
+            // Llamada para enviar correo individual
+            const response = await fetch(`/estudios/${estudio.ID}/enviar-correo`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({
+                    nombre: correo.NOMBRE,
+                    correo: correo.CORREO,
+                    enviar_adjunto: formData.ENVIAR_ADJUNTO
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok && result.success) {
+                // Éxito
+                setModalEnvio(prev => ({
+                    ...prev,
+                    resultados: prev.resultados.map((resultado, i) => 
+                        i === index 
+                            ? { 
+                                ...resultado, 
+                                estado: 'exito' as const, 
+                                mensaje: result.message || 'Correo enviado exitosamente' 
+                            }
+                            : resultado
+                    )
+                }));
+            } else {
+                // Error
+                setModalEnvio(prev => ({
+                    ...prev,
+                    resultados: prev.resultados.map((resultado, i) => 
+                        i === index 
+                            ? { 
+                                ...resultado, 
+                                estado: 'error' as const, 
+                                mensaje: result.message || 'Error al enviar correo' 
+                            }
+                            : resultado
+                    )
+                }));
+            }
+        } catch (error) {
+            console.error('Error enviando correo:', error);
+            setModalEnvio(prev => ({
+                ...prev,
+                resultados: prev.resultados.map((resultado, i) => 
+                    i === index 
+                        ? { 
+                            ...resultado, 
+                            estado: 'error' as const, 
+                            mensaje: 'Error de conexión' 
+                        }
+                        : resultado
+                )
+            }));
+        }
+        
+        // Continuar con el siguiente correo después de 1 segundo
+        setTimeout(() => enviarCorreoIndividual(index + 1), 1000);
+    };
+    
+    // Iniciar el envío del primer correo
+    enviarCorreoIndividual(0);
+}, [estudio.ID, listaCorreos, formData.ENVIAR_ADJUNTO]);
 
     const handleSaveAndExit = useCallback(() => {
         setProcessing(true);
@@ -509,6 +646,91 @@ export default function EditInformeFixed() {
                     </div>
                 </div>
             </div>
+            {/* Modal de Envío de Correos */}
+{modalEnvio.isOpen && (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Envío de Correos Electrónicos</h3>
+                {!modalEnvio.enviando && (
+                    <button
+                        onClick={() => setModalEnvio({ isOpen: false, enviando: false, resultados: [] })}
+                        className="text-gray-500 hover:text-gray-700"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                )}
+            </div>
+            
+            <div className="space-y-3">
+                {modalEnvio.resultados.map((resultado, index) => (
+                    <div
+                        key={index}
+                        className="flex items-center justify-between p-3 border rounded-lg"
+                    >
+                        <div className="flex-1">
+                            <p className="font-medium">{resultado.nombre}</p>
+                            <p className="text-sm text-gray-600">{resultado.correo}</p>
+                            {resultado.mensaje && (
+                                <p className={`text-sm mt-1 ${
+                                    resultado.estado === 'error' ? 'text-red-600' : 'text-green-600'
+                                }`}>
+                                    {resultado.mensaje}
+                                </p>
+                            )}
+                        </div>
+                        
+                        <div className="ml-4">
+                            {resultado.estado === 'pendiente' && (
+                                <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center">
+                                    <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                                </div>
+                            )}
+                            {resultado.estado === 'enviando' && (
+                                <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            )}
+                            {resultado.estado === 'exito' && (
+                                <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                                    <div className="w-3 h-3 border-l-2 border-b-2 border-white transform rotate-[-45deg] translate-y-[-1px]"></div>
+                                </div>
+                            )}
+                            {resultado.estado === 'error' && (
+                                <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                                    <div className="w-3 h-0.5 bg-white"></div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+            
+            <div className="mt-6 flex justify-end gap-2">
+                {!modalEnvio.enviando ? (
+                    <>
+                        <button
+                            onClick={() => setModalEnvio({ isOpen: false, enviando: false, resultados: [] })}
+                            className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={enviarCorreos}
+                            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-2"
+                        >
+                            <Send className="h-4 w-4" />
+                            Enviar Correos ({modalEnvio.resultados.length})
+                        </button>
+                    </>
+                ) : (
+                    <div className="flex items-center gap-2 text-blue-600">
+                        <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                        Enviando correos...
+                    </div>
+                )}
+            </div>
+        </div>
+    </div>
+)}
         </AppLayout>
     );
 }

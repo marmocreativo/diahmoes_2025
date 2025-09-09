@@ -20,12 +20,12 @@
             padding: 5px;
         }
         .logo-cell {
-            height: 80px;
+            height: 160px;
             text-align: center;
         }
         .logo-image {
-            max-height: 70px;
-            max-width: 200px;
+            max-height: 150px;
+            max-width: 100%;
             height: auto;
             width: auto;
         }
@@ -162,7 +162,7 @@
     <table class="header-table">
         <tr>
             <td class="logo-cell">
-                <img src="{{ asset('assets/logo_reporte.jpg') }}" alt="DIAHMOES Logo" class="logo-image">
+                <img src="https://diahmoes.com.mx/assets/logo_reporte.jpg" alt="DIAHMOES logo 2025" class="logo-image">
             </td>
         </tr>
         <tr>
@@ -366,10 +366,10 @@
     <!-- Firma y Footer -->
     <div class="signature-table">
         <div style="text-align: center; margin-bottom: 20px;">
-            <img src="{{ asset('assets/firma_completa_2.jpg') }}" alt="Firma" class="signature-image">
+            <img src="https://diahmoes.com.mx/assets/firma_completa_2.jpg" alt="Firma" class="signature-image">
         </div>
         <div>
-            <img src="{{ asset('assets/footer_reporte.jpg') }}" alt="Footer" class="footer-image">
+            <img src="https://diahmoes.com.mx/assets/footer_reporte.jpg" alt="Footer" class="footer-image">
         </div>
     </div>
 
@@ -514,7 +514,7 @@
 
         <!-- Patrocinio -->
         <div style="margin-top: 30px; text-align: center;">
-            <img src="{{ asset('assets/patrocinio_reporte.jpg') }}" alt="Patrocinio" class="patrocinio-image">
+            <img src="https://diahmoes.com.mx/assets/patrocinio_reporte.jpg" alt="Patrocinio" class="patrocinio-image">
         </div>
     </div>
 </body>

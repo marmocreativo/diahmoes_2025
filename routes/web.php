@@ -182,6 +182,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('estudios.edit.informe');
     Route::patch('estudios/{estudio:ID}/informe', [EstudioController::class, 'updateInforme'])
         ->name('estudios.update.informe');
+    Route::post('estudios/{estudio:ID}/enviar-correo', [EstudioController::class, 'enviarCorreoIndividual'])
+        ->name('estudios.enviar-correo');
     
     // Ruta para edición completa en una sola vista
     Route::get('estudios/{estudio:ID}/edit/full', [EstudioController::class, 'editFull'])

@@ -14,12 +14,12 @@ import DebugTools from './Components/DebugTools';
 interface ConfiguracionProps {
     [key: string]: any;
     database_info: {
-        connection: string;
-        database: string;
-        host: string;
-        tables_count: number;
-        last_migration: string;
-        error?: string;
+        connection?: string;
+        database?: string;
+        host?: string;
+        tables_count?: number;
+        last_migration?: string;
+        error?: string; // ← Esta propiedad faltaba
     };
     mail_config: {
         mailer: string;

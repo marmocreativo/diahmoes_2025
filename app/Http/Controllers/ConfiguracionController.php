@@ -463,21 +463,41 @@ class ConfiguracionController extends Controller
      */
 
     private function getDatabaseInfo()
-    {
+{
+    try {
+        // Verificar conexión primero
+        DB::connection()->getPdo();
+        
+        $tablesCount = 0;
         try {
-            return [
-                'connection' => config('database.default'),
-                'database' => config('database.connections.' . config('database.default') . '.database'),
-                'host' => config('database.connections.' . config('database.default') . '.host'),
-                'tables_count' => DB::select('SHOW TABLES') ? count(DB::select('SHOW TABLES')) : 0,
-                'last_migration' => $this->getLastMigration()
-            ];
+            $tables = DB::select('SHOW TABLES');
+            $tablesCount = count($tables);
         } catch (Exception $e) {
-            return [
-                'error' => 'No se pudo obtener información de la base de datos: ' . $e->getMessage()
-            ];
+            \Log::warning('No se pudieron contar las tablas: ' . $e->getMessage());
         }
+        
+        return [
+            'connection' => config('database.default') ?? 'unknown',
+            'database' => config('database.connections.' . config('database.default') . '.database') ?? 'unknown',
+            'host' => config('database.connections.' . config('database.default') . '.host') ?? 'unknown',
+            'tables_count' => $tablesCount,
+            'last_migration' => $this->getLastMigration(),
+            'status' => 'connected'
+        ];
+    } catch (Exception $e) {
+        \Log::error('Error obteniendo información de BD: ' . $e->getMessage());
+        
+        return [
+            'connection' => config('database.default') ?? 'unknown',
+            'database' => config('database.connections.' . config('database.default') . '.database') ?? 'unknown', 
+            'host' => config('database.connections.' . config('database.default') . '.host') ?? 'unknown',
+            'tables_count' => 0,
+            'last_migration' => 'Error de conexión',
+            'error' => 'No se pudo conectar a la base de datos: ' . $e->getMessage(),
+            'status' => 'error'
+        ];
     }
+}
 
     private function getMailConfig()
     {
