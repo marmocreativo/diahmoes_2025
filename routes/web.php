@@ -194,6 +194,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Ruta para generar PDF del estudio
     Route::get('estudios/{estudio:ID}/pdf', [EstudioController::class, 'generatePdf'])
         ->name('estudios.pdf');
+
+    // Rutas para obtener datos de estudios
+    Route::get('estudios/ultimo-por-institucion', [EstudioController::class, 'getUltimoEstudioInstitucion']);
+    Route::get('estudios/ultimo-por-medico', [EstudioController::class, 'getUltimoEstudioMedico']);
     
     // API para manejar correos de copia
     Route::post('api/estudios/{estudio:ID}/correos-copia', [EstudioController::class, 'storeCorreoCopia'])

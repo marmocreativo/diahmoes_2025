@@ -12,6 +12,41 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Crear Estudio', href: '/estudios/create' },
 ];
 
+interface InstitucionDataState {
+    loading: boolean;
+    data: {
+        estudio: {
+            MUESTRA_DIRECCION?: string;
+            MUESTRA_NUMERO_EXT?: string;
+            MUESTRA_NUMERO_INT?: string;
+            MUESTRA_MUNICIPIO?: string;
+            MUESTRA_COLONIA?: string;
+            MUESTRA_ESTADO?: string;
+            MUESTRA_ENVIO_TIPO?: string;
+            MUESTRA_CODIGO_POSTAL?: string;
+            MUESTRA_HORARIOS?: string;
+        };
+        medico?: any;
+        paciente?: any;
+        institucion?: any;
+        cliente?: any;
+    } | null;
+    error: string | null;
+}
+
+interface ApiResponse {
+    success: boolean;
+    message: string;
+    data?: {
+        estudio: any;
+        medico?: any;
+        paciente?: any;
+        institucion?: any;
+        cliente?: any;
+    };
+}
+
+
 export default function CrearEstudio() {
     const { medicos, pacientes, instituciones, clientes, mensajerias, tiposMuestra, tiposEstudio, generos, tiposEnvio, datosAutomaticos } = 
         usePage<EstudioCreateProps>().props;
@@ -19,7 +54,11 @@ export default function CrearEstudio() {
     // Referencias para inputs simples - no causan re-renders
     const formRef = useRef<HTMLFormElement>(null);
 
-    // Agrega este estado al inicio del componente (junto con dependentFields)
+    const [institucionData, setInstitucionData] = useState<InstitucionDataState>({
+        loading: false,
+        data: null,
+        error: null
+    });
     const [medicoSearch, setMedicoSearch] = useState<{
         isOpen: boolean;
         searchText: string;
@@ -56,6 +95,93 @@ export default function CrearEstudio() {
     });
 
     const { post, processing, errors } = useForm();
+
+    // Función para obtener datos del último estudio de la institución
+    const fetchUltimoEstudioInstitucion = async (idInstitucion: number): Promise<void> => {
+        if (!idInstitucion || idInstitucion === 0) {
+            setInstitucionData({ loading: false, data: null, error: null });
+            return;
+        }
+
+        setInstitucionData({ loading: true, data: null, error: null });
+
+        try {
+            const response = await fetch(`/api/estudios/ultimo-por-institucion?id_institucion=${idInstitucion}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                }
+            });
+
+            const data: ApiResponse = await response.json();
+
+            if (data.success && data.data) {
+                console.log('Datos del último estudio:', data.data);
+                
+                setInstitucionData({ 
+                    loading: false, 
+                    data: data.data, 
+                    error: null 
+                });
+
+                cargarDatosEnFormulario(data.data.estudio);
+            } else {
+                console.log('No se encontraron estudios para esta institución');
+                setInstitucionData({ 
+                    loading: false, 
+                    data: null, 
+                    error: data.message || 'No se encontraron estudios' 
+                });
+            }
+        } catch (error) {
+            console.error('Error al obtener datos de la institución:', error);
+            setInstitucionData({ 
+                loading: false, 
+                data: null, 
+                error: 'Error de conexión' 
+            });
+        }
+    };
+
+    // Función para cargar los datos en el formulario
+    const cargarDatosEnFormulario = (estudioData: any): void => {
+    const form = formRef.current;
+    if (!form || !estudioData) return;
+
+    // Mapeo de campos del estudio a campos del formulario
+    const camposACargar: Record<string, string | undefined> = {
+        'MuestraDireccion': estudioData.MUESTRA_DIRECCION,
+        'MuestraNumeroExt': estudioData.MUESTRA_NUMERO_EXT,
+        'MuestraNumeroInt': estudioData.MUESTRA_NUMERO_INT,
+        'MuestraMunicipio': estudioData.MUESTRA_MUNICIPIO,
+        'MuestraColonia': estudioData.MUESTRA_COLONIA,
+        'MuestraEstado': estudioData.MUESTRA_ESTADO,
+        'MuestraEnvioTipo': estudioData.MUESTRA_ENVIO_TIPO,
+        'MuestraCodigoPostal': estudioData.MUESTRA_CODIGO_POSTAL,
+        'MuestraHorarios': estudioData.MUESTRA_HORARIOS
+    };
+
+    // Cargar cada campo en el formulario
+    Object.entries(camposACargar).forEach(([nombreCampo, valor]) => {
+        const campo = form.querySelector(`[name="${nombreCampo}"]`) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+        if (campo && valor) {
+            campo.value = valor;
+            
+            // Si es un select, también actualizar el estado para que se vea el cambio
+            if (campo.tagName === 'SELECT') {
+                if (nombreCampo === 'MuestraEnvioTipo') {
+                    handleDependentFieldChange('MuestraEnvioTipo', valor);
+                } else if (nombreCampo === 'MuestraEstado') {
+                    handleDependentFieldChange('MuestraEstado', valor);
+                }
+            }
+        }
+    });
+
+    console.log('Datos cargados en el formulario desde el último estudio');
+};
 
     // Función para obtener todos los valores del formulario al momento de enviar
     const getFormData = useCallback((): EstudioFormData => {
@@ -548,13 +674,16 @@ export default function CrearEstudio() {
                                                             <div
                                                                 key={inst.ID_INSTITUCION}
                                                                 className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                                                                onClick={() => {
+                                                                onClick={async () => {
                                                                     setInstitucionSearch({
                                                                         isOpen: false,
                                                                         searchText: inst.INSTITUCION_NOMBRE,
                                                                         selectedInstitucion: inst
                                                                     });
                                                                     handleDependentFieldChange('IdInstitucion', inst.ID_INSTITUCION);
+                                                                    
+                                                                    // Hacer fetch de los datos del último estudio
+                                                                    await fetchUltimoEstudioInstitucion(inst.ID_INSTITUCION);
                                                                 }}
                                                             >
                                                                 {inst.INSTITUCION_NOMBRE}
@@ -640,7 +769,31 @@ export default function CrearEstudio() {
                             {/* Sección 5: Dirección de Recolección */}
                             <Card>
                                 <CardContent className="p-6">
-                                    <h3 className="text-lg font-semibold mb-4">Dirección de Recolección</h3>
+                                   <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-lg font-semibold">Dirección de Recolección</h3>
+                                        
+                                        {/* Indicador de carga */}
+                                        {institucionData.loading && (
+                                            <div className="flex items-center text-sm text-blue-600">
+                                                <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full mr-2"></div>
+                                                Cargando datos...
+                                            </div>
+                                        )}
+                                        
+                                        {/* Mensaje de éxito */}
+                                        {institucionData.data && !institucionData.loading && (
+                                            <div className="text-sm text-green-600">
+                                                ✓ Datos cargados del último estudio
+                                            </div>
+                                        )}
+                                        
+                                        {/* Mensaje de error o no encontrado */}
+                                        {institucionData.error && !institucionData.loading && (
+                                            <div className="text-sm text-gray-500">
+                                                {institucionData.error}
+                                            </div>
+                                        )}
+                                    </div>
                                     
                                     <div className="mb-4">
                                         <label className="flex items-center">

@@ -1458,4 +1458,126 @@ public function enviarCorreoIndividual(Request $request, Estudio $estudio)
             \Log::error('Error general enviando correos para estudio ' . $estudio->CLAVE_INTERNA . ': ' . $e->getMessage());
         }
     }
+
+    /**
+     * Obtener datos del último estudio de una institución específica
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getUltimoEstudioInstitucion(Request $request)
+    {
+        try {
+            $request->validate([
+                'id_institucion' => 'required|integer|exists:instituciones,ID_INSTITUCION'
+            ]);
+
+            $ultimoEstudio = Estudio::where('ID_INSTITUCION', $request->id_institucion)
+                ->with([
+                    'medico:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS,USUARIO_CORREO,USUARIO_TELEFONO',
+                    'paciente:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS,USUARIO_CORREO,USUARIO_TELEFONO',
+                    'institucion:ID_INSTITUCION,INSTITUCION_NOMBRE,INSTITUCION_CORREO,INSTITUCION_TELEFONO,INSTITUCION_DIRECCION,INSTITUCION_NUMERO_EXT,INSTITUCION_NUMERO_INT,INSTITUCION_COLONIA,INSTITUCION_MUNICIPIO,INSTITUCION_CIUDAD,INSTITUCION_ESTADO,INSTITUCION_CODIGO_POSTAL',
+                    'cliente:ID_CLIENTE,CLIENTE_NOMBRE,CLIENTE_CORREO'
+                ])
+                ->orderBy('ANIO', 'desc')
+                ->orderBy('SERIADO', 'desc')
+                ->first();
+
+            if (!$ultimoEstudio) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontraron estudios para esta institución',
+                    'data' => null
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Último estudio encontrado',
+                'data' => [
+                    'estudio' => $ultimoEstudio,
+                    'medico' => $ultimoEstudio->medico,
+                    'paciente' => $ultimoEstudio->paciente,
+                    'institucion' => $ultimoEstudio->institucion,
+                    'cliente' => $ultimoEstudio->cliente
+                ]
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos de validación incorrectos',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Error en getUltimoEstudioInstitucion: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener datos del último estudio de un médico específico
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getUltimoEstudioMedico(Request $request)
+    {
+        try {
+            $request->validate([
+                'id_medico' => 'required|integer|exists:usuarios,ID_USUARIO'
+            ]);
+
+            $ultimoEstudio = Estudio::where('ID_MEDICO', $request->id_medico)
+                ->with([
+                    'medico:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS,USUARIO_CORREO,USUARIO_TELEFONO',
+                    'paciente:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS,USUARIO_CORREO,USUARIO_TELEFONO',
+                    'institucion:ID_INSTITUCION,INSTITUCION_NOMBRE,INSTITUCION_CORREO,INSTITUCION_TELEFONO,INSTITUCION_DIRECCION,INSTITUCION_NUMERO_EXT,INSTITUCION_NUMERO_INT,INSTITUCION_COLONIA,INSTITUCION_MUNICIPIO,INSTITUCION_CIUDAD,INSTITUCION_ESTADO,INSTITUCION_CODIGO_POSTAL',
+                    'cliente:ID_CLIENTE,CLIENTE_NOMBRE,CLIENTE_CORREO'
+                ])
+                ->orderBy('ANIO', 'desc')
+                ->orderBy('SERIADO', 'desc')
+                ->first();
+
+            if (!$ultimoEstudio) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontraron estudios para este médico',
+                    'data' => null
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Último estudio encontrado',
+                'data' => [
+                    'estudio' => $ultimoEstudio,
+                    'medico' => $ultimoEstudio->medico,
+                    'paciente' => $ultimoEstudio->paciente,
+                    'institucion' => $ultimoEstudio->institucion,
+                    'cliente' => $ultimoEstudio->cliente
+                ]
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos de validación incorrectos',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Error en getUltimoEstudioMedico: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
