@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
-import { Search, X, Filter, Eye, Edit, Download, ArrowRight, Calendar, FileText, TestTube, Microscope, Plus, MessageCircle } from 'lucide-react';
+import { Search, X, Filter, Eye, Edit, Download, ArrowRight, Calendar, FileText, TestTube, Microscope, Plus, MessageCircle, Printer, Trash2 } from 'lucide-react';
 import { EstudioIndexProps } from '@/types/estudios';
 import WhatsAppDialog from '@/components/WhatsAppDialog';
 
@@ -25,6 +25,9 @@ export default function EstudiosIndex() {
         estudio: null
     });
 
+    // Estado para el botón de eliminar
+    const [deletingId, setDeletingId] = useState<number | null>(null);
+
     const openWhatsAppDialog = (estudio: any) => {
         setWhatsappDialog({
             isOpen: true,
@@ -37,6 +40,35 @@ export default function EstudiosIndex() {
             isOpen: false,
             estudio: null
         });
+    };
+
+    // Función para eliminar estudio con confirmación
+    const handleDeleteEstudio = (estudio: any) => {
+        const claveEstudio = estudio.CLAVE_INTERNA || `${estudio.CLAVE}-${estudio.ANIO}-${String(estudio.SERIADO).padStart(3, '0')}`;
+        
+        const confirmMessage = `¿Estás seguro de que deseas eliminar el estudio ${claveEstudio}?\n\nEsta acción NO se puede deshacer y eliminará todos los datos asociados.`;
+        
+        if (window.confirm(confirmMessage)) {
+            // Segunda confirmación para mayor seguridad
+            const finalConfirm = confirm('Esta es tu última oportunidad. ¿Realmente deseas eliminar este estudio?');
+            
+            if (finalConfirm) {
+                setDeletingId(estudio.ID);
+                
+                router.delete(`/estudios/${estudio.ID}`, {
+                    onSuccess: () => {
+                        // El controlador ya redirige con mensaje de éxito
+                    },
+                    onError: (errors) => {
+                        console.error('Error al eliminar estudio:', errors);
+                        alert('Error al eliminar el estudio. Por favor, inténtalo de nuevo.');
+                    },
+                    onFinish: () => {
+                        setDeletingId(null);
+                    }
+                });
+            }
+        }
     };
 
     // Búsqueda en tiempo real con debounce
@@ -72,6 +104,7 @@ export default function EstudiosIndex() {
             replace: true,
         });
     };
+    
 
     const hasActiveFilters = searchTerm || selectedEstado || fechaDesde || fechaHasta;
 
@@ -344,6 +377,13 @@ export default function EstudiosIndex() {
                                                 >
                                                     <Download className="h-5 w-5" />
                                                 </button>
+                                                <button 
+                                                    onClick={() => window.open(`/publicos/estudio?id=${estudio.ID}&aleatorio=${estudio.ID_ALEATORIO}&imprimir=si`, '_blank')}
+                                                    className="text-gray-600 hover:text-gray-700 transition-colors"
+                                                    title="PDF para impresión"
+                                                >
+                                                    <Printer  className="h-4 w-4" />
+                                                </button>
 
                                                 <button 
                                                     onClick={() => openWhatsAppDialog(estudio)}
@@ -388,6 +428,20 @@ export default function EstudiosIndex() {
                                                         </Link>
                                                     </div>
                                                 </div>
+
+                                                {/* BOTÓN DE ELIMINAR */}
+                                                <button
+                                                    onClick={() => handleDeleteEstudio(estudio)}
+                                                    disabled={deletingId === estudio.ID}
+                                                    className="text-red-600 hover:text-red-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    title="Eliminar estudio"
+                                                >
+                                                    {deletingId === estudio.ID ? (
+                                                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-red-600 border-t-transparent"></div>
+                                                    ) : (
+                                                        <Trash2 className="h-5 w-5" />
+                                                    )}
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>

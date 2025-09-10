@@ -626,6 +626,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/configuracion/mail-config-test', [ConfiguracionController::class, 'testMailConfig'])
             ->name('configuracion.mail-config-test');
     });
+
+    // En routes/web.php, agregar dentro del grupo de configuración:
+    Route::post('/configuracion/cache-commands', [ConfiguracionController::class, 'executeCacheCommands']);
+    Route::get('/configuracion/cache-info', [ConfiguracionController::class, 'getCacheInfo']);
     
 });
 

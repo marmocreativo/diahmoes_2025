@@ -156,121 +156,148 @@ class EstudioController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
-    {
-        $request->validate([
-            // Campos requeridos del formulario original
-            'ClaveInterna' => 'required|string|max:255',
-            'FolioMerck' => 'nullable|string|max:255',
-            'FechaSolicitudRecoleccion' => 'required|date',
-            'HoraSolicitudRecoleccion' => 'required',
-            'IdCliente' => 'required|integer|min:0',
-            'IdMedico' => 'required|integer|min:0',
-            'IdInstitucion' => 'required|integer|min:0',
-            'NoAplica' => 'nullable|boolean',
-            
-            // Campos de nuevos registros (si aplica)
-            'NombreCliente' => 'nullable|string|max:255',
-            'CorreoCliente' => 'nullable|email|max:255',
-            'NombreUsuario' => 'nullable|string|max:255',
-            'ApellidosUsuario' => 'nullable|string|max:255',
-            'CorreoUsuario' => 'nullable|email|max:255',
-            'TelefonoUsuario' => 'nullable|string|max:255',
-            'NombreInstitucion' => 'nullable|string|max:255',
-            'CorreoInstitucion' => 'nullable|email|max:255',
-            'TelefonoInstitucion' => 'nullable|string|max:255',
-        ]);
+{
+    // ===== LOGS PARA DEBUG =====
+    \Log::info('🔴 INICIO store method');
+    \Log::info('📊 Request completo:', $request->all());
+    
+    $request->validate([
+        // Campos requeridos del formulario original
+        'ClaveInterna' => 'required|string|max:255',
+        'FolioMerck' => 'nullable|string|max:255',
+        'FechaSolicitudRecoleccion' => 'required|date',
+        'HoraSolicitudRecoleccion' => 'required',
+        'IdCliente' => 'required|integer|min:0',
+        'IdMedico' => 'required|integer|min:0',
+        'IdInstitucion' => 'required|integer|min:0',
+        'NoAplica' => 'nullable|boolean',
+        
+        // Campos de nuevos registros (si aplica)
+        'NombreCliente' => 'nullable|string|max:255',
+        'CorreoCliente' => 'nullable|email|max:255',
+        'NombreUsuario' => 'nullable|string|max:255',
+        'ApellidosUsuario' => 'nullable|string|max:255',
+        'CorreoUsuario' => 'nullable|email|max:255',
+        'TelefonoUsuario' => 'nullable|string|max:255',
+        'NombreInstitucion' => 'nullable|string|max:255',
+        'CorreoInstitucion' => 'nullable|email|max:255',
+        'TelefonoInstitucion' => 'nullable|string|max:255',
+    ]);
 
-        // Manejar creación de nuevos registros si es necesario
-        $idCliente = $this->manejarNuevoCliente($request);
-        $idMedico = $this->manejarNuevoMedico($request);
-        $idInstitucion = $this->manejarNuevaInstitucion($request);
+    \Log::info('✅ Validación exitosa');
 
-        // Combinar fecha y hora en datetime
-        $fechaHoraSolicitud = $request->FechaSolicitudRecoleccion . ' ' . $request->HoraSolicitudRecoleccion;
+    // Manejar creación de nuevos registros si es necesario
+    $idCliente = $this->manejarNuevoCliente($request);
+    $idMedico = $this->manejarNuevoMedico($request);
+    $idInstitucion = $this->manejarNuevaInstitucion($request);
 
-        $estudio = new Estudio();
-        
-        // Asignar campos básicos
-        $estudio->ID_ALEATORIO = $request->IdAleatorio;
-        $estudio->CLAVE_INTERNA = $request->ClaveInterna;
-        $estudio->CLAVE = $request->Prefijo;
-        $estudio->SERIADO = (int)$request->Seriado;
-        $estudio->ANIO = (int)$request->Anio;
-        $estudio->FOLIO_MERCK = $request->FolioMerck;
-        $estudio->FECHA_SOLICITUD_RECOLECCION = $fechaHoraSolicitud;
-        
-        // Asignar relaciones
-        $estudio->ID_CLIENTE = $idCliente;
-        $estudio->ID_MEDICO = $idMedico;
-        $estudio->ID_INSTITUCION = $idInstitucion;
-        
-        // Asignar campos de dirección (siempre, incluso si NoAplica es true)
-        $estudio->MUESTRA_GUIA_MENSAJERIA = $request->NoAplica ? '' : ($request->MuestraGuiaMensajeria ?: '');
-        $estudio->MUESTRA_GUIA = $request->NoAplica ? '' : ($request->MuestraGuia ?: '');
-        $estudio->MUESTRA_DIRECCION = $request->NoAplica ? '' : ($request->MuestraDireccion ?: '');
-        $estudio->MUESTRA_NUMERO_EXT = $request->NoAplica ? '' : ($request->MuestraNumeroExt ?: '');
-        $estudio->MUESTRA_NUMERO_INT = $request->NoAplica ? '' : ($request->MuestraNumeroInt ?: '');
-        $estudio->MUESTRA_COLONIA = $request->NoAplica ? '' : ($request->MuestraColonia ?: '');
-        $estudio->MUESTRA_MUNICIPIO = $request->NoAplica ? '' : ($request->MuestraMunicipio ?: '');
-        $estudio->MUESTRA_CIUDAD = $request->NoAplica ? '' : ($request->MuestraCiudad ?: '');
-        $estudio->MUESTRA_ESTADO = $request->NoAplica ? '' : ($request->MuestraEstado ?: '');
-        $estudio->MUESTRA_CODIGO_POSTAL = $request->NoAplica ? '' : ($request->MuestraCodigoPostal ?: '');
-        $noAplica = $request->has('NoAplica') && $request->NoAplica;
-        $estudio->MUESTRA_ENVIO_TIPO = $noAplica ? 'no aplica' : 'aplica';
-        $estudio->MUESTRA_HORARIOS = $request->NoAplica ? '' : ($request->MuestraHorarios ?: '');
-        
-        // Establecer estado inicial y campos requeridos
-        $estudio->ESTUDIO_ESTADO = Estudio::ESTADO_PENDIENTE;
-        $estudio->R_COMPLETOS = 'no';
-        $estudio->ESTUDIO_FACTURADO = 'no';
-        $estudio->CORREO_COPIA = ''; // Campo requerido por la BD
-        
-        // Otros campos que pueden ser requeridos pero están vacíos
-        $estudio->MUESTRA_FOLIO_SOBRE = '';
-        $estudio->MUESTRA_FOLIO_KIT_BL = '';
-        $estudio->MUESTRA_OTROS_ROTULOS = '';
-        $estudio->MUESTRA_SITIO_LESION = '';
-        $estudio->MUESTRA_TIPO_ESTUDIO = '';
-        $estudio->MUESTRA_INICIALES = '';
-        $estudio->MUESTRA_BLOQUES = '';
-        $estudio->MUESTRA_LAMINILLAS = '';
-        $estudio->MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA = '';
-        $estudio->MUESTRA_DIAGNOSTICO_CLINICO = '';
-        $estudio->MUESTRA_ENVIO = '';
-        $estudio->MUESTRA_GUIA_ESPECIALIZADA = '';
-        $estudio->MUESTRA_GUIA_ESPECIALIZADA_MENSAJERIA = '';
-        $estudio->MUESTRA_GUIA_RETORNO = '';
-        $estudio->MUESTRA_GUIA_RETORNO_MENSAJERIA = '';
-        $estudio->MUESTRA_LIQ_CONDICION = '';
-        $estudio->MUESTRA_LIQ_CONDICION_PRESENCIA = '';
-        $estudio->MUESTRA_LIQ_CANTIDAD_ADECUADA = '';
-        $estudio->MUESTRA_LIQ_CANTIDAD_ML = '';
-        $estudio->MUESTRA_LIQ_HEMOLISIS = '';
-        $estudio->MUESTRA_LIQ_AMP_INDICACION = '';
-        $estudio->MUESTRA_LIQ_AMP_RAZON = '';
-        $estudio->R_METODO_PROCESO = '';
-        $estudio->R_RAZON_ADECUADO_PROCESAMIENTO = '';
-        $estudio->R_INTERPRETACION = '';
-        $estudio->FECHA_RECOLECCION = '0000-00-00 00:00:00';
-        $estudio->FECHA_RECEPCION = '0000-00-00 00:00:00';
-        $estudio->FECHA_ENVIO_LABORATORIO = '0000-00-00 00:00:00';
-        $estudio->FECHA_RECEPCION_LABORATORIO = '0000-00-00 00:00:00';
-        $estudio->FECHA_ENTREGA_PROCESAMIENTO = '0000-00-00 00:00:00';
-        $estudio->FECHA_OBTENCION_RESULTADOS = '0000-00-00 00:00:00';
-        $estudio->FECHA_INFORME = '0000-00-00 00:00:00';
-        $estudio->FECHA_RESULTADOS_CORREO = '0000-00-00 00:00:00';
-        $estudio->FECHA_RETORNO_MATERIAL = '0000-00-00 00:00:00';
-        $estudio->FECHA_RECEPCION_RESULTADOS_FISICOS = '0000-00-00 00:00:00';
-        $estudio->FECHA_FIN_PROCESO = '0000-00-00 00:00:00';
-        $estudio->ESTUDIO_NOTAS = '';
-        $estudio->ESTUDIO_COMENTARIOS = '';
-        
-        $estudio->save();
+    \Log::info('🔗 IDs obtenidos:', [
+        'idCliente' => $idCliente,
+        'idMedico' => $idMedico, 
+        'idInstitucion' => $idInstitucion
+    ]);
 
-        // Crear estudio simple - siempre redirige al index
-        return redirect()->route('estudios.index')
-            ->with('success', 'Estudio creado exitosamente. Use "Editar" para completar la información adicional.');
+    // Combinar fecha y hora en datetime
+    $fechaHoraSolicitud = $request->FechaSolicitudRecoleccion . ' ' . $request->HoraSolicitudRecoleccion;
+    \Log::info('📅 Fecha combinada:', ['fechaHoraSolicitud' => $fechaHoraSolicitud]);
+
+    $estudio = new Estudio();
+    
+    // Asignar campos básicos
+    $estudio->ID_ALEATORIO = $request->IdAleatorio;
+    $estudio->CLAVE_INTERNA = $request->ClaveInterna;
+    $estudio->CLAVE = $request->Prefijo;
+    $estudio->SERIADO = (int)$request->Seriado;
+    $estudio->ANIO = (int)$request->Anio;
+    $estudio->FOLIO_MERCK = $request->FolioMerck;
+    $estudio->FECHA_SOLICITUD_RECOLECCION = $fechaHoraSolicitud;
+    
+    // Asignar relaciones
+    $estudio->ID_CLIENTE = $idCliente;
+    $estudio->ID_MEDICO = $idMedico;
+    $estudio->ID_INSTITUCION = $idInstitucion;
+    
+    // Asignar campos de dirección (siempre, incluso si NoAplica es true)
+    $estudio->MUESTRA_GUIA_MENSAJERIA = $request->NoAplica ? '' : ($request->MuestraGuiaMensajeria ?: '');
+    $estudio->MUESTRA_GUIA = $request->NoAplica ? '' : ($request->MuestraGuia ?: '');
+    $estudio->MUESTRA_DIRECCION = $request->NoAplica ? '' : ($request->MuestraDireccion ?: '');
+    $estudio->MUESTRA_NUMERO_EXT = $request->NoAplica ? '' : ($request->MuestraNumeroExt ?: '');
+    $estudio->MUESTRA_NUMERO_INT = $request->NoAplica ? '' : ($request->MuestraNumeroInt ?: '');
+    $estudio->MUESTRA_COLONIA = $request->NoAplica ? '' : ($request->MuestraColonia ?: '');
+    $estudio->MUESTRA_MUNICIPIO = $request->NoAplica ? '' : ($request->MuestraMunicipio ?: '');
+    $estudio->MUESTRA_CIUDAD = $request->NoAplica ? '' : ($request->MuestraCiudad ?: '');
+    $estudio->MUESTRA_ESTADO = $request->NoAplica ? '' : ($request->MuestraEstado ?: '');
+    $estudio->MUESTRA_CODIGO_POSTAL = $request->NoAplica ? '' : ($request->MuestraCodigoPostal ?: '');
+    $noAplica = $request->has('NoAplica') && $request->NoAplica;
+    $estudio->MUESTRA_ENVIO_TIPO = $noAplica ? 'no aplica' : 'aplica';
+    $estudio->MUESTRA_HORARIOS = $request->NoAplica ? '' : ($request->MuestraHorarios ?: '');
+    
+    // Establecer estado inicial y campos requeridos
+    $estudio->ESTUDIO_ESTADO = Estudio::ESTADO_PENDIENTE;
+    $estudio->R_COMPLETOS = 'no';
+    $estudio->ESTUDIO_FACTURADO = 'no';
+    $estudio->CORREO_COPIA = ''; // Campo requerido por la BD
+    
+    // Otros campos que pueden ser requeridos pero están vacíos
+    $estudio->MUESTRA_FOLIO_SOBRE = '';
+    $estudio->MUESTRA_FOLIO_KIT_BL = '';
+    $estudio->MUESTRA_OTROS_ROTULOS = '';
+    $estudio->MUESTRA_SITIO_LESION = '';
+    $estudio->MUESTRA_TIPO_ESTUDIO = '';
+    $estudio->MUESTRA_INICIALES = '';
+    $estudio->MUESTRA_BLOQUES = '';
+    $estudio->MUESTRA_LAMINILLAS = '';
+    $estudio->MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA = '';
+    $estudio->MUESTRA_DIAGNOSTICO_CLINICO = '';
+    $estudio->MUESTRA_ENVIO = '';
+    $estudio->MUESTRA_GUIA_ESPECIALIZADA = '';
+    $estudio->MUESTRA_GUIA_ESPECIALIZADA_MENSAJERIA = '';
+    $estudio->MUESTRA_GUIA_RETORNO = '';
+    $estudio->MUESTRA_GUIA_RETORNO_MENSAJERIA = '';
+    $estudio->MUESTRA_LIQ_CONDICION = '';
+    $estudio->MUESTRA_LIQ_CONDICION_PRESENCIA = '';
+    $estudio->MUESTRA_LIQ_CANTIDAD_ADECUADA = '';
+    $estudio->MUESTRA_LIQ_CANTIDAD_ML = '';
+    $estudio->MUESTRA_LIQ_HEMOLISIS = '';
+    $estudio->MUESTRA_LIQ_AMP_INDICACION = '';
+    $estudio->MUESTRA_LIQ_AMP_RAZON = '';
+    $estudio->R_METODO_PROCESO = '';
+    $estudio->R_RAZON_ADECUADO_PROCESAMIENTO = '';
+    $estudio->R_INTERPRETACION = '';
+    $estudio->ESTUDIO_NOTAS = '';
+    $estudio->ESTUDIO_COMENTARIOS = '';
+    
+    // ===== NO ASIGNAR FECHAS PROBLEMÁTICAS =====
+    // Las siguientes líneas están comentadas porque causaban el error
+    // $estudio->FECHA_RECOLECCION = '0000-00-00 00:00:00';
+    // $estudio->FECHA_RECEPCION = '0000-00-00 00:00:00';
+    // etc...
+    
+    \Log::info('📋 Objeto estudio ANTES de save:', $estudio->toArray());
+    
+    // ===== VERIFICAR QUE NO HAYA FECHAS PROBLEMÁTICAS =====
+    $attributes = $estudio->getAttributes();
+    foreach ($attributes as $key => $value) {
+        if (strpos($key, 'FECHA_') === 0 && $value !== null) {
+            \Log::warning("⚠️ Fecha detectada: {$key} = {$value}");
+        }
     }
+    
+    try {
+        $estudio->save();
+        \Log::info('✅ Estudio guardado exitosamente con ID: ' . $estudio->ID);
+    } catch (\Exception $e) {
+        \Log::error('❌ Error al guardar estudio:', [
+            'message' => $e->getMessage(),
+            'attributes' => $estudio->getAttributes()
+        ]);
+        throw $e;
+    }
+
+    // Crear estudio simple - siempre redirige al index
+    return redirect()->route('estudios.index')
+        ->with('success', 'Estudio creado exitosamente. Use "Editar" para completar la información adicional.');
+}
     
     private function manejarNuevoCliente(Request $request)
     {
@@ -339,10 +366,24 @@ class EstudioController extends Controller
      */
     public function show(Estudio $estudio)
     {
-        $estudio->load(['medico', 'paciente', 'institucion', 'cliente', 'adjuntos']);
+        // Cargar todas las relaciones necesarias
+        $estudio->load([
+            'medico:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS,USUARIO_CORREO,USUARIO_TELEFONO',
+            'paciente:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS,USUARIO_CORREO,USUARIO_TELEFONO',
+            'institucion:ID_INSTITUCION,INSTITUCION_NOMBRE,INSTITUCION_RAZON_SOCIAL,INSTITUCION_RFC,INSTITUCION_CORREO,INSTITUCION_TELEFONO',
+            'cliente:ID_CLIENTE,CLIENTE_NOMBRE,CLIENTE_CORREO,CLIENTE_ENVIAR_CORREO',
+            'correosCopia:ID,ID_ESTUDIO,ID_USUARIO,NOMBRE,CORREO,ENVIAR',
+            'adjuntos:ID,MUESTRA_CLAVE,ARCHIVO'
+        ]);
         
         return Inertia::render('estudios/show', [
-            'estudio' => $estudio
+            'estudio' => $estudio,
+            'medico' => $estudio->medico,
+            'paciente' => $estudio->paciente,
+            'institucion' => $estudio->institucion,
+            'cliente' => $estudio->cliente,
+            'correos_copias' => $estudio->correosCopia,
+            'adjuntos' => $estudio->adjuntos
         ]);
     }
 
@@ -1253,7 +1294,8 @@ public function enviarCorreoIndividual(Request $request, Estudio $estudio)
         // Validar parámetros requeridos
         $request->validate([
             'id' => 'required|integer',
-            'aleatorio' => 'required|string'
+            'aleatorio' => 'required|string',
+            'imprimir' => 'nullable|string|in:si,true' // Nuevo parámetro opcional
         ]);
 
         // Buscar el estudio por ID y token aleatorio
@@ -1268,47 +1310,51 @@ public function enviarCorreoIndividual(Request $request, Estudio $estudio)
         // Cargar relaciones necesarias
         $estudio->load(['medico', 'paciente', 'institucion', 'cliente']);
         
-        return $this->_generatePdfResponse($estudio);
+        // Determinar si es para impresión
+        $paraImprimir = in_array($request->imprimir, ['si', 'true']);
+        
+        return $this->_generatePdfResponse($estudio, $paraImprimir);
     }
 
     /**
      * Private method to generate PDF response
      */
-    private function _generatePdfResponse(Estudio $estudio)
-{
-    // Preparar datos para la vista
-    $data = [
-        'estudio' => $estudio,
-        'paciente' => $estudio->paciente,
-        'medico' => $estudio->medico,
-        'institucion' => $estudio->institucion,
-        'cliente' => $estudio->cliente
-    ];
-    
-    // Generar PDF usando DomPDF
-    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.estudio', $data);
-    
-    // Configurar opciones del PDF
-    $pdf->setPaper('A4', 'portrait');
-    $pdf->setOptions([
-        'isHtml5ParserEnabled' => true,
-        'isPhpEnabled' => true,
-        'defaultFont' => 'Arial',
-        'isRemoteEnabled' => true, // Permite cargar recursos externos
-        'debugKeepTemp' => false,
-        'debugCss' => false,
-        'debugLayout' => false,
-        'debugLayoutLines' => false,
-        'debugLayoutBlocks' => false,
-        'debugLayoutInline' => false
-    ]);
-    
-    // Nombre del archivo
-    $filename = 'DIAHMOES_' . ($estudio->CLAVE_INTERNA ?? $estudio->folio_completo) . '.pdf';
-    
-    // Descargar o mostrar el PDF
-    return $pdf->stream($filename);
-}
+    private function _generatePdfResponse(Estudio $estudio, bool $paraImprimir = false)
+    {
+        // Preparar datos para la vista
+        $data = [
+            'estudio' => $estudio,
+            'paciente' => $estudio->paciente,
+            'medico' => $estudio->medico,
+            'institucion' => $estudio->institucion,
+            'cliente' => $estudio->cliente,
+            'paraImprimir' => $paraImprimir // Nuevo parámetro para la vista
+        ];
+        
+        // Generar PDF usando DomPDF
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.estudio', $data);
+        
+        // Configurar opciones del PDF
+        $pdf->setPaper('letter', 'portrait');
+        $pdf->setOptions([
+            'isHtml5ParserEnabled' => true,
+            'isPhpEnabled' => true,
+            'defaultFont' => 'Arial',
+            'isRemoteEnabled' => true, // Permite cargar recursos externos
+            'debugKeepTemp' => false,
+            'debugCss' => false,
+            'debugLayout' => false,
+            'debugLayoutLines' => false,
+            'debugLayoutBlocks' => false,
+            'debugLayoutInline' => false
+        ]);
+        
+        // Nombre del archivo
+        $filename = 'DIAHMOES_' . ($estudio->CLAVE_INTERNA ?? $estudio->folio_completo) . '.pdf';
+        
+        // Descargar o mostrar el PDF
+        return $pdf->stream($filename);
+    }
 
     /**
      * Store a new correo copia for the study

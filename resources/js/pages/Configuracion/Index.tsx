@@ -9,6 +9,7 @@ import MigrationsTool from './Components/MigrationsTool';
 import BackupTools from './Components/BackupTools';
 import EmailTest from './Components/EmailTest';
 import DebugTools from './Components/DebugTools';
+import CacheManager from './Components/CacheManager';
 
 // 🔧 Interfaz con index signature compatible con usePage
 interface ConfiguracionProps {
@@ -79,6 +80,13 @@ export default function ConfiguracionIndex() {
 
                 {/* Debug Tools - Solo en desarrollo */}
                 <DebugTools
+                    loading={loading}
+                    results={results}
+                    setLoadingState={setLoadingState}
+                    setResult={setResult}
+                />
+                {/* Cache mannager */}
+                <CacheManager
                     loading={loading}
                     results={results}
                     setLoadingState={setLoadingState}

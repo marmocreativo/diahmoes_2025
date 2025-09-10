@@ -1077,4 +1077,220 @@ class ConfiguracionController extends Controller
             ], 500);
         }
     }
+/**
+ * Ejecutar comandos de caché de Laravel
+ */
+public function executeCacheCommands(Request $request)
+{
+    \Log::info('🧹 Iniciando executeCacheCommands');
+    \Log::info('📊 Datos recibidos:', $request->all());
+
+    try {
+        $request->validate([
+            'action' => 'required|string',
+            'commands' => 'required|array',
+            'commands.*' => 'string',
+            'description' => 'nullable|string'
+        ]);
+
+        $action = $request->action;
+        $commands = $request->commands;
+        $description = $request->description ?? 'Ejecutando comandos de caché';
+
+        \Log::info('🎯 Acción: ' . $action);
+        \Log::info('📋 Comandos a ejecutar:', $commands);
+
+        $results = [];
+        $totalDuration = 0;
+        $successCount = 0;
+        $errorCount = 0;
+
+        foreach ($commands as $command) {
+            \Log::info("⚡ Ejecutando comando: {$command}");
+            
+            $startTime = microtime(true);
+            
+            try {
+                // Determinar parámetros según el comando
+                $parameters = ['--no-interaction' => true];
+                
+                // Solo agregar --force a comandos que lo soportan
+                $commandsWithForce = ['migrate', 'migrate:rollback', 'migrate:reset', 'migrate:refresh'];
+                if (in_array($command, $commandsWithForce)) {
+                    $parameters['--force'] = true;
+                }
+                
+                $exitCode = Artisan::call($command, $parameters);
+                $output = Artisan::output();
+                $duration = round((microtime(true) - $startTime) * 1000, 2);
+                $totalDuration += $duration;
+
+                $commandResult = [
+                    'command' => $command,
+                    'success' => $exitCode === 0,
+                    'exit_code' => $exitCode,
+                    'output' => $output ?: 'Comando ejecutado sin salida',
+                    'duration' => $duration . 'ms'
+                ];
+
+                if ($exitCode === 0) {
+                    $successCount++;
+                    \Log::info("✅ Comando exitoso: {$command} ({$duration}ms)");
+                } else {
+                    $errorCount++;
+                    \Log::error("❌ Comando falló: {$command} (código: {$exitCode})");
+                }
+
+                $results[] = $commandResult;
+
+            } catch (\Throwable $e) {
+                $duration = round((microtime(true) - $startTime) * 1000, 2);
+                $totalDuration += $duration;
+                $errorCount++;
+
+                \Log::error("💥 Excepción en comando {$command}: " . $e->getMessage());
+
+                $results[] = [
+                    'command' => $command,
+                    'success' => false,
+                    'exit_code' => -1,
+                    'output' => 'Error: ' . $e->getMessage(),
+                    'duration' => $duration . 'ms',
+                    'exception' => $e->getMessage()
+                ];
+            }
+        }
+
+        // Determinar el resultado general
+        $overallSuccess = $errorCount === 0;
+        $totalCommands = $successCount + $errorCount; // Calcular fuera del string
+        
+        $summary = [
+            'total_commands' => count($commands),
+            'successful' => $successCount,
+            'failed' => $errorCount,
+            'total_duration' => $totalDuration . 'ms'
+        ];
+
+        \Log::info('📊 Resumen de ejecución:', $summary);
+
+        // Construir mensaje de respuesta
+        $message = $overallSuccess 
+            ? "Todos los comandos ejecutados exitosamente ({$successCount}/{$successCount})"
+            : "Comandos completados con {$errorCount} errores ({$successCount}/{$totalCommands} exitosos)";
+
+        return response()->json([
+            'success' => $overallSuccess,
+            'message' => $message,
+            'description' => $description,
+            'action' => $action,
+            'summary' => $summary,
+            'results' => $results,
+            'commands_executed' => $commands
+        ]);
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        \Log::error('❌ Error de validación en executeCacheCommands:', $e->errors());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Error de validación en los parámetros',
+            'errors' => $e->errors(),
+            'debug_info' => [
+                'received_data' => $request->all()
+            ]
+        ], 400);
+
+    } catch (\Throwable $e) {
+        \Log::error('💥 Error general en executeCacheCommands:', [
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Error interno al ejecutar comandos de caché',
+            'error' => $e->getMessage(),
+            'debug_info' => [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'action' => $request->action ?? 'unknown'
+            ]
+        ], 500);
+    }
+}
+
+/**
+ * Obtener información sobre el estado de la caché
+ */
+public function getCacheInfo()
+{
+    try {
+        \Log::info('📊 Obteniendo información de caché...');
+        
+        $cacheInfo = [
+            'config_cached' => file_exists(bootstrap_path('cache/config.php')),
+            'routes_cached' => file_exists(bootstrap_path('cache/routes-v7.php')),
+            'events_cached' => file_exists(bootstrap_path('cache/events.php')),
+            'services_cached' => file_exists(bootstrap_path('cache/services.php')),
+            'packages_cached' => file_exists(bootstrap_path('cache/packages.php')),
+        ];
+
+        // Verificar tamaños de archivos de caché
+        $cacheFiles = [
+            'config' => bootstrap_path('cache/config.php'),
+            'routes' => bootstrap_path('cache/routes-v7.php'),
+            'events' => bootstrap_path('cache/events.php'),
+            'services' => bootstrap_path('cache/services.php'),
+            'packages' => bootstrap_path('cache/packages.php'),
+        ];
+
+        $fileSizes = [];
+        foreach ($cacheFiles as $type => $file) {
+            if (file_exists($file)) {
+                $fileSizes[$type] = $this->formatBytes(filesize($file));
+            } else {
+                $fileSizes[$type] = 'No existe';
+            }
+        }
+
+        // Información de directorios
+        $directories = [
+            'storage_cache' => storage_path('framework/cache'),
+            'storage_views' => storage_path('framework/views'),
+            'bootstrap_cache' => bootstrap_path('cache')
+        ];
+
+        $directoriesInfo = [];
+        foreach ($directories as $name => $path) {
+            $directoriesInfo[$name] = [
+                'exists' => is_dir($path),
+                'writable' => is_writable($path),
+                'files_count' => is_dir($path) ? count(glob($path . '/*')) : 0
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'cache_status' => $cacheInfo,
+            'file_sizes' => $fileSizes,
+            'directories' => $directoriesInfo,
+            'last_check' => now()->toISOString()
+        ]);
+
+    } catch (\Throwable $e) {
+        \Log::error('💥 Error obteniendo información de caché:', [
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Error obteniendo información de caché',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
 }
