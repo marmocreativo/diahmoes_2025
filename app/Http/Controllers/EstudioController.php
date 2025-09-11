@@ -747,15 +747,27 @@ class EstudioController extends Controller
             // Crear nuevo paciente si es necesario
             if ($request->CREAR_NUEVO_PACIENTE && 
                 $request->NOMBRE_USUARIO && 
-                $request->APELLIDOS_USUARIO && 
-                $request->CORREO_USUARIO) {
+                $request->APELLIDOS_USUARIO) {
                 
                 \Log::info('👤 Creando nuevo paciente');
+                
+                // Generar correo aleatorio si no se proporciona uno
+                $correoUsuario = $request->CORREO_USUARIO;
+                if (empty($correoUsuario)) {
+                    // Generar 10 caracteres alfanuméricos aleatorios
+                    $caracteres = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                    $correoAleatorio = '';
+                    for ($i = 0; $i < 10; $i++) {
+                        $correoAleatorio .= $caracteres[rand(0, strlen($caracteres) - 1)];
+                    }
+                    $correoUsuario = $correoAleatorio . '@sin-correo.com';
+                    \Log::info('📧 Correo generado automáticamente: ' . $correoUsuario);
+                }
                 
                 $nuevoPaciente = Usuario::create([
                     'USUARIO_NOMBRE' => $request->NOMBRE_USUARIO,
                     'USUARIO_APELLIDOS' => $request->APELLIDOS_USUARIO,
-                    'USUARIO_CORREO' => $request->CORREO_USUARIO,
+                    'USUARIO_CORREO' => $correoUsuario,
                     'USUARIO_TELEFONO' => $request->TELEFONO_USUARIO,
                     'USUARIO_TIPO' => 'paciente',
                     'USUARIO_ESTADO' => 'activo',
@@ -930,9 +942,16 @@ class EstudioController extends Controller
  */
 public function updateInforme(Request $request, Estudio $estudio)
 {
-
+    \Log::info('🚀 Iniciando updateInforme', [
+        'estudio_id' => $estudio->ID,
+        'request_data' => $request->all(),
+        'action' => $request->_action
+    ]);
 
     try {
+        // Log de validación
+        \Log::info('📋 Iniciando validación de datos');
+        
         $request->validate([
             // Fechas del informe
             'FECHA_INFORME' => 'nullable|string',
@@ -948,7 +967,7 @@ public function updateInforme(Request $request, Estudio $estudio)
             // Array de correos de copia
             'correos_copias' => 'nullable|array',
             'correos_copias.*.ID' => 'nullable|integer',
-            'correos_copias.*.NOMBRE' => 'required|string|max:255',
+            'correos_copias.*.NOMBRE' => 'nullable|string|max:255',
             'correos_copias.*.CORREO' => 'required|email|max:255',
             'correos_copias.*.ENVIAR' => 'nullable|string',
             'correos_copias.*.ID_ESTUDIO' => 'nullable|integer',
@@ -956,78 +975,118 @@ public function updateInforme(Request $request, Estudio $estudio)
             '_action' => 'nullable|string'
         ]);
 
-
+        \Log::info('✅ Validación completada exitosamente');
 
         // Combinar fecha y hora de informe
+        \Log::info('📅 Procesando fecha de informe', [
+            'FECHA_INFORME' => $request->FECHA_INFORME,
+            'HORA_INFORME' => $request->HORA_INFORME
+        ]);
+        
         $fechaInforme = null;
 
         if ($request->FECHA_INFORME) {
             // Si ya tiene hora (formato completo), usarla tal como viene
             if (strlen($request->FECHA_INFORME) > 10) {
                 $fechaInforme = $request->FECHA_INFORME;
+                \Log::info('🕐 Fecha de informe ya incluye hora', ['fecha_completa' => $fechaInforme]);
             } 
             // Si solo es fecha, agregar la hora
             elseif ($request->HORA_INFORME) {
                 $fechaInforme = $request->FECHA_INFORME . ' ' . $request->HORA_INFORME . ':00';
+                \Log::info('🕐 Combinando fecha y hora de informe', ['fecha_combinada' => $fechaInforme]);
             }
             else {
                 $fechaInforme = $request->FECHA_INFORME;
+                \Log::info('📅 Solo fecha de informe proporcionada', ['fecha_solo' => $fechaInforme]);
             }
 
             // Validar que sea una fecha válida
             $timestamp = strtotime($fechaInforme);
             if ($timestamp === false || $timestamp < 0) {
                 // Fecha inválida, usar fecha actual
-                \Log::warning('Fecha inválida detectada: ' . $fechaInforme);
+                \Log::warning('⚠️ Fecha de informe inválida detectada', [
+                    'fecha_original' => $fechaInforme,
+                    'timestamp' => $timestamp
+                ]);
                 $fechaInforme = date('Y-m-d H:i:s');
+                \Log::info('🔄 Usando fecha actual para informe', ['fecha_nueva' => $fechaInforme]);
             } else {
                 // Convertir a formato estándar
                 $fechaInforme = date('Y-m-d H:i:s', $timestamp);
+                \Log::info('✅ Fecha de informe validada', ['fecha_final' => $fechaInforme]);
             }
         } else {
             // Si no hay fecha, usar la fecha actual
             $fechaInforme = date('Y-m-d H:i:s');
+            \Log::info('🔄 No se proporcionó fecha de informe, usando actual', ['fecha_actual' => $fechaInforme]);
         }
 
         // Combinar fecha y hora de resultados por correo
+        \Log::info('📧 Procesando fecha de resultados por correo', [
+            'FECHA_RESULTADOS_CORREO' => $request->FECHA_RESULTADOS_CORREO,
+            'HORA_RESULTADOS_CORREO' => $request->HORA_RESULTADOS_CORREO
+        ]);
+        
         $fechaResultadosCorreo = null;
 
         if ($request->FECHA_RESULTADOS_CORREO) {
             // Si ya tiene hora (formato completo), usarla tal como viene
             if (strlen($request->FECHA_RESULTADOS_CORREO) > 10) {
                 $fechaResultadosCorreo = $request->FECHA_RESULTADOS_CORREO;
+                \Log::info('🕐 Fecha de resultados ya incluye hora', ['fecha_completa' => $fechaResultadosCorreo]);
             } 
             // Si solo es fecha, agregar la hora
             elseif ($request->HORA_RESULTADOS_CORREO) {
                 $fechaResultadosCorreo = $request->FECHA_RESULTADOS_CORREO . ' ' . $request->HORA_RESULTADOS_CORREO . ':00';
+                \Log::info('🕐 Combinando fecha y hora de resultados', ['fecha_combinada' => $fechaResultadosCorreo]);
             }
             else {
                 $fechaResultadosCorreo = $request->FECHA_RESULTADOS_CORREO;
+                \Log::info('📅 Solo fecha de resultados proporcionada', ['fecha_solo' => $fechaResultadosCorreo]);
             }
 
             // Validar que sea una fecha válida
             $timestamp = strtotime($fechaResultadosCorreo);
             if ($timestamp === false || $timestamp < 0) {
                 // Fecha inválida, usar fecha actual
-                \Log::warning('Fecha inválida detectada en FECHA_RESULTADOS_CORREO: ' . $fechaResultadosCorreo);
+                \Log::warning('⚠️ Fecha de resultados inválida detectada', [
+                    'fecha_original' => $fechaResultadosCorreo,
+                    'timestamp' => $timestamp
+                ]);
                 $fechaResultadosCorreo = date('Y-m-d H:i:s');
+                \Log::info('🔄 Usando fecha actual para resultados', ['fecha_nueva' => $fechaResultadosCorreo]);
             } else {
                 // Convertir a formato estándar
                 $fechaResultadosCorreo = date('Y-m-d H:i:s', $timestamp);
+                \Log::info('✅ Fecha de resultados validada', ['fecha_final' => $fechaResultadosCorreo]);
             }
         } else {
             // Si no hay fecha, usar la fecha actual
             $fechaResultadosCorreo = date('Y-m-d H:i:s');
+            \Log::info('🔄 No se proporcionó fecha de resultados, usando actual', ['fecha_actual' => $fechaResultadosCorreo]);
         }
 
         // Determinar estado del estudio
+        \Log::info('🔄 Determinando estado del estudio', [
+            'estado_request' => $request->ESTUDIO_ESTADO,
+            'estado_actual' => $estudio->ESTUDIO_ESTADO,
+            'action' => $request->_action
+        ]);
+        
         $estadoEstudio = $request->ESTUDIO_ESTADO ?: $estudio->ESTUDIO_ESTADO;
         if ($request->_action === 'enviar') {
             $estadoEstudio = 'Resultados Enviados';
             $fechaResultadosCorreo = $fechaResultadosCorreo ?: now();
+            \Log::info('📧 Acción de envío detectada, cambiando estado', [
+                'nuevo_estado' => $estadoEstudio,
+                'fecha_resultados_correo' => $fechaResultadosCorreo
+            ]);
         }
 
         // Preparar datos para actualizar el estudio
+        \Log::info('📝 Preparando datos para actualización del estudio');
+        
         $datosEstudio = array_filter([
             'FECHA_INFORME' => $fechaInforme,
             'FECHA_RESULTADOS_CORREO' => $fechaResultadosCorreo,
@@ -1039,39 +1098,55 @@ public function updateInforme(Request $request, Estudio $estudio)
             return $value !== null && $value !== '';
         });
 
-
+        \Log::info('📝 Datos filtrados para actualización', ['datos_estudio' => $datosEstudio]);
 
         // Actualizar el estudio
+        \Log::info('💾 Actualizando estudio en la base de datos');
         $estudio->update($datosEstudio);
-
+        \Log::info('✅ Estudio actualizado exitosamente');
 
         // Manejar correos de copia
         if ($request->has('correos_copias') && is_array($request->correos_copias)) {
-
+            \Log::info('📧 Procesando correos de copia', [
+                'cantidad_correos' => count($request->correos_copias),
+                'correos_data' => $request->correos_copias
+            ]);
             
             // Obtener IDs de correos existentes para este estudio
             $correosExistentes = CorreoCopia::where('ID_ESTUDIO', $estudio->ID)
                 ->pluck('ID')
                 ->toArray();
 
+            \Log::info('📧 Correos existentes encontrados', [
+                'correos_existentes' => $correosExistentes
+            ]);
 
             $correosEnviados = collect($request->correos_copias)
                 ->pluck('ID')
                 ->filter()
                 ->toArray();
 
+            \Log::info('📧 Correos en el request', [
+                'correos_enviados' => $correosEnviados
+            ]);
 
             // Eliminar correos que ya no están en la lista
             $correosAEliminar = array_diff($correosExistentes, $correosEnviados);
             if (!empty($correosAEliminar)) {
+                \Log::info('🗑️ Eliminando correos que ya no están en la lista', [
+                    'correos_a_eliminar' => $correosAEliminar
+                ]);
                 CorreoCopia::whereIn('ID', $correosAEliminar)->delete();
-
+                \Log::info('✅ Correos eliminados exitosamente');
             }
 
             // Actualizar o crear correos de copia
-            foreach ($request->correos_copias as $correoData) {
+            foreach ($request->correos_copias as $index => $correoData) {
+                \Log::info("📧 Procesando correo #{$index}", ['correo_data' => $correoData]);
+                
                 if (isset($correoData['ID']) && $correoData['ID']) {
                     // Actualizar correo existente
+                    \Log::info("🔄 Actualizando correo existente ID: {$correoData['ID']}");
                     $correo = CorreoCopia::find($correoData['ID']);
                     if ($correo) {
                         $correo->update([
@@ -1079,9 +1154,13 @@ public function updateInforme(Request $request, Estudio $estudio)
                             'CORREO' => $correoData['CORREO'],
                             'ENVIAR' => $correoData['ENVIAR'] ?? 'si',
                         ]);
+                        \Log::info("✅ Correo actualizado exitosamente ID: {$correoData['ID']}");
+                    } else {
+                        \Log::warning("⚠️ No se encontró el correo con ID: {$correoData['ID']}");
                     }
                 } else {
                     // Crear nuevo correo
+                    \Log::info('➕ Creando nuevo correo de copia');
                     $nuevoCorreo = CorreoCopia::create([
                         'ID_ESTUDIO' => $estudio->ID,
                         'ID_USUARIO' => $estudio->ID_MEDICO ?? 0,
@@ -1089,13 +1168,30 @@ public function updateInforme(Request $request, Estudio $estudio)
                         'CORREO' => $correoData['CORREO'],
                         'ENVIAR' => $correoData['ENVIAR'] ?? 'si',
                     ]);
+                    \Log::info('✅ Nuevo correo creado exitosamente', ['nuevo_id' => $nuevoCorreo->ID]);
                 }
             }
+        } else {
+            \Log::info('📧 No se proporcionaron correos de copia o no es un array válido');
         }
 
         // Enviar correos si se solicita
         if ($request->_action === 'enviar') {
-            $this->enviarCorreosReporte($estudio, $request->ENVIAR_ADJUNTO ?? false);
+            \Log::info('📤 Enviando correos de reporte', [
+                'enviar_adjunto' => $request->ENVIAR_ADJUNTO ?? false
+            ]);
+            
+            try {
+                $this->enviarCorreosReporte($estudio, $request->ENVIAR_ADJUNTO ?? false);
+                \Log::info('✅ Correos enviados exitosamente');
+            } catch (\Exception $e) {
+                \Log::error('❌ Error al enviar correos', [
+                    'error' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
+                ]);
+                throw $e;
+            }
         }
 
         // Determinar mensaje de éxito
@@ -1104,16 +1200,28 @@ public function updateInforme(Request $request, Estudio $estudio)
             $mensaje = 'Información guardada y correo enviado exitosamente.';
         }
 
+        \Log::info('🎉 updateInforme completado exitosamente', [
+            'mensaje' => $mensaje,
+            'estudio_id' => $estudio->ID
+        ]);
+
         return back()->with('success', $mensaje);
 
     } catch (\Illuminate\Validation\ValidationException $e) {
+        \Log::error('❌ Error de validación en updateInforme', [
+            'errors' => $e->errors(),
+            'estudio_id' => $estudio->ID,
+            'request_data' => $request->all()
+        ]);
         throw $e;
     } catch (\Exception $e) {
-        \Log::error('❌ Error general en updateInforme:', [
+        \Log::error('❌ Error general en updateInforme', [
             'message' => $e->getMessage(),
             'file' => $e->getFile(),
             'line' => $e->getLine(),
-            'trace' => $e->getTraceAsString()
+            'trace' => $e->getTraceAsString(),
+            'estudio_id' => $estudio->ID,
+            'request_data' => $request->all()
         ]);
         throw $e;
     }
@@ -1125,10 +1233,22 @@ public function enviarCorreoIndividual(Request $request, Estudio $estudio)
 {
     try {
         $request->validate([
-            'nombre' => 'required|string|max:255',
+            'nombre' => 'nullable|string|max:255', // Cambiar a nullable
             'correo' => 'required|email|max:255',
             'enviar_adjunto' => 'boolean'
         ]);
+
+        // Procesar el nombre del destinatario
+        $nombreDestinatario = $request->nombre;
+        
+        // Si el nombre es null o vacío, usar la primera parte del correo
+        if (empty($nombreDestinatario)) {
+            $nombreDestinatario = explode('@', $request->correo)[0];
+            \Log::info('Nombre de destinatario generado automáticamente', [
+                'correo' => $request->correo,
+                'nombre_generado' => $nombreDestinatario
+            ]);
+        }
 
         // Cargar relaciones necesarias
         $estudio->load(['medico', 'cliente', 'institucion']);
@@ -1144,18 +1264,20 @@ public function enviarCorreoIndividual(Request $request, Estudio $estudio)
         \Log::info('Correo individual enviado exitosamente', [
             'estudio_id' => $estudio->ID,
             'destinatario' => $request->correo,
-            'nombre' => $request->nombre
+            'nombre_original' => $request->nombre,
+            'nombre_usado' => $nombreDestinatario
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => "Correo enviado exitosamente a {$request->nombre}"
+            'message' => "Correo enviado exitosamente a {$nombreDestinatario}"
         ]);
 
     } catch (\Exception $e) {
         \Log::error('Error enviando correo individual', [
             'estudio_id' => $estudio->ID ?? null,
             'destinatario' => $request->correo ?? null,
+            'nombre_original' => $request->nombre ?? null,
             'error' => $e->getMessage()
         ]);
 

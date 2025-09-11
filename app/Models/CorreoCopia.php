@@ -227,7 +227,7 @@ class CorreoCopia extends Model
                     ->where('CORREO', $correoCopia->CORREO)
                     ->where('ID', '!=', $correoCopia->ID)
                     ->exists()) {
-                throw new \InvalidArgumentException('Este correo ya está registrado para este estudio.');
+                 return false; // No se guarda, pero el programa continúa
             }
         });
     }

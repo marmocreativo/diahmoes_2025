@@ -5,425 +5,161 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>Reporte DIAHMOES - {{ $info['FOLIO'] }}</title>
     <style>
-      /* -------------------------------------
-          GLOBAL RESETS
-      ------------------------------------- */
-      img {
-        border: none;
-        -ms-interpolation-mode: bicubic;
-        max-width: 100%;
-      }
-      
       body {
-        background: linear-gradient(135deg, #eeeeee 0%, #dddddd 100%);
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        -webkit-font-smoothing: antialiased;
-        font-size: 16px;
-        line-height: 1.6;
+        font-family: Arial, sans-serif;
         margin: 0;
-        padding: 0;
-        -ms-text-size-adjust: 100%;
-        -webkit-text-size-adjust: 100%;
-      }
-      
-      table {
-        border-collapse: separate;
-        mso-table-lspace: 0pt;
-        mso-table-rspace: 0pt;
-        width: 100%;
-      }
-      
-      table td {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        font-size: 16px;
-        vertical-align: top;
-      }
-
-      /* -------------------------------------
-          BODY & CONTAINER
-      ------------------------------------- */
-      .body {
-        background: linear-gradient(135deg, #eeeeee 0%, #dddddd 100%);
-        width: 100%;
-        min-height: 100vh;
+        padding: 20px;
+        background-color: #f5f5f5;
       }
       
       .container {
-        display: block;
-        margin: 0 auto !important;
-        max-width: 600px;
-        padding: 20px;
-        width: 600px;
-      }
-      
-      .content {
-        box-sizing: border-box;
-        display: block;
+        max-width: 500px;
         margin: 0 auto;
-        max-width: 600px;
-        padding: 0;
-      }
-
-      /* -------------------------------------
-          MAIN CARD
-      ------------------------------------- */
-      .main {
-        background: #ffffff;
-        border-radius: 20px;
-        width: 100%;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        background: white;
+        border-radius: 10px;
         overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
       }
       
-      .header-section {
-        background: linear-gradient(90deg, #eeeeee 0%, #ffffff 100%);
-        padding: 40px 30px;
-        text-align: center;
+      .header {
+        background: #189BAF;
         color: white;
-      }
-      
-      .logo-container {
-        margin-bottom: 20px;
+        text-align: center;
+        padding: 20px;
       }
       
       .logo {
-        max-width: 200px;
-        height: auto;
-        border-radius: 10px;
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-      }
-      
-      .header-title {
-        font-size: 28px;
-        font-weight: 700;
-        margin: 0;
-        color: #2c3e50;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-      
-      .header-subtitle {
-        font-size: 16px;
-        opacity: 0.8;
-        margin: 10px 0 0 0;
-        font-weight: 300;
-        color: #34495e;
-      }
-
-      .wrapper {
-        box-sizing: border-box;
-        padding: 40px 30px;
-      }
-      
-      .content-block {
-        margin-bottom: 30px;
-      }
-      
-      .icon-container {
-        text-align: center;
-        margin-bottom: 30px;
-      }
-      
-      .icon {
-        width: 80px;
-        height: 80px;
-        background: linear-gradient(135deg, #3498db, #2980b9);
-        border-radius: 50%;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 32px;
-        color: white;
-        box-shadow: 0 10px 25px rgba(52, 152, 219, 0.3);
-      }
-
-      /* -------------------------------------
-          TYPOGRAPHY
-      ------------------------------------- */
-      h1, h2, h3, h4 {
-        color: #2c3e50;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        font-weight: 600;
-        line-height: 1.4;
-        margin: 0;
-        margin-bottom: 20px;
-      }
-      
-      h2 {
-        font-size: 24px;
-        text-align: center;
-        color: #34495e;
-      }
-      
-      p {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        font-size: 16px;
-        font-weight: normal;
-        margin: 0;
-        margin-bottom: 20px;
-        color: #555;
-        line-height: 1.6;
-      }
-      
-      .highlight-text {
-        background: linear-gradient(120deg, #3498db 0%, #2980b9 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        font-weight: 700;
-        font-size: 18px;
-      }
-
-      /* -------------------------------------
-          MODERN BUTTON
-      ------------------------------------- */
-      .btn-container {
-        text-align: center;
-        margin: 40px 0;
-      }
-      
-      .btn-modern {
-        display: inline-block;
-        padding: 18px 40px;
-        background: linear-gradient(135deg, #189BAF 0%, #189BAF 100%);
-        color: white !important;
-        text-decoration: none;
-        border-radius: 50px;
-        font-weight: 600;
-        font-size: 16px;
-        transition: all 0.3s ease;
-        box-shadow: 0 8px 25px rgba(52, 152, 219, 0.3);
-        text-transform: uppercase;
-        letter-spacing: 1px;
-      }
-      
-      .btn-modern:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 35px rgba(52, 152, 219, 0.4);
-      }
-      
-      .btn-icon {
-        margin-right: 10px;
-        font-size: 18px;
-      }
-
-      /* -------------------------------------
-          INFO SECTION
-      ------------------------------------- */
-      .info-section {
-        background: #f8f9fa;
-        border-radius: 15px;
-        padding: 25px;
-        margin: 30px 0;
-        border-left: 5px solid #3498db;
-      }
-      
-      .info-title {
-        font-size: 14px;
-        font-weight: 600;
-        color: #3498db;
-        text-transform: uppercase;
-        letter-spacing: 1px;
+        max-width: 120px;
         margin-bottom: 10px;
       }
       
-      .info-content {
-        font-size: 14px;
-        color: #666;
-        word-break: break-all;
-        background: white;
-        padding: 15px;
-        border-radius: 8px;
-        border: 1px solid #e9ecef;
-        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-      }
-
-      /* -------------------------------------
-          ATTACHMENT SECTION
-      ------------------------------------- */
-      .attachment-section {
-        background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
-        border-radius: 15px;
+      .content {
         padding: 25px;
-        margin: 30px 0;
-        border-left: 5px solid #27ae60;
         text-align: center;
       }
       
-      .attachment-icon {
-        width: 60px;
-        height: 60px;
-        background: linear-gradient(135deg, #27ae60, #2ecc71);
-        border-radius: 50%;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 24px;
-        color: white;
-        margin-bottom: 15px;
-        box-shadow: 0 8px 20px rgba(39, 174, 96, 0.3);
+      h1 {
+        color: #333;
+        font-size: 20px;
+        margin: 0 0 15px 0;
       }
       
-      .attachment-title {
-        font-size: 18px;
-        font-weight: 600;
+      p {
+        color: #666;
+        line-height: 1.5;
+        margin: 10px 0;
+      }
+      
+      .folio {
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 5px;
+        font-weight: bold;
+        color: #189BAF;
+        margin: 15px 0;
+      }
+      
+      .attachment-box {
+        background: #e8f5e8;
+        border: 2px dashed #27ae60;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+      }
+      
+      .attachment-icon {
+        font-size: 30px;
         color: #27ae60;
         margin-bottom: 10px;
       }
       
-      .attachment-text {
-        font-size: 14px;
+      .attachment-title {
+        color: #27ae60;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+      
+      .link-section {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 20px 0;
+        font-size: 12px;
+      }
+      
+      .link-text {
+        word-break: break-all;
+        background: white;
+        padding: 8px;
+        border-radius: 3px;
+        border: 1px solid #ddd;
+        font-family: monospace;
         color: #666;
-        margin-bottom: 0;
       }
-
-      /* -------------------------------------
-          FOOTER
-      ------------------------------------- */
+      
       .footer {
-        background: #2c3e50;
-        padding: 30px;
+        background: #f8f9fa;
+        padding: 15px;
         text-align: center;
-        color: white;
+        font-size: 12px;
+        color: #999;
       }
       
-      .footer p {
-        color: #bdc3c7;
-        font-size: 14px;
-        margin-bottom: 10px;
-      }
-      
-      .footer-links {
-        margin-top: 20px;
-      }
-      
-      .footer-links a {
-        color: #3498db;
-        text-decoration: none;
-        margin: 0 15px;
-        font-size: 14px;
-      }
-
-      /* -------------------------------------
-          RESPONSIVE
-      ------------------------------------- */
-      @media only screen and (max-width: 620px) {
+      @media only screen and (max-width: 600px) {
         .container {
-          width: 100% !important;
-          padding: 10px !important;
+          margin: 0;
+          border-radius: 0;
         }
-        
-        .wrapper {
-          padding: 30px 20px !important;
+        .content {
+          padding: 20px;
         }
-        
-        .header-section {
-          padding: 30px 20px !important;
-        }
-        
-        .header-title {
-          font-size: 24px !important;
-        }
-        
-        .btn-modern {
-          padding: 16px 30px !important;
-          font-size: 14px !important;
-        }
-        
-        .info-section,
-        .attachment-section {
-          padding: 20px !important;
-        }
-      }
-
-      /* -------------------------------------
-          ANIMATIONS
-      ------------------------------------- */
-      @keyframes fadeInUp {
-        from {
-          opacity: 0;
-          transform: translateY(20px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      
-      .animate {
-        animation: fadeInUp 0.6s ease-out;
       }
     </style>
 </head>
-<body class="body">
-    <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="body">
-        <tr>
-            <td class="container">
-                <div class="content">
-                    <!-- MAIN CARD -->
-                    <table role="presentation" class="main">
-                        <!-- HEADER SECTION -->
-                        <tr>
-                            <td class="header-section">
-                                <div class="logo-container">
-                                    <img src="{{ asset('assets/logo.png') }}" alt="DIAHMOES Logo" class="logo">
-                                </div>
-                                <h1 class="header-title">Reporte Adjunto</h1>
-                                <p class="header-subtitle">Su análisis genético se encuentra adjunto a este correo</p>
-                            </td>
-                        </tr>
-                        
-                        <!-- CONTENT SECTION -->
-                        <tr>
-                            <td class="wrapper">
-                                
-                                <!-- Main Content -->
-                                <div class="content-block animate">
-                                    <h2>Reporte Disponible</h2>
-                                    <p>Estimado paciente, adjunto a este correo encontrará su</p>
-                                    <p><span class="highlight-text">Reporte {{ $info['FOLIO'] }}</span></p>
-                                    <p>Este documento contiene los resultados completos de su análisis genético realizado en nuestros laboratorios especializados.</p>
-                                </div>
-                                
-                                <!-- Attachment Section -->
-                                <div class="attachment-section">
-                                    <div class="attachment-title">Archivo Adjunto</div>
-                                    <p class="attachment-text">El reporte se encuentra como archivo adjunto en formato PDF</p>
-                                </div>
-                                
-                                <!-- Info Section with Alternative Link -->
-                                <div class="info-section">
-                                    <div class="info-title">Enlace Alternativo</div>
-                                    <p style="margin-bottom: 10px; color: #666;">Si tiene problemas para ver el adjunto, puede copiar y pegar este enlace en su navegador:</p>
-                                    <div class="info-content">{{ route('estudios.pdf.public', ['id' => $info['ID'], 'aleatorio' => $info['ALEATORIO']]) }}</div>
-                                </div>
-                                
-                                <!-- Additional Info -->
-                                <div class="content-block">
-                                    <p style="text-align: center; color: #7f8c8d; font-size: 14px;">
-                                        <strong>Importante:</strong> Este reporte es confidencial y solo debe ser compartido con su médico tratante.
-                                    </p>
-                                </div>
-                            </td>
-                        </tr>
-                        
-                        <!-- FOOTER -->
-                        <tr>
-                            <td class="footer">
-                                <p><strong>DIAHMOES</strong></p>
-                                <p>Laboratorio de Diagnóstico Molecular Especializado</p>
-                                <div class="footer-links">
-                                    <a href="https://diahmoes.com.mx">Sitio Web</a>
-                                    <a href="mailto:contacto@diahmoes.com.mx">Contacto</a>
-                                </div>
-                                <p style="margin-top: 20px; font-size: 12px;">
-                                    Este correo fue enviado automáticamente. Por favor no responda a este mensaje.
-                                </p>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-            </td>
-        </tr>
-    </table>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <img src="{{ asset('assets/logo.png') }}" alt="DIAHMOES" class="logo">
+            <h2 style="margin: 0; font-size: 18px;">Reporte Adjunto</h2>
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            <h1>Su reporte está adjunto</h1>
+            
+            <div class="folio">
+                Reporte {{ $info['FOLIO'] }}
+            </div>
+            
+            <p>Su análisis genético se encuentra adjunto a este correo electrónico.</p>
+            
+            <!-- Attachment Indicator -->
+            <div class="attachment-box">
+                <div class="attachment-title">Archivo Adjunto a este correo</div>
+                <p style="margin: 0; font-size: 14px; color: #666;">
+                    El reporte se encuentra en formato PDF
+                </p>
+            </div>
+            
+            <!-- Alternative Link -->
+            <div class="link-section">
+                <strong style="color: #189BAF;">Enlace Alternativo:</strong>
+                <p style="margin: 5px 0; font-size: 11px;">Si no puede ver el adjunto:</p>
+                <div class="link-text">{{ route('estudios.pdf.public', ['id' => $info['ID'], 'aleatorio' => $info['ALEATORIO']]) }}</div>
+            </div>
+            
+            <p style="font-size: 12px; color: #999;">
+                <strong>Confidencial:</strong> Solo comparta con su médico tratante.
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <strong>DIAHMOES</strong><br>
+            Laboratorio de Diagnóstico Molecular<br>
+            <a href="https://diahmoes.com.mx" style="color: #189BAF;">diahmoes.com.mx</a>
+        </div>
+    </div>
 </body>
 </html>

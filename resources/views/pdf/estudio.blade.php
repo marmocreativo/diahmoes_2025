@@ -106,10 +106,13 @@
             font-size: 7px;
             margin-top: 3px;
         }
-        .signature-table {
-            width: 100%;
-            position: fixed;
-            bottom: 50px;
+        /* Nuevo estilo para el footer solo en primera página */
+        .notes-content {
+            min-height: calc(100vh - 200px); /* Ajusta según sea necesario */
+            position: relative;
+        }
+        .signature-footer {
+            margin-top: 50px;
             text-align: center;
         }
         .signature-image {
@@ -150,7 +153,6 @@
             margin: 20px 0;
         }
         .patrocinio-image {
-            max-width: 300px;
             max-height: 80px;
             height: auto;
             width: auto;
@@ -159,217 +161,219 @@
 </head>
 <body>
     <!-- Página 1: Reporte Principal -->
-    <table class="header-table">
-        <tr>
-            <td class="logo-cell">
-                <img src="https://diahmoes.com.mx/assets/{{ $paraImprimir ? 'logo_reporte_blanco.jpg' : 'logo_reporte.jpg' }}" alt="DIAHMOES logo 2025" class="logo-image">
-            </td>
-        </tr>
-        <tr>
-            <td class="title-cell">
-                @php
-                    $estudios_solicitados = [];
-                    $titulo_genes = '';
-                    $el_los = '';
-                    
-                    if (strpos($estudio->R_ESTUDIO_SOLICITADO ?? '', 'K-RAS') !== false) {
-                        $estudios_solicitados[] = 'K-RAS';
-                    }
-                    if (strpos($estudio->R_ESTUDIO_SOLICITADO ?? '', 'N-RAS') !== false) {
-                        $estudios_solicitados[] = 'N-RAS';
-                    }
-                    if (strpos($estudio->R_ESTUDIO_SOLICITADO ?? '', 'B-RAF') !== false) {
-                        $estudios_solicitados[] = 'B-RAF';
-                    }
-                    
-                    $cantidad_estudios = count($estudios_solicitados);
-                    $el_los = $cantidad_estudios > 1 ? 'MUTACIONES EN LOS GENES' : 'MUTACIÓN EN EL GEN';
-                    
-                    for ($i = 0; $i < count($estudios_solicitados); $i++) {
-                        if ($i > 0) {
-                            if ($i == count($estudios_solicitados) - 1) {
-                                $titulo_genes .= ' y ';
-                            } else {
-                                $titulo_genes .= ', ';
-                            }
+    <div class="page-one">
+        <table class="header-table">
+            <tr>
+                <td class="logo-cell">
+                    <img src="https://diahmoes.com.mx/assets/{{ $paraImprimir ? 'logo_reporte_blanco.jpg' : 'logo_reporte.jpg' }}" alt="DIAHMOES logo 2025" class="logo-image">
+                </td>
+            </tr>
+            <tr>
+                <td class="title-cell">
+                    @php
+                        $estudios_solicitados = [];
+                        $titulo_genes = '';
+                        $el_los = '';
+                        
+                        if (strpos($estudio->R_ESTUDIO_SOLICITADO ?? '', 'K-RAS') !== false) {
+                            $estudios_solicitados[] = 'K-RAS';
                         }
-                        $titulo_genes .= $estudios_solicitados[$i];
-                    }
-                @endphp
-                DETERMINACIÓN DE {{ $el_los }} {{ $titulo_genes }}
-            </td>
-        </tr>
-        <tr>
-            <td class="info-cell">
-                <b>{{ $estudio->CLAVE_INTERNA ?? $estudio->folio_completo }}</b><br>
-                <b>Fecha de emisión: {{ $estudio->FECHA_INFORME ? $estudio->FECHA_INFORME->format('d-m-y') : 'No registrada' }}</b>
-            </td>
-        </tr>
-    </table>
+                        if (strpos($estudio->R_ESTUDIO_SOLICITADO ?? '', 'N-RAS') !== false) {
+                            $estudios_solicitados[] = 'N-RAS';
+                        }
+                        if (strpos($estudio->R_ESTUDIO_SOLICITADO ?? '', 'B-RAF') !== false) {
+                            $estudios_solicitados[] = 'B-RAF';
+                        }
+                        
+                        $cantidad_estudios = count($estudios_solicitados);
+                        $el_los = $cantidad_estudios > 1 ? 'MUTACIONES EN LOS GENES' : 'MUTACIÓN EN EL GEN';
+                        
+                        for ($i = 0; $i < count($estudios_solicitados); $i++) {
+                            if ($i > 0) {
+                                if ($i == count($estudios_solicitados) - 1) {
+                                    $titulo_genes .= ' y ';
+                                } else {
+                                    $titulo_genes .= ', ';
+                                }
+                            }
+                            $titulo_genes .= $estudios_solicitados[$i];
+                        }
+                    @endphp
+                    DETERMINACIÓN DE {{ $el_los }} {{ $titulo_genes }}
+                </td>
+            </tr>
+            <tr>
+                <td class="info-cell">
+                    <b>{{ $estudio->CLAVE_INTERNA ?? $estudio->folio_completo }}</b><br>
+                    <b>Fecha de emisión: {{ $estudio->FECHA_INFORME ? $estudio->FECHA_INFORME->format('d-m-y') : 'No registrada' }}</b>
+                </td>
+            </tr>
+        </table>
 
-    <!-- Tabla de datos del paciente -->
-    <table class="data-table">
-        <tr>
-            <td colspan="2" class="patient-name">
-                <b>Nombre del paciente:</b> {{ $paciente->USUARIO_NOMBRE ?? 'N/A' }} {{ $paciente->USUARIO_APELLIDOS ?? '' }}
-            </td>
-        </tr>
-        <tr>
-            <td style="width: 50%;">
-                <b>Edad:</b> {{ $estudio->MUESTRA_EDAD ?? 'No especificada' }}
-            </td>
-            <td rowspan="2">
-                <b>Diagnóstico Clínico:</b><br>
-                {{ $estudio->MUESTRA_DIAGNOSTICO_CLINICO ?? 'No especificado' }}
-            </td>
-        </tr>
-        <tr>
-            <td>
-                <b>Género:</b> {{ $estudio->MUESTRA_GENERO ?? 'No especificado' }}
-            </td>
-        </tr>
-        <tr>
-            <td class="small">
-                <b>Fecha de Recepción en Laboratorio:</b> 
-                {{ $estudio->FECHA_RECEPCION_LABORATORIO ? $estudio->FECHA_RECEPCION_LABORATORIO->format('d-m-y') : 'No registrada' }}
-            </td>
-            <td class="small">
-                <b>ID de la muestra recibida:</b> {{ $estudio->MUESTRA_CLAVE ?? 'No asignado' }}
-            </td>
-        </tr>
-        <tr>
-            <td class="small">
-                <p><b>Médico Solicitante:</b><br> 
-                {{ $medico->USUARIO_NOMBRE ?? 'N/A' }} {{ $medico->USUARIO_APELLIDOS ?? '' }}</p>
-            </td>
-            <td class="small">
-                <p><b>Institución:</b><br> 
-                {{ $institucion->INSTITUCION_NOMBRE ?? 'No especificada' }}</p>
-            </td>
-        </tr>
-        <tr>
-            <td class="small">
-                <p><b>Tipo de Muestra Recibida:</b><br>
-                {{ $estudio->MUESTRA_TIPO ?? 'No especificado' }}</p>
-            </td>
-            <td class="small">
-                <p><b>Método de Proceso:</b><br>
-                {{ $estudio->R_METODO_PROCESO ?? 'No especificado' }}</p>
-            </td>
-        </tr>
-        
-        @if($estudio->MUESTRA_TIPO !== 'Sangre total')
-        <tr>
-            <td colspan="2" class="small">
-                <b>Evaluación histopatológica:</b><br>
-                {{ $estudio->R_RESULTADO_HISTOPATOLOGICO ?? 'No especificada' }}
-            </td>
-        </tr>
-        @endif
-        
-        <tr>
-            <td colspan="2" style="font-size: 9px;">
-                <b>Calidad del especimen:</b><br>
-                @if($estudio->MUESTRA_TIPO == 'Sangre total')
-                    La muestra se recibe en <b class="highlight">{{ $estudio->MUESTRA_LIQ_CONDICION ?? '' }}{{ $estudio->MUESTRA_LIQ_CONDICION_PRESENCIA ?? '' }}.</b>
-                    La cantidad de sangre total recibida <b class="highlight">{{ $estudio->MUESTRA_LIQ_CANTIDAD_ADECUADA ?? '' }} {{ $estudio->MUESTRA_LIQ_CANTIDAD_ML ?? '' }} ml aproximadamente.</b>
-                    Tras centrifugar la muestra para obtener plasma <b class="highlight">{{ $estudio->MUESTRA_LIQ_HEMOLISIS ?? '' }}.</b>
-                    Las reacciones de amplificación para {{ $estudio->R_ESTUDIO_SOLICITADO ?? '' }} indican <b class="highlight">{{ $estudio->MUESTRA_LIQ_AMP_INDICACION ?? '' }}</b> del DNA en la muestra
-                    <b class="highlight">@if($estudio->MUESTRA_LIQ_AMP_RAZON), {{ $estudio->MUESTRA_LIQ_AMP_RAZON }}@endif.</b>
-                @else
-                    @if($estudio->R_ADECUADO_PROCESAMIENTO == 'express')
-                        El tejido se haya adecuadamente preservado desde el punto de vista morfológico, y la muestra reúne la cantidad absoluta y proporción adecuadas de células tumorales para su procesamiento bajo la metodología empleada
-                    @elseif($estudio->R_ADECUADO_PROCESAMIENTO == 'inadecuada')
-                        El tejido <b class="highlight">{{ $estudio->R_PRESERVACION_H_E ?? '' }}</b>
-                        desde el punto de vista morfológico. No obstante la muestra no reune la cantidad y o proporción de células tumorales para una determinación confiable.
-                    @elseif(in_array($estudio->R_ADECUADO_PROCESAMIENTO, ['adecuada', 'suficiente', 'subóptima']))
-                        El tejido <b class="highlight">{{ $estudio->R_PRESERVACION_H_E ?? '' }}</b>
-                        desde el punto de vista morfológico, la muestra presenta <b class="highlight">{{ $estudio->R_NUMERO_CELULAS_TUMORALES ? number_format($estudio->R_NUMERO_CELULAS_TUMORALES) : '' }}</b>
-                        células tumorales que abarcan un área de <b class="highlight">{{ $estudio->R_AREA_TUMORAL ?? '' }} mm<sup>2</sup></b>
-                        y representan el <b class="highlight">{{ $estudio->R_PORCENTAJE_TUMOR_TEJIDO ?? '' }}%</b> de la celularidad del tejido<b>{{ $estudio->R_ENRIQUECIMIENTO == 'Si' ? ', tras ser enriquecido.' : '.' }}</b>
-                        Por todo lo anterior la muestra es <b class="highlight">{{ $estudio->R_ADECUADO_PROCESAMIENTO ?? '' }}</b> para su procesamiento{{ $estudio->R_RAZON_ADECUADO_PROCESAMIENTO ? ', ' . $estudio->R_RAZON_ADECUADO_PROCESAMIENTO : '' }}.
+        <!-- Tabla de datos del paciente -->
+        <table class="data-table">
+            <tr>
+                <td colspan="2" class="patient-name">
+                    <b>Nombre del paciente:</b> {{ $paciente->USUARIO_NOMBRE ?? 'N/A' }} {{ $paciente->USUARIO_APELLIDOS ?? '' }}
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 50%;">
+                    <b>Edad:</b> {{ $estudio->MUESTRA_EDAD ?? 'No especificada' }}
+                </td>
+                <td rowspan="2">
+                    <b>Diagnóstico Clínico:</b><br>
+                    {{ $estudio->MUESTRA_DIAGNOSTICO_CLINICO ?? 'No especificado' }}
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <b>Género:</b> {{ $estudio->MUESTRA_GENERO ?? 'No especificado' }}
+                </td>
+            </tr>
+            <tr>
+                <td class="small">
+                    <b>Fecha de Recepción en Laboratorio:</b> 
+                    {{ $estudio->FECHA_RECEPCION_LABORATORIO ? $estudio->FECHA_RECEPCION_LABORATORIO->format('d-m-y') : 'No registrada' }}
+                </td>
+                <td class="small">
+                    <b>ID de la muestra recibida:</b> {{ $estudio->MUESTRA_CLAVE ?? 'No asignado' }}
+                </td>
+            </tr>
+            <tr>
+                <td class="small">
+                    <p><b>Médico Solicitante:</b><br> 
+                    {{ $medico->USUARIO_NOMBRE ?? 'N/A' }} {{ $medico->USUARIO_APELLIDOS ?? '' }}</p>
+                </td>
+                <td class="small">
+                    <p><b>Institución:</b><br> 
+                    {{ $institucion->INSTITUCION_NOMBRE ?? 'No especificada' }}</p>
+                </td>
+            </tr>
+            <tr>
+                <td class="small">
+                    <p><b>Tipo de Muestra Recibida:</b><br>
+                    {{ $estudio->MUESTRA_TIPO ?? 'No especificado' }}</p>
+                </td>
+                <td class="small">
+                    <p><b>Método de Proceso:</b><br>
+                    {{ $estudio->R_METODO_PROCESO ?? 'No especificado' }}</p>
+                </td>
+            </tr>
+            
+            @if($estudio->MUESTRA_TIPO !== 'Sangre total')
+            <tr>
+                <td colspan="2" class="small">
+                    <b>Evaluación histopatológica:</b><br>
+                    {{ $estudio->R_RESULTADO_HISTOPATOLOGICO ?? 'No especificada' }}
+                </td>
+            </tr>
+            @endif
+            
+            <tr>
+                <td colspan="2" style="font-size: 9px;">
+                    <b>Calidad del especimen:</b><br>
+                    @if($estudio->MUESTRA_TIPO == 'Sangre total')
+                        La muestra se recibe en <b class="highlight">{{ $estudio->MUESTRA_LIQ_CONDICION ?? '' }}{{ $estudio->MUESTRA_LIQ_CONDICION_PRESENCIA ?? '' }}.</b>
+                        La cantidad de sangre total recibida <b class="highlight">{{ $estudio->MUESTRA_LIQ_CANTIDAD_ADECUADA ?? '' }} {{ $estudio->MUESTRA_LIQ_CANTIDAD_ML ?? '' }} ml aproximadamente.</b>
+                        Tras centrifugar la muestra para obtener plasma <b class="highlight">{{ $estudio->MUESTRA_LIQ_HEMOLISIS ?? '' }}.</b>
+                        Las reacciones de amplificación para {{ $estudio->R_ESTUDIO_SOLICITADO ?? '' }} indican <b class="highlight">{{ $estudio->MUESTRA_LIQ_AMP_INDICACION ?? '' }}</b> del DNA en la muestra
+                        <b class="highlight">@if($estudio->MUESTRA_LIQ_AMP_RAZON), {{ $estudio->MUESTRA_LIQ_AMP_RAZON }}@endif.</b>
+                    @else
+                        @if($estudio->R_ADECUADO_PROCESAMIENTO == 'express')
+                            El tejido se haya adecuadamente preservado desde el punto de vista morfológico, y la muestra reúne la cantidad absoluta y proporción adecuadas de células tumorales para su procesamiento bajo la metodología empleada
+                        @elseif($estudio->R_ADECUADO_PROCESAMIENTO == 'inadecuada')
+                            El tejido <b class="highlight">{{ $estudio->R_PRESERVACION_H_E ?? '' }}</b>
+                            desde el punto de vista morfológico. No obstante la muestra no reune la cantidad y o proporción de células tumorales para una determinación confiable.
+                        @elseif(in_array($estudio->R_ADECUADO_PROCESAMIENTO, ['adecuada', 'suficiente', 'subóptima']))
+                            El tejido <b class="highlight">{{ $estudio->R_PRESERVACION_H_E ?? '' }}</b>
+                            desde el punto de vista morfológico, la muestra presenta <b class="highlight">{{ $estudio->R_NUMERO_CELULAS_TUMORALES ? number_format($estudio->R_NUMERO_CELULAS_TUMORALES) : '' }}</b>
+                            células tumorales que abarcan un área de <b class="highlight">{{ $estudio->R_AREA_TUMORAL ?? '' }} mm<sup>2</sup></b>
+                            y representan el <b class="highlight">{{ $estudio->R_PORCENTAJE_TUMOR_TEJIDO ?? '' }}%</b> de la celularidad del tejido<b>{{ $estudio->R_ENRIQUECIMIENTO == 'Si' ? ', tras ser enriquecido.' : '.' }}</b>
+                            Por todo lo anterior la muestra es <b class="highlight">{{ $estudio->R_ADECUADO_PROCESAMIENTO ?? '' }}</b> para su procesamiento{{ $estudio->R_RAZON_ADECUADO_PROCESAMIENTO ? ', ' . $estudio->R_RAZON_ADECUADO_PROCESAMIENTO : '' }}.
+                        @endif
                     @endif
+                </td>
+            </tr>
+        </table>
+
+        <hr class="hr-separator">
+
+        <!-- Sección de Resultados -->
+        <div class="results-section">
+            <div class="results-title">RESULTADOS:</div>
+            
+            @if(strpos($estudio->R_ESTUDIO_SOLICITADO ?? '', 'K-RAS') !== false)
+            <div class="gene-section kras">
+                <div class="gene-title">KRAS:</div>
+                @if($estudio->R_ESTATUS_KRAS)
+                    @php
+                        $texto_resultado = $estudio->R_ESTATUS_KRAS;
+                        $texto_genotipo = $estudio->R_GENOTIPO_KRAS;
+                    @endphp
+                    <div class="gene-result">
+                        <span class="highlight">{{ $texto_resultado }}</span> 
+                        @if($texto_resultado == 'MUTADO') EN CODONES 12,13,59,61,117 o 146, EXONES 2,3 o 4 del gen KRAS.@endif<br>
+                        @if(in_array($texto_resultado, ['MUTADO', 'MUTADO (VER NOTAS)']))
+                            Mutación: <span class="highlight">{{ $texto_genotipo }}</span>
+                        @endif
+                    </div>
                 @endif
-            </td>
-        </tr>
-    </table>
-
-    <hr class="hr-separator">
-
-    <!-- Sección de Resultados -->
-    <div class="results-section">
-        <div class="results-title">RESULTADOS:</div>
-        
-        @if(strpos($estudio->R_ESTUDIO_SOLICITADO ?? '', 'K-RAS') !== false)
-        <div class="gene-section kras">
-            <div class="gene-title">KRAS:</div>
-            @if($estudio->R_ESTATUS_KRAS)
-                @php
-                    $texto_resultado = $estudio->R_ESTATUS_KRAS;
-                    $texto_genotipo = $estudio->R_GENOTIPO_KRAS;
-                @endphp
-                <div class="gene-result">
-                    <span class="highlight">{{ $texto_resultado }}</span> 
-                    @if($texto_resultado == 'MUTADO') EN CODONES 12,13,59,61,117 o 146, EXONES 2,3 o 4 del gen KRAS.@endif<br>
-                    @if(in_array($texto_resultado, ['MUTADO', 'MUTADO (VER NOTAS)']))
-                        Mutación: <span class="highlight">{{ $texto_genotipo }}</span>
-                    @endif
-                </div>
+            </div>
             @endif
-        </div>
-        @endif
 
-        @if(strpos($estudio->R_ESTUDIO_SOLICITADO ?? '', 'N-RAS') !== false)
-        <div class="gene-section nras">
-            <div class="gene-title">NRAS:</div>
-            @if($estudio->R_ESTATUS_NRAS)
-                @php
-                    $texto_resultado = $estudio->R_ESTATUS_NRAS;
-                    $texto_genotipo = $estudio->R_GENOTIPO_NRAS;
-                @endphp
-                <div class="gene-result">
-                    <span class="highlight">{{ $texto_resultado }}</span> 
-                    @if($texto_resultado == 'MUTADO') EN CODONES 12,13,59,61,117 o 146, EXONES 2,3 o 4 del gen N-RAS.@endif<br>
-                    @if(in_array($texto_resultado, ['MUTADO', 'MUTADO (VER NOTAS)']))
-                        Mutación: <span class="highlight">{{ $texto_genotipo }}</span>
-                    @endif
-                </div>
+            @if(strpos($estudio->R_ESTUDIO_SOLICITADO ?? '', 'N-RAS') !== false)
+            <div class="gene-section nras">
+                <div class="gene-title">NRAS:</div>
+                @if($estudio->R_ESTATUS_NRAS)
+                    @php
+                        $texto_resultado = $estudio->R_ESTATUS_NRAS;
+                        $texto_genotipo = $estudio->R_GENOTIPO_NRAS;
+                    @endphp
+                    <div class="gene-result">
+                        <span class="highlight">{{ $texto_resultado }}</span> 
+                        @if($texto_resultado == 'MUTADO') EN CODONES 12,13,59,61,117 o 146, EXONES 2,3 o 4 del gen N-RAS.@endif<br>
+                        @if(in_array($texto_resultado, ['MUTADO', 'MUTADO (VER NOTAS)']))
+                            Mutación: <span class="highlight">{{ $texto_genotipo }}</span>
+                        @endif
+                    </div>
+                @endif
+            </div>
             @endif
-        </div>
-        @endif
 
-        @if(strpos($estudio->R_ESTUDIO_SOLICITADO ?? '', 'B-RAF') !== false)
-        <div class="gene-section braf">
-            <div class="gene-title">BRAF:</div>
-            @if($estudio->R_ESTATUS_BRAF)
-                @php
-                    $texto_resultado = $estudio->R_ESTATUS_BRAF;
-                    $texto_genotipo = $estudio->R_GENOTIPO_BRAF;
-                @endphp
-                <div class="gene-result">
-                    <span class="highlight">{{ $texto_resultado }}</span> 
-                    @if($texto_resultado == 'MUTADO') EN EL CODÓN 600, EXÓN 15 del gen B-RAF.@endif<br>
-                    @if($texto_resultado == 'MUTADO')
-                        Mutación: <span class="highlight">{{ $texto_genotipo }}</span>
-                    @endif
-                </div>
+            @if(strpos($estudio->R_ESTUDIO_SOLICITADO ?? '', 'B-RAF') !== false)
+            <div class="gene-section braf">
+                <div class="gene-title">BRAF:</div>
+                @if($estudio->R_ESTATUS_BRAF)
+                    @php
+                        $texto_resultado = $estudio->R_ESTATUS_BRAF;
+                        $texto_genotipo = $estudio->R_GENOTIPO_BRAF;
+                    @endphp
+                    <div class="gene-result">
+                        <span class="highlight">{{ $texto_resultado }}</span> 
+                        @if($texto_resultado == 'MUTADO') EN EL CODÓN 600, EXÓN 15 del gen B-RAF.@endif<br>
+                        @if($texto_resultado == 'MUTADO')
+                            Mutación: <span class="highlight">{{ $texto_genotipo }}</span>
+                        @endif
+                    </div>
+                @endif
+            </div>
             @endif
-        </div>
-        @endif
 
-        <div class="notes-section">
-            <div class="notes-title">NOTAS:</div>
-            <div class="notes-content">{{ $estudio->ESTUDIO_NOTAS ?? '' }}</div>
+            <div class="notes-section">
+                <div class="notes-title">NOTAS:</div>
+                <div class="notes-content">{{ $estudio->ESTUDIO_NOTAS ?? '' }}</div>
+            </div>
         </div>
-    </div>
 
-    <!-- Firma y Footer -->
-    <div class="signature-table">
-        <div style="text-align: center; margin-bottom: 20px;">
-            <img src="https://diahmoes.com.mx/assets/{{ $paraImprimir ? 'firma_completa_2_blanco.jpg' : 'firma_completa_2.jpg' }}" alt="" class="signature-image">
-        </div>
-        <div>
-            <img src="https://diahmoes.com.mx/assets/{{ $paraImprimir ? 'footer_reporte_blanco.jpg' : 'footer_reporte.jpg' }}" alt="" class="footer-image">
+        <!-- Firma y Footer SOLO en la primera página -->
+        <div class="signature-footer">
+            <div style="margin-bottom: 20px;">
+                <img src="https://diahmoes.com.mx/assets/{{ $paraImprimir ? 'firma_completa_2_blanco.jpg' : 'firma_completa_2.jpg' }}" alt="" class="signature-image">
+            </div>
+            <div>
+                <img src="https://diahmoes.com.mx/assets/{{ $paraImprimir ? 'footer_reporte_blanco.jpg' : 'footer_reporte.jpg' }}" alt="" class="footer-image">
+            </div>
         </div>
     </div>
 

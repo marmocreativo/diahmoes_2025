@@ -264,7 +264,7 @@ export default function EstudiosIndex() {
                     </div>
 
                     {/* Tabla */}
-                    <div className="overflow-x-auto">
+                    <div>
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
@@ -313,7 +313,7 @@ export default function EstudiosIndex() {
                                                 
                                                 {estudio.medico && (
                                                     <div className="text-xs text-gray-600">
-                                                        Dr. {estudio.medico.USUARIO_NOMBRE} {estudio.medico.USUARIO_APELLIDOS}
+                                                        {estudio.medico.USUARIO_NOMBRE} {estudio.medico.USUARIO_APELLIDOS}
                                                     </div>
                                                 )}
                                                 

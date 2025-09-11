@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Head, router, usePage, Link } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
@@ -16,16 +16,79 @@ interface EditRecoleccionProps {
     [key: string]: any;
 }
 
+interface InstitucionDataState {
+    loading: boolean;
+    data: {
+        estudio: {
+            MUESTRA_DIRECCION?: string;
+            MUESTRA_NUMERO_EXT?: string;
+            MUESTRA_NUMERO_INT?: string;
+            MUESTRA_MUNICIPIO?: string;
+            MUESTRA_COLONIA?: string;
+            MUESTRA_ESTADO?: string;
+            MUESTRA_ENVIO_TIPO?: string;
+            MUESTRA_CODIGO_POSTAL?: string;
+            MUESTRA_HORARIOS?: string;
+        };
+        medico?: any;
+        paciente?: any;
+        institucion?: any;
+        cliente?: any;
+    } | null;
+    error: string | null;
+}
+
+interface ApiResponse {
+    success: boolean;
+    message: string;
+    data?: {
+        estudio: any;
+        medico?: any;
+        paciente?: any;
+        institucion?: any;
+        cliente?: any;
+    };
+}
+
 export default function EditRecoleccionOptimized() {
     const { estudio, medicos = [], pacientes = [], instituciones = [], clientes = [], mensajerias = [] } = usePage<EditRecoleccionProps>().props;
 
     // Referencias para inputs simples - no causan re-renders
     const formRef = useRef<HTMLFormElement>(null);
     
+    // Estados para los buscadores
+    const [institucionData, setInstitucionData] = useState<InstitucionDataState>({
+        loading: false,
+        data: null,
+        error: null
+    });
+
+    const [medicoSearch, setMedicoSearch] = useState<{
+        isOpen: boolean;
+        searchText: string;
+        selectedMedico: { ID_USUARIO: number; USUARIO_NOMBRE: string; USUARIO_APELLIDOS: string; USUARIO_CORREO: string; } | null;
+    }>({
+        isOpen: false,
+        searchText: '',
+        selectedMedico: null
+    });
+
+    const [institucionSearch, setInstitucionSearch] = useState<{
+        isOpen: boolean;
+        searchText: string;
+        selectedInstitucion: { ID_INSTITUCION: number; INSTITUCION_NOMBRE: string; } | null;
+    }>({
+        isOpen: false,
+        searchText: '',
+        selectedInstitucion: null
+    });
+    
     // Solo estado mínimo para campos dependientes
     const [dependentFields, setDependentFields] = useState({
         NoAplica: estudio.MUESTRA_ENVIO === 'no aplica',
         processing: false,
+        IdMedico: estudio.ID_MEDICO || 0,
+        IdInstitucion: estudio.ID_INSTITUCION || 0,
     });
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -34,6 +97,84 @@ export default function EditRecoleccionOptimized() {
         { title: `${estudio.CLAVE_INTERNA}`, href: `/estudios/${estudio.ID}` },
         { title: 'Recolección', href: `/estudios/${estudio.ID}/edit/recoleccion` },
     ];
+
+    // Función para obtener datos del último estudio de la institución
+    const fetchUltimoEstudioInstitucion = async (idInstitucion: number): Promise<void> => {
+        if (!idInstitucion || idInstitucion === 0) {
+            setInstitucionData({ loading: false, data: null, error: null });
+            return;
+        }
+
+        setInstitucionData({ loading: true, data: null, error: null });
+
+        try {
+            const response = await fetch(`/api/estudios/ultimo-por-institucion?id_institucion=${idInstitucion}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                }
+            });
+
+            const data: ApiResponse = await response.json();
+
+            if (data.success && data.data) {
+                console.log('Datos del último estudio:', data.data);
+                
+                setInstitucionData({ 
+                    loading: false, 
+                    data: data.data, 
+                    error: null 
+                });
+
+                cargarDatosEnFormulario(data.data.estudio);
+            } else {
+                console.log('No se encontraron estudios para esta institución');
+                setInstitucionData({ 
+                    loading: false, 
+                    data: null, 
+                    error: data.message || 'No se encontraron estudios' 
+                });
+            }
+        } catch (error) {
+            console.error('Error al obtener datos de la institución:', error);
+            setInstitucionData({ 
+                loading: false, 
+                data: null, 
+                error: 'Error de conexión' 
+            });
+        }
+    };
+
+    // Función para cargar los datos en el formulario
+    const cargarDatosEnFormulario = (estudioData: any): void => {
+        const form = formRef.current;
+        if (!form || !estudioData) return;
+
+        // Mapeo de campos del estudio a campos del formulario
+        const camposACargar: Record<string, string | undefined> = {
+            'MUESTRA_DIRECCION': estudioData.MUESTRA_DIRECCION,
+            'MUESTRA_NUMERO_EXT': estudioData.MUESTRA_NUMERO_EXT,
+            'MUESTRA_NUMERO_INT': estudioData.MUESTRA_NUMERO_INT,
+            'MUESTRA_MUNICIPIO': estudioData.MUESTRA_MUNICIPIO,
+            'MUESTRA_COLONIA': estudioData.MUESTRA_COLONIA,
+            'MUESTRA_ESTADO': estudioData.MUESTRA_ESTADO,
+            'MUESTRA_ENVIO_TIPO': estudioData.MUESTRA_ENVIO_TIPO,
+            'MUESTRA_CODIGO_POSTAL': estudioData.MUESTRA_CODIGO_POSTAL,
+            'MUESTRA_HORARIOS': estudioData.MUESTRA_HORARIOS
+        };
+
+        // Cargar cada campo en el formulario
+        Object.entries(camposACargar).forEach(([nombreCampo, valor]) => {
+            const campo = form.querySelector(`[name="${nombreCampo}"]`) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+            if (campo && valor) {
+                campo.value = valor;
+            }
+        });
+
+        console.log('Datos cargados en el formulario desde el último estudio');
+    };
 
     // Función para obtener todos los valores del formulario
     const getFormData = useCallback(() => {
@@ -71,7 +212,7 @@ export default function EditRecoleccionOptimized() {
     }, []);
 
     // Manejar cambios en campos dependientes
-    const handleDependentFieldChange = useCallback((key: string, value: boolean) => {
+    const handleDependentFieldChange = useCallback((key: string, value: boolean | number) => {
         setDependentFields(prev => ({
             ...prev,
             [key]: value
@@ -146,6 +287,33 @@ export default function EditRecoleccionOptimized() {
         new Date(estudio.FECHA_SOLICITUD_RECOLECCION).toISOString().split('T')[0] : '';
     const horaInicial = estudio.FECHA_SOLICITUD_RECOLECCION ? 
         new Date(estudio.FECHA_SOLICITUD_RECOLECCION).toTimeString().slice(0, 5) : '';
+
+    // Inicializar buscadores con valores actuales
+    useEffect(() => {
+        // Inicializar médico
+        if (estudio.ID_MEDICO) {
+            const medico = medicos.find(m => m.ID_USUARIO === estudio.ID_MEDICO);
+            if (medico) {
+                setMedicoSearch({
+                    isOpen: false,
+                    searchText: `${medico.USUARIO_NOMBRE} ${medico.USUARIO_APELLIDOS}`,
+                    selectedMedico: medico
+                });
+            }
+        }
+
+        // Inicializar institución
+        if (estudio.ID_INSTITUCION) {
+            const institucion = instituciones.find(i => i.ID_INSTITUCION === estudio.ID_INSTITUCION);
+            if (institucion) {
+                setInstitucionSearch({
+                    isOpen: false,
+                    searchText: institucion.INSTITUCION_NOMBRE,
+                    selectedInstitucion: institucion
+                });
+            }
+        }
+    }, [estudio, medicos, instituciones]);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -278,49 +446,152 @@ export default function EditRecoleccionOptimized() {
                                 </div>
                             </div>
 
-                            {/* Institución */}
-                            <div className="bg-white rounded-lg p-6 shadow-sm">
-                                <h3 className="text-lg font-semibold mb-4">Institución</h3>
-                                
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Cambiar Institución
-                                    </label>
-                                    <select
-                                        name="ID_INSTITUCION"
-                                        defaultValue={estudio.ID_INSTITUCION || ''}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
-                                    >
-                                        <option value="">Seleccionar institución</option>
-                                        {instituciones.map((institucion: any) => (
-                                            <option key={institucion.ID_INSTITUCION} value={institucion.ID_INSTITUCION}>
-                                                {institucion.INSTITUCION_NOMBRE}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* Médico */}
+                            {/* Médico con Buscador */}
                             <div className="bg-white rounded-lg p-6 shadow-sm">
                                 <h3 className="text-lg font-semibold mb-4">Médico</h3>
                                 
-                                <div>
+                                <div className="relative">
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Cambiar Médico
                                     </label>
-                                    <select
-                                        name="ID_MEDICO"
-                                        defaultValue={estudio.ID_MEDICO || ''}
+                                    <input
+                                        type="text"
+                                        value={medicoSearch.searchText}
+                                        onChange={(e) => {
+                                            setMedicoSearch({
+                                                ...medicoSearch,
+                                                searchText: e.target.value,
+                                                isOpen: true
+                                            });
+                                        }}
+                                        onFocus={() => setMedicoSearch({...medicoSearch, isOpen: true})}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
-                                    >
-                                        <option value="">Seleccionar médico</option>
-                                        {medicos.map((medico: any) => (
-                                            <option key={medico.ID_USUARIO} value={medico.ID_USUARIO}>
-                                                {medico.USUARIO_NOMBRE} {medico.USUARIO_APELLIDOS}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        placeholder="Buscar médico..."
+                                    />
+                                    
+                                    {/* Lista desplegable */}
+                                    {medicoSearch.isOpen && (
+                                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                            {/* Médicos filtrados */}
+                                            {medicos
+                                                .filter(medico => 
+                                                    `${medico.USUARIO_NOMBRE} ${medico.USUARIO_APELLIDOS}`
+                                                        .toLowerCase()
+                                                        .includes(medicoSearch.searchText.toLowerCase())
+                                                )
+                                                .map(medico => (
+                                                    <div
+                                                        key={medico.ID_USUARIO}
+                                                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                                                        onClick={() => {
+                                                            setMedicoSearch({
+                                                                isOpen: false,
+                                                                searchText: `${medico.USUARIO_NOMBRE} ${medico.USUARIO_APELLIDOS}`,
+                                                                selectedMedico: medico
+                                                            });
+                                                            handleDependentFieldChange('IdMedico', medico.ID_USUARIO);
+                                                        }}
+                                                    >
+                                                        {medico.USUARIO_NOMBRE} {medico.USUARIO_APELLIDOS}
+                                                    </div>
+                                                ))
+                                            }
+                                            
+                                            {/* Mensaje si no hay resultados */}
+                                            {medicos.filter(medico => 
+                                                `${medico.USUARIO_NOMBRE} ${medico.USUARIO_APELLIDOS}`
+                                                    .toLowerCase()
+                                                    .includes(medicoSearch.searchText.toLowerCase())
+                                            ).length === 0 && medicoSearch.searchText && (
+                                                <div className="px-3 py-2 text-gray-500 italic">
+                                                    No se encontraron médicos
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    
+                                    {/* Input hidden para el formulario */}
+                                    <input
+                                        type="hidden"
+                                        name="ID_MEDICO"
+                                        value={dependentFields.IdMedico}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Institución con Buscador */}
+                            <div className="bg-white rounded-lg p-6 shadow-sm">
+                                <h3 className="text-lg font-semibold mb-4">Institución</h3>
+                                
+                                <div className="relative">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Cambiar Institución
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={institucionSearch.searchText}
+                                        onChange={(e) => {
+                                            setInstitucionSearch({
+                                                ...institucionSearch,
+                                                searchText: e.target.value,
+                                                isOpen: true
+                                            });
+                                        }}
+                                        onFocus={() => setInstitucionSearch({...institucionSearch, isOpen: true})}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                        placeholder="Buscar institución..."
+                                    />
+                                    
+                                    {/* Lista desplegable */}
+                                    {institucionSearch.isOpen && (
+                                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                            {/* Instituciones filtradas */}
+                                            {instituciones
+                                                .filter(inst => 
+                                                    inst.INSTITUCION_NOMBRE
+                                                        .toLowerCase()
+                                                        .includes(institucionSearch.searchText.toLowerCase())
+                                                )
+                                                .map(inst => (
+                                                    <div
+                                                        key={inst.ID_INSTITUCION}
+                                                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                                                        onClick={async () => {
+                                                            setInstitucionSearch({
+                                                                isOpen: false,
+                                                                searchText: inst.INSTITUCION_NOMBRE,
+                                                                selectedInstitucion: inst
+                                                            });
+                                                            handleDependentFieldChange('IdInstitucion', inst.ID_INSTITUCION);
+                                                            
+                                                            // Hacer fetch de los datos del último estudio
+                                                            await fetchUltimoEstudioInstitucion(inst.ID_INSTITUCION);
+                                                        }}
+                                                    >
+                                                        {inst.INSTITUCION_NOMBRE}
+                                                    </div>
+                                                ))
+                                            }
+                                            
+                                            {/* Mensaje si no hay resultados */}
+                                            {instituciones.filter(inst => 
+                                                inst.INSTITUCION_NOMBRE
+                                                    .toLowerCase()
+                                                    .includes(institucionSearch.searchText.toLowerCase())
+                                            ).length === 0 && institucionSearch.searchText && (
+                                                <div className="px-3 py-2 text-gray-500 italic">
+                                                    No se encontraron instituciones
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    
+                                    {/* Input hidden para el formulario */}
+                                    <input
+                                        type="hidden"
+                                        name="ID_INSTITUCION"
+                                        value={dependentFields.IdInstitucion}
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -328,7 +599,31 @@ export default function EditRecoleccionOptimized() {
                         {/* Columna Derecha - Dirección de Recolección */}
                         <div className="space-y-6">
                             <div className="bg-white rounded-lg p-6 shadow-sm">
-                                <h3 className="text-lg font-semibold mb-4">Dirección de Recolección</h3>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-semibold">Dirección de Recolección</h3>
+                                    
+                                    {/* Indicador de carga */}
+                                    {institucionData.loading && (
+                                        <div className="flex items-center text-sm text-blue-600">
+                                            <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full mr-2"></div>
+                                            Cargando datos...
+                                        </div>
+                                    )}
+                                    
+                                    {/* Mensaje de éxito */}
+                                    {institucionData.data && !institucionData.loading && (
+                                        <div className="text-sm text-green-600">
+                                            ✓ Datos cargados del último estudio
+                                        </div>
+                                    )}
+                                    
+                                    {/* Mensaje de error o no encontrado */}
+                                    {institucionData.error && !institucionData.loading && (
+                                        <div className="text-sm text-gray-500">
+                                            {institucionData.error}
+                                        </div>
+                                    )}
+                                </div>
                                 
                                 {/* Checkbox No Aplica */}
                                 <div className="mb-4">
@@ -597,6 +892,16 @@ export default function EditRecoleccionOptimized() {
                         </div>
                     </div>
                 </form>
+
+                {/* Eventos para cerrar búsquedas */}
+                <div 
+                    className={medicoSearch.isOpen ? "fixed inset-0 z-0" : "hidden"}
+                    onClick={() => setMedicoSearch({...medicoSearch, isOpen: false})}
+                ></div>
+                <div 
+                    className={institucionSearch.isOpen ? "fixed inset-0 z-0" : "hidden"}
+                    onClick={() => setInstitucionSearch({...institucionSearch, isOpen: false})}
+                ></div>
             </div>
         </AppLayout>
     );
