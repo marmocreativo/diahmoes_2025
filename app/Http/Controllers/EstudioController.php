@@ -351,12 +351,18 @@ class EstudioController extends Controller
     private function manejarNuevaInstitucion(Request $request)
     {
         if ($request->IdInstitucion == 0 && $request->NombreInstitucion) {
+            \Log::info('🏥 Creando nueva institución');
+            
             $institucion = new Institucion();
+            
+            // Campos obligatorios con valores por defecto
             $institucion->INSTITUCION_NOMBRE = $request->NombreInstitucion;
-            $institucion->INSTITUCION_CORREO = $request->CorreoInstitucion;
-            $institucion->INSTITUCION_TELEFONO = $request->TelefonoInstitucion;
+            $institucion->INSTITUCION_CORREO = $request->CorreoInstitucion ?: 'pendiente@institucion.com';
+            $institucion->INSTITUCION_TELEFONO = $request->TelefonoInstitucion ?: 'Sin teléfono';
             $institucion->INSTITUCION_RFC = 'PENDIENTE';
             $institucion->INSTITUCION_RAZON_SOCIAL = $request->NombreInstitucion;
+            
+            // Campos opcionales (pueden ser vacíos)
             $institucion->INSTITUCION_DIRECCION = '';
             $institucion->INSTITUCION_NUMERO_EXT = '';
             $institucion->INSTITUCION_NUMERO_INT = '';
@@ -365,8 +371,13 @@ class EstudioController extends Controller
             $institucion->INSTITUCION_CIUDAD = '';
             $institucion->INSTITUCION_ESTADO = '';
             $institucion->INSTITUCION_CODIGO_POSTAL = '';
-            $institucion->INSTITUCION_PIN = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
+            $institucion->INSTITUCION_PIN = rand(1000, 9999);
+            $institucion->FECHA_REGISTRO = now();
+            $institucion->FECHA_ACTUALIZACION = now();
+            
             $institucion->save();
+            
+            \Log::info('✅ Institución creada con ID: ' . $institucion->ID_INSTITUCION);
             
             return $institucion->ID_INSTITUCION;
         }
