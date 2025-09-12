@@ -4,6 +4,8 @@ import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ChevronRight, ChevronLeft, Save, Eye, FileText, FlaskConical } from 'lucide-react';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 import { type BreadcrumbItem } from '@/types';
 
 interface EditLaboratorioProps {
@@ -16,11 +18,30 @@ export default function EditLaboratorioConCondicionales() {
 
     // Referencias para inputs simples - no causan re-renders
     const formRef = useRef<HTMLFormElement>(null);
+
+    // Estado para react Quill
+    const [notasContent, setNotasContent] = useState('');
     
     // Estado para processing y campos que requieren reactividad
     const [processing, setProcessing] = useState(false);
     const [estudiosSeleccionados, setEstudiosSeleccionados] = useState(estudio.R_ESTUDIO_SOLICITADO || '');
     const [adecuadoProcesamiento, setAdecuadoProcesamiento] = useState(estudio.R_ADECUADO_PROCESAMIENTO || '');
+    const [resultadosCompletos, setResultadosCompletos] = useState(estudio.R_COMPLETOS === 'si');
+    const [metodoSeleccionado, setMetodoSeleccionado] = useState(estudio.R_METODO_PROCESO || '');
+
+    // Estados para los estatus mutacionales - NUEVO
+    const [estatusKRAS, setEstatusKRAS] = useState(estudio.R_ESTATUS_KRAS || '');
+    const [estatusNRAS, setEstatusNRAS] = useState(estudio.R_ESTATUS_NRAS || '');
+    const [estatusBRAF, setEstatusBRAF] = useState(estudio.R_ESTATUS_BRAF || '');
+
+    // Configuración React Quill
+    const quillModules = {
+        toolbar: [
+            ['bold', 'italic']
+        ]
+    };
+
+    const quillFormats = ['bold', 'italic'];
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
@@ -29,18 +50,38 @@ export default function EditLaboratorioConCondicionales() {
         { title: 'Laboratorio', href: `/estudios/${estudio.ID}/edit/laboratorio` },
     ];
 
+    // Función para obtener fecha y hora actuales
+    const getCurrentDateTime = () => {
+        const now = new Date();
+        const fecha = now.toISOString().split('T')[0];
+        const hora = now.toTimeString().slice(0, 5);
+        return { fecha, hora };
+    };
+
     // Preparar fechas y horas iniciales
     const fechaRecepcionInicial = estudio.FECHA_RECEPCION_LABORATORIO ? 
         new Date(estudio.FECHA_RECEPCION_LABORATORIO).toISOString().split('T')[0] : '';
     const horaRecepcionInicial = estudio.FECHA_RECEPCION_LABORATORIO ? 
         new Date(estudio.FECHA_RECEPCION_LABORATORIO).toTimeString().slice(0, 5) : '';
-    const fechaResultadosInicial = estudio.FECHA_OBTENCION_RESULTADOS ? 
+    
+    // Para fecha de resultados: usar valores existentes si los hay, o vacío si no están completos
+    const fechaResultadosInicial = (estudio.FECHA_OBTENCION_RESULTADOS && resultadosCompletos) ? 
         new Date(estudio.FECHA_OBTENCION_RESULTADOS).toISOString().split('T')[0] : '';
-    const horaResultadosInicial = estudio.FECHA_OBTENCION_RESULTADOS ? 
+    const horaResultadosInicial = (estudio.FECHA_OBTENCION_RESULTADOS && resultadosCompletos) ? 
         new Date(estudio.FECHA_OBTENCION_RESULTADOS).toTimeString().slice(0, 5) : '';
 
     // LÓGICA CONDICIONAL - Ahora usa estado reactivo para estudiosSeleccionados
     const esSangreTotal = estudio.MUESTRA_TIPO === 'Sangre total';
+
+    const getNotasDefault = () => {
+    let notasDefault = 'La mutación de KRAS como biomarcador en cáncer del tubo digestivo para la administración de agentes anti-EGFR sólo esta avalada en adenocarcinomas primarios de colon y recto, y cuando estos estén en estadio metastásico. Su empleo en otros contextos puede no estar indicado.';
+    
+    if (esSangreTotal) {
+        notasDefault += '\n\nLa determinación de mutaciones en RAS mediante biopsia líquida, dada una menor sensibilidad que la determinación en tejido, no está aún avalada para diagnóstico o como un biomarcador para determinación de recurrencia durante el seguimiento del paciente. La posibilidad de falsos negativos incrementa si no se siguen las recomendaciones sobre el estatus del paciente al momento de la toma de la muestra.';
+    }
+    
+    return notasDefault;
+};
     
     const estudiosIncluyen = (tipoEstudio: string) => {
         return estudiosSeleccionados.includes(tipoEstudio);
@@ -50,32 +91,131 @@ export default function EditLaboratorioConCondicionales() {
     const mostrarNRAS = estudiosIncluyen('N-RAS');
     const mostrarBRAF = estudiosIncluyen('B-RAF');
     
-    const mostrarOtroMetodo = !['PCR en tiempo real, Biopsia líquida, Sistema IDYLLA Biocartis', 'PCR en tiempo real, FFPE sistema, IDYLLA Biocartis'].includes(estudio.R_METODO_PROCESO || '');
+    // Determinar método por defecto según tipo de muestra
+    const metodoDefecto = esSangreTotal 
+        ? 'PCR en tiempo real, Biopsia líquida, Sistema IDYLLA Biocartis'
+        : 'PCR en tiempo real, FFPE sistema, IDYLLA Biocartis';
+    
+    // Inicializar método si está vacío
+    useEffect(() => {
+        if (!metodoSeleccionado) {
+            setMetodoSeleccionado(metodoDefecto);
+        }
+    }, [metodoDefecto, metodoSeleccionado]);
+    
+    const mostrarOtroMetodo = metodoSeleccionado === 'Otro';
     
     const mostrarCondicionPresencia = estudio.MUESTRA_LIQ_CONDICION === 'condiciones inadecuadas por la presencia de ';
     
     // Mostrar razón de procesamiento si el valor es subóptima, inadecuada o no es procesable
-    const mostrarRazonProcesamiento = ['subóptima', 'inadecuada', 'no es procesable'].includes(adecuadoProcesamiento);
+    const mostrarRazonProcesamiento = ['subóptima', 'inadecuada'].includes(adecuadoProcesamiento);
 
-    // Debug: Verificar valores de la base de datos
+    // NUEVA LÓGICA - Funciones para determinar qué opciones están habilitadas en los genotipos
+    const getGenotipoOptions = (estatus: string) => {
+        const baseOptions = [
+            { value: 'NO PROCESABLE', label: 'NO PROCESABLE' },
+            { value: 'NO APLICA', label: 'NO APLICA' },
+            { value: 'INVALIDO', label: 'INVALIDO' },
+            { value: 'NINGUNA', label: 'NINGUNA' }
+        ];
+
+        switch (estatus) {
+            case 'NO APLICA':
+                return baseOptions.map(opt => ({...opt, disabled: opt.value !== 'NO APLICA'}));
+            case 'NO PROCESABLE':
+                return baseOptions.map(opt => ({...opt, disabled: opt.value !== 'NO PROCESABLE'}));
+            case 'INVALIDO':
+                return baseOptions.map(opt => ({...opt, disabled: opt.value !== 'INVALIDO'}));
+            case 'NO MUTADO':
+            case 'NO MUTADO (VER NOTAS)':
+                return baseOptions.map(opt => ({...opt, disabled: opt.value !== 'NINGUNA'}));
+            case 'MUTADO':
+            case 'MUTADO (VER NOTAS)':
+                // Para mutado, habilitar todas las opciones incluidos los genes
+                return baseOptions.map(opt => ({...opt, disabled: false}));
+            default:
+                // Si no hay estatus seleccionado, todo disabled
+                return baseOptions.map(opt => ({...opt, disabled: true}));
+        }
+    };
+
+    // Opciones específicas de genes para cada tipo
+    const getKRASGeneOptions = () => [
+        { value: "G12C (c.34G>T)", label: "G12C (c.34G>T)" },
+        { value: "G12R (c.34G>C)", label: "G12R (c.34G>C)" },
+        { value: "G12S (c.34G>A)", label: "G12S (c.34G>A)" },
+        { value: "G12A (c.35G>C)", label: "G12A (c.35G>C)" },
+        { value: "G12D (c.35G>A)", label: "G12D (c.35G>A)" },
+        { value: "G12V (c.35G>T)", label: "G12V (c.35G>T)" },
+        { value: "G13D (c.38G>A)", label: "G13D (c.38G>A)" },
+        { value: "A59E (c.176C>A)", label: "A59E (c.176C>A)" },
+        { value: "A59G (c.176C>G)", label: "A59G (c.176C>G)" },
+        { value: "A59T (c.175G>A)", label: "A59T (c.175G>A)" },
+        { value: "A59T/E/G (c.175G>A / c.176C>A / c.176C>G)", label: "A59T/E/G (c.175G>A / c.176C>A / c.176C>G)" },
+        { value: "Q61K (c.181C>A; c.180_181TC>AA)", label: "Q61K (c.181C>A; c.180_181TC>AA)" },
+        { value: "Q61L (c.182A>T)", label: "Q61L (c.182A>T)" },
+        { value: "Q61R (c.182A>G)", label: "Q61R (c.182A>G)" },
+        { value: "Q61R/L (c.182A>G / c.182A>T)", label: "Q61R/L (c.182A>G / c.182A>T)" },
+        { value: "Q61H (c.183A>C; c.183A>T)", label: "Q61H (c.183A>C; c.183A>T)" },
+        { value: "K117N (c.351A>C; c.351A>T)", label: "K117N (c.351A>C; c.351A>T)" },
+        { value: "A146P (c.436G>C)", label: "A146P (c.436G>C)" },
+        { value: "A146T (c.436G>A)", label: "A146T (c.436G>A)" },
+        { value: "A146P/T/V (c.436G>C / c.436G>A / c.437C>T)", label: "A146P/T/V (c.436G>C / c.436G>A / c.437C>T)" }
+    ];
+
+    const getNRASGeneOptions = () => [
+        { value: "G12C (c.34G>T)", label: "G12C (c.34G>T)" },
+        { value: "G12S (c.34G>A)", label: "G12S (c.34G>A)" },
+        { value: "G12A (c.35G>C)", label: "G12A (c.35G>C)" },
+        { value: "G12A (c.35G>C) / G12V (c.35G>T)", label: "G12A (c.35G>C) / G12V (c.35G>T)" },
+        { value: "G12D (c.35G>A)", label: "G12D (c.35G>A)" },
+        { value: "G12V (c.35G>T)", label: "G12V (c.35G>T)" },
+        { value: "G13D (c.38G>A)", label: "G13D (c.38G>A)" },
+        { value: "G13V (c.38G>T)", label: "G13V (c.38G>T)" },
+        { value: "G13R (c.37G>C)", label: "G13R (c.37G>C)" },
+        { value: "G13R/V (c.37G>C / c.38G>T)", label: "G13R/V (c.37G>C / c.38G>T)" },
+        { value: "A59T (c.175G>A)", label: "A59T (c.175G>A)" },
+        { value: "Q61K (c.181C>A)", label: "Q61K (c.181C>A)" },
+        { value: "Q61L (c.182A>T)", label: "Q61L (c.182A>T)" },
+        { value: "Q61R (c.182A>G)", label: "Q61R (c.182A>G)" },
+        { value: "Q61R/K (c.182A>G / c.181C>A)", label: "Q61R/K (c.182A>G / c.181C>A)" },
+        { value: "Q61H (c.183A>C; c.183A>T)", label: "Q61H (c.183A>C; c.183A>T)" },
+        { value: "K117N (c.351G>C; c.351G>T)", label: "K117N (c.351G>C; c.351G>T)" },
+        { value: "A146V (c.437C>T)", label: "A146V (c.437C>T)" },
+        { value: "A146T (c.436G>A)", label: "A146T (c.436G>A)" }
+    ];
+
+    const getBRAFGeneOptions = () => [
+        { value: "V600D (c.1799_1800delinsAT; c.1799_1800delinsAC)", label: "V600D (c.1799_1800delinsAT; c.1799_1800delinsAC)" },
+        { value: "V600E (c.1799T>A)", label: "V600E (c.1799T>A)" },
+        { value: "V600E/D (c.1799T>A; c.1799_1800delinsAA; c.1799_1800delinsAC)", label: "V600E/D (c.1799T>A; c.1799_1800delinsAA; c.1799_1800delinsAC)" },
+        { value: "V600E2 (c.1799_1800delinsAA)", label: "V600E2 (c.1799_1800delinsAA)" },
+        { value: "V600K (c.1798_1799delinsAA)", label: "V600K (c.1798_1799delinsAA)" },
+        { value: "V600K/R (c.1798_1799delinsAA / c.1798_1799delinsAG)", label: "V600K/R (c.1798_1799delinsAA / c.1798_1799delinsAG)" },
+        { value: "V600M (c.1798G>A)", label: "V600M(c.1798G>A)" },
+        { value: "V600R (c.1798_1799delinsAG)", label: "V600R (c.1798_1799delinsAG)" }
+    ];
+
+    // Función para obtener todas las opciones de genotipo según el estatus
+    const getAllGenotipoOptions = (estatus: string, geneOptions: any[]) => {
+        const baseOptions = getGenotipoOptions(estatus);
+        
+        if (estatus === 'MUTADO' || estatus === 'MUTADO (VER NOTAS)') {
+            return [
+                ...baseOptions,
+                ...geneOptions.map(opt => ({...opt, disabled: false}))
+            ];
+        }
+        
+        return baseOptions;
+    };
+
+    // Inicializar contenido de notas
     useEffect(() => {
-        console.log('=== DEBUG VALORES DE BD ===');
-        console.log('MUESTRA_TIPO:', estudio.MUESTRA_TIPO);
-        console.log('R_ESTUDIO_SOLICITADO:', estudio.R_ESTUDIO_SOLICITADO);
-        console.log('estudiosSeleccionados (estado):', estudiosSeleccionados);
-        console.log('adecuadoProcesamiento (estado):', adecuadoProcesamiento);
-        console.log('R_METODO_PROCESO:', estudio.R_METODO_PROCESO);
-        console.log('MUESTRA_LIQ_CONDICION:', estudio.MUESTRA_LIQ_CONDICION);
-        console.log('R_ADECUADO_PROCESAMIENTO:', estudio.R_ADECUADO_PROCESAMIENTO);
-        console.log('=== DEBUG CONDICIONES ===');
-        console.log('esSangreTotal:', esSangreTotal);
-        console.log('mostrarKRAS:', mostrarKRAS);
-        console.log('mostrarNRAS:', mostrarNRAS);
-        console.log('mostrarBRAF:', mostrarBRAF);
-        console.log('mostrarOtroMetodo:', mostrarOtroMetodo);
-        console.log('mostrarCondicionPresencia:', mostrarCondicionPresencia);
-        console.log('mostrarRazonProcesamiento:', mostrarRazonProcesamiento);
-    }, [estudiosSeleccionados, adecuadoProcesamiento]); // Ahora depende de ambos estados
+        if (!notasContent) {
+            setNotasContent(estudio.ESTUDIO_NOTAS || getNotasDefault());
+        }
+    }, [estudio.ESTUDIO_NOTAS, notasContent]);
 
     // Manejadores de eventos
     const handleEstudioSolicitadoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -90,7 +230,58 @@ export default function EditLaboratorioConCondicionales() {
         setAdecuadoProcesamiento(nuevoValor);
     };
 
-    // Función para obtener datos del formulario (sin usar por ahora)
+    const handleMetodoProcesoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const nuevoMetodo = e.target.value;
+        console.log('🔄 Cambiando método de proceso de:', metodoSeleccionado, 'a:', nuevoMetodo);
+        setMetodoSeleccionado(nuevoMetodo);
+    };
+
+    // NUEVOS MANEJADORES - Para estatus mutacionales
+    const handleEstatusKRASChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const nuevoEstatus = e.target.value;
+        console.log('🔄 Cambiando estatus K-RAS de:', estatusKRAS, 'a:', nuevoEstatus);
+        setEstatusKRAS(nuevoEstatus);
+    };
+
+    const handleEstatusNRASChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const nuevoEstatus = e.target.value;
+        console.log('🔄 Cambiando estatus N-RAS de:', estatusNRAS, 'a:', nuevoEstatus);
+        setEstatusNRAS(nuevoEstatus);
+    };
+
+    const handleEstatusBRAFChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const nuevoEstatus = e.target.value;
+        console.log('🔄 Cambiando estatus B-RAF de:', estatusBRAF, 'a:', nuevoEstatus);
+        setEstatusBRAF(nuevoEstatus);
+    };
+
+    const handleResultadosCompletosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const isChecked = e.target.checked;
+        setResultadosCompletos(isChecked);
+        
+        // Si se marca como completo, establecer fecha y hora actuales
+        if (isChecked) {
+            const { fecha, hora } = getCurrentDateTime();
+            const form = formRef.current;
+            if (form) {
+                const fechaInput = form.querySelector('[name="FECHA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
+                const horaInput = form.querySelector('[name="HORA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
+                if (fechaInput) fechaInput.value = fecha;
+                if (horaInput) horaInput.value = hora;
+            }
+        } else {
+            // Si se desmarca, limpiar los campos
+            const form = formRef.current;
+            if (form) {
+                const fechaInput = form.querySelector('[name="FECHA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
+                const horaInput = form.querySelector('[name="HORA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
+                if (fechaInput) fechaInput.value = '';
+                if (horaInput) horaInput.value = '';
+            }
+        }
+    };
+
+    // Función para obtener datos del formulario
     const getFormData = useCallback(() => {
         if (!formRef.current) return {};
         
@@ -102,11 +293,27 @@ export default function EditLaboratorioConCondicionales() {
         });
 
         // Manejar checkbox R_COMPLETOS específicamente
-        const checkbox = formRef.current.querySelector('input[name="R_COMPLETOS"]') as HTMLInputElement;
-        data.R_COMPLETOS = checkbox?.checked ? 'si' : 'no';
+        data.R_COMPLETOS = resultadosCompletos ? 'si' : 'no';
+
+        // Agregar contenido de notas desde React Quill
+        data.ESTUDIO_NOTAS = notasContent;
+
+
+        // Si resultados no están completos, enviar null para las fechas
+        if (!resultadosCompletos) {
+            data.FECHA_OBTENCION_RESULTADOS = null;
+            data.HORA_OBTENCION_RESULTADOS = null;
+        }
+
+        // Combinar fecha y hora de recepción en laboratorio
+        const fechaRecepcion = data.FECHA_RECEPCION_LABORATORIO;
+        const horaRecepcion = data.HORA_RECEPCION_LABORATORIO;
+        if (fechaRecepcion && horaRecepcion) {
+            data.FECHA_RECEPCION_LABORATORIO = fechaRecepcion + ' ' + horaRecepcion + ':00';
+        }
 
         return data;
-    }, []);
+    }, [resultadosCompletos]);
 
     // Clases CSS compartidas
     const inputClass = "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent";
@@ -196,31 +403,38 @@ export default function EditLaboratorioConCondicionales() {
                             
                             <div>
                                 <h4 className="font-medium mb-4">Obtención de Resultados</h4>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className={`grid grid-cols-2 gap-4 transition-opacity duration-200 ${!resultadosCompletos ? 'opacity-50 pointer-events-none' : ''}`}>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Fecha
+                                            Fecha {!resultadosCompletos && '(Oculto)'}
                                         </label>
                                         <input
                                             type="date"
                                             name="FECHA_OBTENCION_RESULTADOS"
                                             defaultValue={fechaResultadosInicial}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                            disabled={!resultadosCompletos}
+                                            className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent ${!resultadosCompletos ? 'bg-gray-100' : ''}`}
                                         />
                                     </div>
                                     
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Hora
+                                            Hora {!resultadosCompletos && '(Oculto)'}
                                         </label>
                                         <input
                                             type="time"
                                             name="HORA_OBTENCION_RESULTADOS"
                                             defaultValue={horaResultadosInicial}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                            disabled={!resultadosCompletos}
+                                            className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent ${!resultadosCompletos ? 'bg-gray-100' : ''}`}
                                         />
                                     </div>
                                 </div>
+                                {!resultadosCompletos && (
+                                    <p className="text-sm text-gray-500 mt-2">
+                                        Los campos de fecha y hora se habilitarán al marcar "Resultados Completos"
+                                    </p>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -258,9 +472,9 @@ export default function EditLaboratorioConCondicionales() {
                                     <select
                                         name="R_METODO_PROCESO"
                                         className={selectClass}
-                                        defaultValue={estudio.R_METODO_PROCESO || ''}
+                                        value={metodoSeleccionado}
+                                        onChange={handleMetodoProcesoChange}
                                     >
-                                        <option value="">Otro</option>
                                         {esSangreTotal ? (
                                             <option value="PCR en tiempo real, Biopsia líquida, Sistema IDYLLA Biocartis">
                                                 PCR en tiempo real, Biopsia líquida, Sistema IDYLLA Biocartis
@@ -270,6 +484,7 @@ export default function EditLaboratorioConCondicionales() {
                                                 PCR en tiempo real, FFPE sistema, IDYLLA Biocartis
                                             </option>
                                         )}
+                                        <option value="Otro">Otro</option>
                                     </select>
                                 </div>
 
@@ -455,7 +670,8 @@ export default function EditLaboratorioConCondicionales() {
                                                 <select
                                                     name="R_ESTATUS_KRAS"
                                                     className={selectClass}
-                                                    defaultValue={estudio.R_ESTATUS_KRAS || ''}
+                                                    value={estatusKRAS}
+                                                    onChange={handleEstatusKRASChange}
                                                 >
                                                     <option value="">Selecciona</option>
                                                     <option value="NO MUTADO">NO MUTADO</option>
@@ -474,11 +690,17 @@ export default function EditLaboratorioConCondicionales() {
                                                     className={selectClass}
                                                     defaultValue={estudio.R_GENOTIPO_KRAS || ''}
                                                 >
-                                                    <option value="">Selecciona</option>
-                                                    <option value="NINGUNA">NINGUNA</option>
-                                                    <option value="G12C (c.34G&gt;T)">G12C (c.34G&gt;T)</option>
-                                                    <option value="G12D (c.35G&gt;A)">G12D (c.35G&gt;A)</option>
-                                                    <option value="G12V (c.35G&gt;T)">G12V (c.35G&gt;T)</option>
+                                                    <option value=""></option>
+                                                    {getAllGenotipoOptions(estatusKRAS, getKRASGeneOptions()).map((option, index) => (
+                                                        <option 
+                                                            key={index} 
+                                                            value={option.value} 
+                                                            disabled={option.disabled}
+                                                            className={option.disabled ? 'text-gray-400 bg-gray-100' : ''}
+                                                        >
+                                                            {option.label}
+                                                        </option>
+                                                    ))}
                                                 </select>
                                             </div>
                                         </div>
@@ -496,12 +718,17 @@ export default function EditLaboratorioConCondicionales() {
                                                 <select
                                                     name="R_ESTATUS_NRAS"
                                                     className={selectClass}
-                                                    defaultValue={estudio.R_ESTATUS_NRAS || ''}
+                                                    value={estatusNRAS}
+                                                    onChange={handleEstatusNRASChange}
                                                 >
                                                     <option value="">Selecciona</option>
+                                                    <option value="NO APLICA">NO APLICA</option>
                                                     <option value="NO MUTADO">NO MUTADO</option>
+                                                    <option value="NO MUTADO (VER NOTAS)">NO MUTADO (VER NOTAS)</option>
                                                     <option value="MUTADO">MUTADO</option>
+                                                    <option value="MUTADO (VER NOTAS)">MUTADO (VER NOTAS)</option>
                                                     <option value="NO PROCESABLE">NO PROCESABLE</option>
+                                                    <option value="INVALIDO">INVALIDO</option>
                                                 </select>
                                             </div>
 
@@ -512,10 +739,17 @@ export default function EditLaboratorioConCondicionales() {
                                                     className={selectClass}
                                                     defaultValue={estudio.R_GENOTIPO_NRAS || ''}
                                                 >
-                                                    <option value="">Selecciona</option>
-                                                    <option value="NINGUNA">NINGUNA</option>
-                                                    <option value="G12C (c.34G&gt;T)">G12C (c.34G&gt;T)</option>
-                                                    <option value="G12D (c.35G&gt;A)">G12D (c.35G&gt;A)</option>
+                                                    <option value=""></option>
+                                                    {getAllGenotipoOptions(estatusNRAS, getNRASGeneOptions()).map((option, index) => (
+                                                        <option 
+                                                            key={index} 
+                                                            value={option.value} 
+                                                            disabled={option.disabled}
+                                                            className={option.disabled ? 'text-gray-400 bg-gray-100' : ''}
+                                                        >
+                                                            {option.label}
+                                                        </option>
+                                                    ))}
                                                 </select>
                                             </div>
                                         </div>
@@ -533,12 +767,17 @@ export default function EditLaboratorioConCondicionales() {
                                                 <select
                                                     name="R_ESTATUS_BRAF"
                                                     className={selectClass}
-                                                    defaultValue={estudio.R_ESTATUS_BRAF || ''}
+                                                    value={estatusBRAF}
+                                                    onChange={handleEstatusBRAFChange}
                                                 >
                                                     <option value="">Selecciona</option>
+                                                    <option value="NO APLICA">NO APLICA</option>
                                                     <option value="NO MUTADO">NO MUTADO</option>
+                                                    <option value="NO MUTADO (VER NOTAS)">NO MUTADO (VER NOTAS)</option>
                                                     <option value="MUTADO">MUTADO</option>
+                                                    <option value="MUTADO (VER NOTAS)">MUTADO (VER NOTAS)</option>
                                                     <option value="NO PROCESABLE">NO PROCESABLE</option>
+                                                    <option value="INVALIDO">INVALIDO</option>
                                                 </select>
                                             </div>
 
@@ -549,9 +788,17 @@ export default function EditLaboratorioConCondicionales() {
                                                     className={selectClass}
                                                     defaultValue={estudio.R_GENOTIPO_BRAF || ''}
                                                 >
-                                                    <option value="">Selecciona</option>
-                                                    <option value="NINGUNA">NINGUNA</option>
-                                                    <option value="V600E (c.1799T&gt;A)">V600E (c.1799T&gt;A)</option>
+                                                    <option value=""></option>
+                                                    {getAllGenotipoOptions(estatusBRAF, getBRAFGeneOptions()).map((option, index) => (
+                                                        <option 
+                                                            key={index} 
+                                                            value={option.value} 
+                                                            disabled={option.disabled}
+                                                            className={option.disabled ? 'text-gray-400 bg-gray-100' : ''}
+                                                        >
+                                                            {option.label}
+                                                        </option>
+                                                    ))}
                                                 </select>
                                             </div>
                                         </div>
@@ -583,13 +830,20 @@ export default function EditLaboratorioConCondicionales() {
                             {/* Notas del estudio */}
                             <div>
                                 <label className={labelClass}>Notas (Visibles en el reporte)</label>
-                                <textarea
-                                    name="ESTUDIO_NOTAS"
-                                    className={textareaClass}
-                                    rows={10}
-                                    defaultValue={estudio.ESTUDIO_NOTAS || 'La mutación de KRAS como biomarcador en cáncer del tubo digestivo para la administración de agentes anti-EGFR sólo esta avalada en adenocarcinomas primarios de colon y recto, y cuando estos estén en estadio metastásico. Su empleo en otros contextos puede no estar indicado.'}
-                                    placeholder="Ingrese las notas del estudio..."
-                                />
+                                <div className="border border-gray-300 rounded-md">
+                                    <ReactQuill
+                                        theme="snow"
+                                        value={notasContent}
+                                        onChange={setNotasContent}
+                                        modules={quillModules}
+                                        formats={quillFormats}
+                                        style={{
+                                            height: '200px',
+                                            marginBottom: '42px'
+                                        }}
+                                        placeholder="Ingrese las notas del estudio..."
+                                    />
+                                </div>
                             </div>
 
                             {/* Comentarios del estudio */}
@@ -605,17 +859,21 @@ export default function EditLaboratorioConCondicionales() {
                             </div>
 
                             {/* Checkbox resultados completos */}
-                            <div className="flex items-center">
+                            <div className="flex items-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                                 <input
                                     type="checkbox"
                                     name="R_COMPLETOS"
                                     id="resultadosCompletos"
                                     className="h-4 w-4 text-[#189BAF] focus:ring-[#189BAF] border-gray-300 rounded"
-                                    defaultChecked={estudio.R_COMPLETOS === 'si'}
+                                    checked={resultadosCompletos}
+                                    onChange={handleResultadosCompletosChange}
                                 />
-                                <label htmlFor="resultadosCompletos" className="ml-2 block text-sm text-gray-900">
+                                <label htmlFor="resultadosCompletos" className="ml-2 block text-sm text-gray-900 font-medium">
                                     Resultados Completos
                                 </label>
+                                <span className="ml-2 text-sm text-gray-600">
+                                    (Al marcar se establecerá la fecha y hora de obtención de resultados)
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -627,10 +885,17 @@ export default function EditLaboratorioConCondicionales() {
                             <p>MUESTRA_TIPO: {estudio.MUESTRA_TIPO || 'null'}</p>
                             <p>R_ESTUDIO_SOLICITADO (BD): {estudio.R_ESTUDIO_SOLICITADO || 'null'}</p>
                             <p>estudiosSeleccionados (estado): {estudiosSeleccionados || 'null'}</p>
+                            <p>metodoSeleccionado (estado): {metodoSeleccionado || 'null'}</p>
+                            <p>resultadosCompletos (estado): {resultadosCompletos ? 'SI' : 'NO'}</p>
                             <p>Es Sangre Total: {esSangreTotal ? 'SI' : 'NO'}</p>
                             <p>Mostrar K-RAS: {mostrarKRAS ? 'SI' : 'NO'}</p>
                             <p>Mostrar N-RAS: {mostrarNRAS ? 'SI' : 'NO'}</p>
                             <p>Mostrar B-RAF: {mostrarBRAF ? 'SI' : 'NO'}</p>
+                            <p>Mostrar Otro Método: {mostrarOtroMetodo ? 'SI' : 'NO'}</p>
+                            <p className="font-bold text-blue-600">== NUEVOS ESTADOS ==</p>
+                            <p>estatusKRAS: {estatusKRAS || 'null'}</p>
+                            <p>estatusNRAS: {estatusNRAS || 'null'}</p>
+                            <p>estatusBRAF: {estatusBRAF || 'null'}</p>
                         </div>
                     </div>
 

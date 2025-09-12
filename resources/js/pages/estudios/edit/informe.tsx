@@ -251,6 +251,32 @@ const enviarCorreos = useCallback(() => {
             }
         } catch (error) {
             console.error('Error enviando correo:', error);
+            // Crear mensaje de error más detallado
+            let mensajeError = 'Error de conexión';
+            
+            if (error instanceof Error) {
+                mensajeError = `Error de conexión: ${error.message}`;
+                
+                // Si hay información adicional en el error
+                if (error.cause) {
+                    mensajeError += ` (Causa: ${error.cause})`;
+                }
+                
+                // Si es un error de red específico
+                if (error.name === 'NetworkError') {
+                    mensajeError = `Error de red: ${error.message}`;
+                } else if (error.name === 'TypeError') {
+                    mensajeError = `Error de tipo: ${error.message}`;
+                } else if (error.name === 'AbortError') {
+                    mensajeError = `Solicitud cancelada: ${error.message}`;
+                }
+            } else if (typeof error === 'string') {
+                mensajeError = `Error de conexión: ${error}`;
+            } else {
+                // Para cualquier otro tipo de error, intentar convertirlo a string
+                mensajeError = `Error de conexión: ${JSON.stringify(error)}`;
+            }
+            
             setModalEnvio(prev => ({
                 ...prev,
                 resultados: prev.resultados.map((resultado, i) => 
@@ -258,7 +284,7 @@ const enviarCorreos = useCallback(() => {
                         ? { 
                             ...resultado, 
                             estado: 'error' as const, 
-                            mensaje: 'Error de conexión' 
+                            mensaje: mensajeError
                         }
                         : resultado
                 )
@@ -648,7 +674,7 @@ const enviarCorreos = useCallback(() => {
             </div>
             {/* Modal de Envío de Correos */}
 {modalEnvio.isOpen && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold">Envío de Correos Electrónicos</h3>

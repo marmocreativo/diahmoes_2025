@@ -1,9 +1,9 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Head, router, usePage, Link } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, ChevronLeft, Save, Eye, FileText, Plus, Trash2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Save, Eye, FileText, Plus, Trash2, ExternalLink, User } from 'lucide-react';
 import { type BreadcrumbItem } from '@/types';
 
 interface EditRecepcionProps {
@@ -21,15 +21,26 @@ interface CorreoCopia {
     ID_ESTUDIO: number;
 }
 
+interface PacienteEncontrado {
+    ID_USUARIO: number;
+    USUARIO_NOMBRE: string;
+    USUARIO_APELLIDOS: string;
+    MUESTRA_EDAD: string;
+    INSTITUCION_NOMBRE: string;
+    FECHA_ULTIMO_ESTUDIO: string;
+    ID_ULTIMO_ESTUDIO: number;
+    CLAVE_INTERNA_ULTIMO: string;
+}
+
 export default function EditRecepcionOptimized() {
     const { estudio, pacientes = [], correosExistentes = [], tiposEnvio } = usePage<EditRecepcionProps>().props;
 
     // Referencias para inputs simples - no causan re-renders
     const formRef = useRef<HTMLFormElement>(null);
+    const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
     
-    // Solo estado mínimo para campos dependientes
+    // Estado mínimo para campos dependientes
     const [dependentFields, setDependentFields] = useState({
-        CrearNuevoPaciente: false,
         mostrarBloques: false,
         mostrarLaminillas: false,
         processing: false,
@@ -46,18 +57,226 @@ export default function EditRecepcionOptimized() {
     );
     const [nuevoCorreo, setNuevoCorreo] = useState({ nombre: '', correo: '' });
 
+    // Estado para búsqueda de pacientes
+    const [nombrePaciente, setNombrePaciente] = useState(estudio.USUARIO_NOMBRE || '');
+    const [apellidosPaciente, setApellidosPaciente] = useState(estudio.USUARIO_APELLIDOS || '');
+    const [pacienteEncontrado, setPacienteEncontrado] = useState<PacienteEncontrado | null>(null);
+    const [buscandoPaciente, setBuscandoPaciente] = useState(false);
+
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
         { title: 'Estudios', href: '/estudios' },
         { title: `${estudio.CLAVE_INTERNA}`, href: `/estudios/${estudio.ID}` },
         { title: 'Recepción', href: `/estudios/${estudio.ID}/edit/recepcion` },
     ];
+// Función para buscar paciente por nombre y apellidos con logs detallados
+const buscarPaciente = useCallback(async (nombre: string, apellidos: string) => {
+    console.log('=== INICIO BÚSQUEDA PACIENTE ===');
+    console.log('Parámetros recibidos:', { 
+        nombre: `"${nombre}"`, 
+        apellidos: `"${apellidos}"`,
+        nombreLength: nombre.length,
+        apellidosLength: apellidos.length,
+        nombreTrimmed: `"${nombre.trim()}"`,
+        apellidosTrimmed: `"${apellidos.trim()}"`,
+        nombreTrimmedLength: nombre.trim().length,
+        apellidosTrimmedLength: apellidos.trim().length
+    });
+    
+    if (!nombre.trim() || !apellidos.trim()) {
+        console.log('BÚSQUEDA CANCELADA: Uno o ambos campos están vacíos');
+        console.log('Condiciones:', {
+            nombreTrimEmpty: !nombre.trim(),
+            apellidosTrimEmpty: !apellidos.trim()
+        });
+        setPacienteEncontrado(null);
+        return;
+    }
 
-    // Preparar fecha y hora iniciales
+    console.log('CONDICIONES CUMPLIDAS - Iniciando búsqueda...');
+    setBuscandoPaciente(true);
+    
+    try {
+        // Obtener CSRF token
+        const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfToken = csrfTokenMeta?.getAttribute('content');
+        
+        console.log('CSRF Token encontrado:', {
+            metaExists: !!csrfTokenMeta,
+            tokenValue: csrfToken ? `"${csrfToken}"` : 'null',
+            tokenLength: csrfToken?.length || 0
+        });
+        
+        // Preparar datos de la petición
+        const requestBody = {
+            nombre: nombre.trim(),
+            apellidos: apellidos.trim(),
+        };
+        
+        console.log('Datos a enviar:', requestBody);
+        
+        // Configurar headers
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken || '',
+        };
+        
+        console.log('Headers configurados:', headers);
+        
+        // URL de la petición
+        const url = '/api/pacientes/buscar';
+        console.log('URL de petición:', url);
+        
+        console.log('=== ENVIANDO PETICIÓN FETCH ===');
+        console.log('Configuración completa:', {
+            url,
+            method: 'POST',
+            headers,
+            body: JSON.stringify(requestBody)
+        });
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(requestBody),
+        });
+
+        console.log('=== RESPUESTA RECIBIDA ===');
+        console.log('Response object:', response);
+        console.log('Response status:', response.status);
+        console.log('Response statusText:', response.statusText);
+        console.log('Response ok:', response.ok);
+        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+        
+        if (response.ok) {
+            console.log('RESPUESTA EXITOSA - Parseando JSON...');
+            
+            try {
+                const data = await response.json();
+                console.log('=== DATOS PARSEADOS ===');
+                console.log('Datos completos recibidos:', data);
+                console.log('Tipo de datos:', typeof data);
+                console.log('Es array:', Array.isArray(data));
+                console.log('Propiedades del objeto:', Object.keys(data));
+                
+                if (data.paciente) {
+                    console.log('PACIENTE ENCONTRADO:');
+                    console.log('Datos del paciente:', data.paciente);
+                    console.log('Propiedades del paciente:', Object.keys(data.paciente));
+                    setPacienteEncontrado(data.paciente);
+                } else {
+                    console.log('NO SE ENCONTRÓ PACIENTE');
+                    console.log('data.paciente es:', data.paciente);
+                    setPacienteEncontrado(null);
+                }
+            } catch (jsonError) {
+                console.error('ERROR AL PARSEAR JSON:', jsonError);
+                console.log('Intentando leer como texto...');
+                
+                // Reiniciar el response para leer como texto
+                const responseClone = response.clone();
+                const responseText = await responseClone.text();
+                console.log('Respuesta como texto:', responseText);
+                setPacienteEncontrado(null);
+            }
+        } else {
+            console.error('=== ERROR EN RESPUESTA ===');
+            console.error('Status code:', response.status);
+            console.error('Status text:', response.statusText);
+            
+            try {
+                const errorText = await response.text();
+                console.error('Cuerpo del error:', errorText);
+                
+                // Intentar parsear como JSON si es posible
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    console.error('Error parseado como JSON:', errorJson);
+                } catch (parseError) {
+                    console.error('El error no es JSON válido');
+                }
+            } catch (textError) {
+                console.error('Error al leer el texto del error:', textError);
+            }
+            
+            setPacienteEncontrado(null);
+        }
+    } catch (error) {
+        
+        // Información adicional sobre el error
+        if (error instanceof TypeError) {
+            console.error('Es un TypeError - probablemente problema de red');
+        }
+        if (error instanceof SyntaxError) {
+            console.error('Es un SyntaxError - probablemente problema de JSON');
+        }
+        
+        setPacienteEncontrado(null);
+    } finally {
+        console.log('=== FINALIZANDO BÚSQUEDA ===');
+        setBuscandoPaciente(false);
+        console.log('Estado buscandoPaciente establecido a false');
+    }
+}, []);
+
+// Efecto para búsqueda automática con debounce - con logs
+useEffect(() => {
+    console.log('=== EFECTO DE BÚSQUEDA EJECUTADO ===');
+    console.log('Valores actuales:', {
+        nombrePaciente: `"${nombrePaciente}"`,
+        apellidosPaciente: `"${apellidosPaciente}"`,
+        timeoutExistente: !!timeoutRef.current
+    });
+    
+    if (timeoutRef.current) {
+        console.log('Limpiando timeout anterior...');
+        clearTimeout(timeoutRef.current);
+    }
+
+    console.log('Configurando nuevo timeout de 500ms...');
+    timeoutRef.current = setTimeout(() => {
+        console.log('TIMEOUT EJECUTADO - Llamando buscarPaciente...');
+        buscarPaciente(nombrePaciente, apellidosPaciente);
+    }, 500);
+
+    return () => {
+        console.log('Cleanup del efecto - limpiando timeout');
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+        }
+    };
+}, [nombrePaciente, apellidosPaciente, buscarPaciente]);
+
+const handleNombreChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    console.log('=== CAMBIO EN NOMBRE ===');
+    console.log('Valor anterior:', `"${nombrePaciente}"`);
+    console.log('Valor nuevo:', `"${newValue}"`);
+    setNombrePaciente(newValue);
+};
+
+const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    console.log('=== CAMBIO EN APELLIDOS ===');
+    console.log('Valor anterior:', `"${apellidosPaciente}"`);
+    console.log('Valor nuevo:', `"${newValue}"`);
+    setApellidosPaciente(newValue);
+};
+
+    // Función para obtener fecha y hora actuales en formato requerido
+    const getCurrentDateTime = () => {
+        const now = new Date();
+        const fecha = now.toISOString().split('T')[0];
+        const hora = now.toTimeString().slice(0, 5);
+        return { fecha, hora };
+    };
+
+    // Preparar fecha y hora iniciales (actuales por defecto o existentes)
+    const { fecha: fechaActual, hora: horaActual } = getCurrentDateTime();
     const fechaInicial = estudio.FECHA_RECEPCION ? 
-        new Date(estudio.FECHA_RECEPCION).toISOString().split('T')[0] : '';
+        new Date(estudio.FECHA_RECEPCION).toISOString().split('T')[0] : fechaActual;
     const horaInicial = estudio.FECHA_RECEPCION ? 
-        new Date(estudio.FECHA_RECEPCION).toTimeString().slice(0, 5) : '';
+        new Date(estudio.FECHA_RECEPCION).toTimeString().slice(0, 5) : horaActual;
 
     // Función para obtener todos los valores del formulario
     const getFormData = useCallback(() => {
@@ -73,7 +292,7 @@ export default function EditRecepcionOptimized() {
             
             // Manejar números
             if (['ID_PACIENTE'].includes(key)) {
-                data[key] = parseInt(stringValue) || null;
+                data[key] = parseInt(stringValue) || 0;
             }
             // Strings normales
             else {
@@ -81,16 +300,9 @@ export default function EditRecepcionOptimized() {
             }
         }
 
-        // Lógica especial para CREAR_NUEVO_PACIENTE basado en el select
-        const selectPaciente = form.querySelector('[name="ID_PACIENTE_SELECT"]') as HTMLSelectElement;
-        data.CREAR_NUEVO_PACIENTE = selectPaciente?.value === 'nuevo';
-
-        // Si es nuevo paciente, no enviar ID_PACIENTE
-        if (data.CREAR_NUEVO_PACIENTE) {
-            data.ID_PACIENTE = null;
-        } else if (selectPaciente?.value && selectPaciente.value !== '') {
-            data.ID_PACIENTE = parseInt(selectPaciente.value);
-        }
+        // Agregar datos del paciente
+        data.NOMBRE_USUARIO = nombrePaciente;
+        data.APELLIDOS_USUARIO = apellidosPaciente;
 
         // Combinar fecha y hora si están presentes
         if (data.FECHA_RECEPCION && data.HORA_RECEPCION) {
@@ -98,7 +310,7 @@ export default function EditRecepcionOptimized() {
         }
 
         return data;
-    }, []);
+    }, [nombrePaciente, apellidosPaciente]);
 
     // Manejar cambios en campos dependientes
     const handleDependentFieldChange = useCallback((key: string, value: boolean | string) => {
@@ -184,16 +396,15 @@ export default function EditRecepcionOptimized() {
     }, [estudio.ID, getFormData, dependentFields.processing]);
 
     const agregarCorreo = useCallback(() => {
-        if (nuevoCorreo.nombre.trim() && nuevoCorreo.correo.trim()) {
+        if (nuevoCorreo.correo.trim()) {
             router.post(`/api/estudios/${estudio.ID}/correos-copia`, {
-                nombre: nuevoCorreo.nombre.trim(),
+                nombre: nuevoCorreo.nombre.trim() || '',
                 correo: nuevoCorreo.correo.trim(),
             }, {
                 onSuccess: () => {
                     setNuevoCorreo({ nombre: '', correo: '' });
-                    // Actualizar lista local - en un caso real recargarías la página
                     setListaCorreos(prev => [...prev, {
-                        NOMBRE: nuevoCorreo.nombre.trim(),
+                        NOMBRE: nuevoCorreo.nombre.trim() || '',
                         CORREO: nuevoCorreo.correo.trim(),
                         ID_ESTUDIO: estudio.ID
                     }]);
@@ -273,6 +484,13 @@ export default function EditRecepcionOptimized() {
                 {/* Formulario Principal - HTML Puro para performance */}
                 <form ref={formRef} onSubmit={(e) => e.preventDefault()}>
                     
+                    {/* Campo oculto para ID_PACIENTE */}
+                    <input
+                        type="hidden"
+                        name="ID_PACIENTE"
+                        value={estudio.ID_PACIENTE || 0}
+                    />
+                    
                     {/* Fecha de Recepción */}
                     <div className="bg-white rounded-lg p-6 shadow-sm mb-6">
                         <h3 className="text-lg font-semibold mb-4">Recepción de la muestra</h3>
@@ -308,111 +526,209 @@ export default function EditRecepcionOptimized() {
                         
                         {/* Columna Izquierda */}
                         <div className="space-y-6">
-                            
-                            {/* Paciente */}
-                            <div className="bg-white rounded-lg p-6 shadow-sm">
-                                <h3 className="text-lg font-semibold mb-4">Paciente</h3>
-                                
-                                <div className="space-y-4">
-                                    {estudio.ID_PACIENTE ? (
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Cambiar Paciente
-                                            </label>
-                                            <select
-                                                name="ID_PACIENTE"
-                                                defaultValue={estudio.ID_PACIENTE}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
-                                            >
-                                                {pacientes.map((paciente: any) => (
-                                                    <option key={paciente.ID_USUARIO} value={paciente.ID_USUARIO}>
-                                                        {paciente.USUARIO_NOMBRE} {paciente.USUARIO_APELLIDOS} ({paciente.USUARIO_CORREO})
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Elije el Paciente
-                                                </label>
-                                                <select
-                                                    name="ID_PACIENTE_SELECT"
-                                                    onChange={(e) => {
-                                                        const isNew = e.target.value === 'nuevo';
-                                                        setDependentFields(prev => ({ ...prev, CrearNuevoPaciente: isNew }));
-                                                    }}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
-                                                    required
-                                                >
-                                                    <option value="">Selecciona un Paciente</option>
-                                                    <option value="nuevo">Nuevo Paciente</option>
-                                                    {pacientes.map((paciente: any) => (
-                                                        <option key={paciente.ID_USUARIO} value={paciente.ID_USUARIO}>
-                                                            {paciente.USUARIO_NOMBRE} {paciente.USUARIO_APELLIDOS}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
 
-                                            {/* Formulario nuevo paciente */}
-                                            {dependentFields.CrearNuevoPaciente && (
-                                                <div className="space-y-4 p-4 bg-gray-50 rounded-md border">
-                                                    <h4 className="font-medium text-gray-800">Nuevo Paciente</h4>
-                                                    
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                            Nombre
-                                                        </label>
-                                                        <input
-                                                            type="text"
-                                                            name="NOMBRE_USUARIO"
-                                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
-                                                            required
-                                                        />
-                                                    </div>
-                                                    
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                            Apellidos
-                                                        </label>
-                                                        <input
-                                                            type="text"
-                                                            name="APELLIDOS_USUARIO"
-                                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
-                                                            required
-                                                        />
-                                                    </div>
-                                                    
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                            Correo
-                                                        </label>
-                                                        <input
-                                                            type="email"
-                                                            name="CORREO_USUARIO"
-                                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
-                                                            required
-                                                        />
-                                                    </div>
-                                                    
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                            Teléfono
-                                                        </label>
-                                                        <input
-                                                            type="text"
-                                                            name="TELEFONO_USUARIO"
-                                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </>
+{/* Paciente */}
+<div className="bg-white rounded-lg p-6 shadow-sm">
+    <h3 className="text-lg font-semibold mb-4">Paciente</h3>
+    
+    <div className="space-y-4">
+                        {/* Mostrar select si ya hay un paciente asignado */}
+        {estudio.ID_PACIENTE && estudio.ID_PACIENTE > 0 ? (
+            <>
+                {/* Selector de pacientes existentes */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Paciente Asignado
+                    </label>
+                    <div className="relative">
+                        <input
+                            type="text"
+                            list="pacientes-list"
+                            name="PACIENTE_SEARCH"
+                            placeholder="Buscar paciente existente..."
+                            defaultValue={(() => {
+                                // Buscar el paciente actual en la lista de pacientes
+                                const pacienteActual = pacientes.find(p => p.ID_USUARIO === estudio.ID_PACIENTE);
+                                return pacienteActual ? `${pacienteActual.USUARIO_NOMBRE} ${pacienteActual.USUARIO_APELLIDOS}` : 
+                                       (estudio.USUARIO_NOMBRE ? `${estudio.USUARIO_NOMBRE} ${estudio.USUARIO_APELLIDOS}` : '');
+                            })()}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                            onChange={(e) => {
+                                // Buscar el paciente seleccionado y actualizar el campo hidden
+                                const pacienteSeleccionado = pacientes.find(p => 
+                                    `${p.USUARIO_NOMBRE} ${p.USUARIO_APELLIDOS}` === e.target.value
+                                );
+                                if (pacienteSeleccionado) {
+                                    // Actualizar el campo hidden
+                                    const hiddenInput = document.querySelector('input[name="ID_PACIENTE"]') as HTMLInputElement;
+                                    if (hiddenInput) {
+                                        hiddenInput.value = pacienteSeleccionado.ID_USUARIO.toString();
+                                    }
+                                    // Actualizar los campos de nombre
+                                    setNombrePaciente(pacienteSeleccionado.USUARIO_NOMBRE);
+                                    setApellidosPaciente(pacienteSeleccionado.USUARIO_APELLIDOS);
+                                } else if (e.target.value === '' || e.target.value === 'Nuevo Paciente') {
+                                    // Si se selecciona "Nuevo Paciente" o se borra el campo
+                                    const hiddenInput = document.querySelector('input[name="ID_PACIENTE"]') as HTMLInputElement;
+                                    if (hiddenInput) {
+                                        hiddenInput.value = '0';
+                                    }
+                                    setNombrePaciente('');
+                                    setApellidosPaciente('');
+                                }
+                            }}
+                        />
+                        <datalist id="pacientes-list">
+                            <option value="">Nuevo Paciente</option>
+                            {pacientes.map((paciente: any) => (
+                                <option 
+                                    key={paciente.ID_USUARIO} 
+                                    value={`${paciente.USUARIO_NOMBRE} ${paciente.USUARIO_APELLIDOS}`}
+                                />
+                            ))}
+                        </datalist>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                        Busca y selecciona un paciente existente o selecciona "Nuevo Paciente" para crear uno nuevo
+                    </p>
+                </div>
+
+                {/* Botón para cambiar a modo "nuevo paciente" */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                        <span className="text-blue-700 text-sm">
+                            ¿Quieres crear un nuevo paciente en lugar de usar uno existente?
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                // Resetear el campo hidden a 0
+                                const hiddenInput = document.querySelector('input[name="ID_PACIENTE"]') as HTMLInputElement;
+                                if (hiddenInput) {
+                                    hiddenInput.value = '0';
+                                }
+                                // Limpiar campos
+                                setNombrePaciente('');
+                                setApellidosPaciente('');
+                                setPacienteEncontrado(null);
+                                // Forzar re-render
+                                window.location.reload();
+                            }}
+                            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                        >
+                            Nuevo Paciente
+                        </button>
+                    </div>
+                </div>
+            </>
+        ) : (
+            <>
+                {/* Campos de nombre y apellidos para nuevo paciente */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Nombre *
+                        </label>
+                        <input
+                            type="text"
+                            value={nombrePaciente}
+                            onChange={handleNombreChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                            required
+                            placeholder="Nombre del paciente"
+                        />
+                    </div>
+                    
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Apellidos *
+                        </label>
+                        <input
+                            type="text"
+                            value={apellidosPaciente}
+                            onChange={handleApellidosChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                            required
+                            placeholder="Apellidos del paciente"
+                        />
+                    </div>
+                </div>
+
+                {/* Indicador de búsqueda */}
+                {buscandoPaciente && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <div className="flex items-center">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                            <span className="text-blue-700 text-sm">Buscando paciente...</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Información del paciente encontrado */}
+                {pacienteEncontrado && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                                <div className="flex items-center mb-2">
+                                    <User className="h-5 w-5 text-green-600 mr-2" />
+                                    <h4 className="font-medium text-green-800">Paciente encontrado</h4>
+                                </div>
+                                
+                                <div className="space-y-1 text-sm text-green-700">
+                                    <p><strong>Nombre:</strong> {pacienteEncontrado.USUARIO_NOMBRE} {pacienteEncontrado.USUARIO_APELLIDOS}</p>
+                                    {pacienteEncontrado.MUESTRA_EDAD && (
+                                        <p><strong>Edad:</strong> {pacienteEncontrado.MUESTRA_EDAD}</p>
                                     )}
+                                    {pacienteEncontrado.INSTITUCION_NOMBRE && (
+                                        <p><strong>Institución:</strong> {pacienteEncontrado.INSTITUCION_NOMBRE}</p>
+                                    )}
+                                    <p><strong>Último estudio:</strong> {new Date(pacienteEncontrado.FECHA_ULTIMO_ESTUDIO).toLocaleDateString()}</p>
+                                    <p><strong>Clave:</strong> {pacienteEncontrado.CLAVE_INTERNA_ULTIMO}</p>
+                                </div>
+                                
+                                <div className="mt-3 flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            // Asignar el paciente encontrado
+                                            const hiddenInput = document.querySelector('input[name="ID_PACIENTE"]') as HTMLInputElement;
+                                            if (hiddenInput) {
+                                                hiddenInput.value = pacienteEncontrado.ID_USUARIO.toString();
+                                            }
+                                            alert('Paciente asignado al estudio');
+                                        }}
+                                        className="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                                    >
+                                        Usar este paciente
+                                    </button>
                                 </div>
                             </div>
+                            
+                            <a
+                                href={`/estudios/${pacienteEncontrado.ID_ULTIMO_ESTUDIO}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ml-3 inline-flex items-center px-3 py-1.5 border border-green-300 text-sm font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                            >
+                                Ver estudio
+                                <ExternalLink className="ml-1 h-4 w-4" />
+                            </a>
+                        </div>
+                    </div>
+                )}
+
+                {/* Mensaje cuando no se encuentra paciente */}
+                {!buscandoPaciente && nombrePaciente.trim() && apellidosPaciente.trim() && !pacienteEncontrado && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        <p className="text-yellow-800 text-sm">
+                            No se encontró un paciente con este nombre. Se creará un nuevo registro.
+                        </p>
+                    </div>
+                )}
+            </>
+        )}
+    </div>
+</div>
 
                             {/* Lista de Correos */}
                             <div className="bg-white rounded-lg p-6 shadow-sm">
@@ -426,7 +742,7 @@ export default function EditRecepcionOptimized() {
                                             <input
                                                 type="text"
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
-                                                placeholder="Nombre Completo"
+                                                placeholder="Nombre Completo (Opcional)"
                                                 value={nuevoCorreo.nombre}
                                                 onChange={(e) => setNuevoCorreo(prev => ({...prev, nombre: e.target.value}))}
                                             />
@@ -435,16 +751,17 @@ export default function EditRecepcionOptimized() {
                                             <input
                                                 type="email"
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
-                                                placeholder="Correo"
+                                                placeholder="Correo *"
                                                 value={nuevoCorreo.correo}
                                                 onChange={(e) => setNuevoCorreo(prev => ({...prev, correo: e.target.value}))}
+                                                required
                                             />
                                         </div>
                                         <button
                                             type="button"
                                             onClick={agregarCorreo}
                                             className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center justify-center disabled:bg-gray-300 disabled:cursor-not-allowed"
-                                            disabled={!nuevoCorreo.nombre.trim() || !nuevoCorreo.correo.trim()}
+                                            disabled={!nuevoCorreo.correo.trim()}
                                         >
                                             <Plus className="h-4 w-4" />
                                         </button>
@@ -465,7 +782,7 @@ export default function EditRecepcionOptimized() {
                                                 className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                                             >
                                                 <div>
-                                                    <p className="font-medium">{correo.NOMBRE}</p>
+                                                    <p className="font-medium">{correo.NOMBRE || 'Sin nombre'}</p>
                                                     <p className="text-sm text-gray-600">{correo.CORREO}</p>
                                                 </div>
                                                 <button

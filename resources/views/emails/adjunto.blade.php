@@ -57,6 +57,7 @@
         font-weight: bold;
         color: #189BAF;
         margin: 15px 0;
+        font-size: 16px;
       }
       
       .attachment-box {
@@ -77,6 +78,7 @@
         color: #27ae60;
         font-weight: bold;
         margin-bottom: 5px;
+        font-size: 16px;
       }
       
       .link-section {
@@ -85,6 +87,7 @@
         border-radius: 5px;
         margin: 20px 0;
         font-size: 12px;
+        border-left: 4px solid #189BAF;
       }
       
       .link-text {
@@ -95,6 +98,16 @@
         border: 1px solid #ddd;
         font-family: monospace;
         color: #666;
+        font-size: 10px;
+      }
+      
+      .security-note {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 12px;
+        margin: 20px 0;
+        border-radius: 4px;
+        text-align: left;
       }
       
       .footer {
@@ -121,36 +134,45 @@
         <!-- Header -->
         <div class="header">
             <img src="{{ asset('assets/logo.png') }}" alt="DIAHMOES" class="logo">
-            <h2 style="margin: 0; font-size: 18px;">Reporte Adjunto</h2>
+            <h2 style="margin: 0; font-size: 18px;">Resultados en Archivo Adjunto</h2>
         </div>
         
         <!-- Content -->
         <div class="content">
-            <h1>Su reporte está adjunto</h1>
+            <h1>Estimado Doctor/a</h1>
             
             <div class="folio">
-                Reporte {{ $info['FOLIO'] }}
+                Estudio {{ $info['FOLIO'] }}
             </div>
             
-            <p>Su análisis genético se encuentra adjunto a este correo electrónico.</p>
+            <p>Los resultados del análisis genético molecular se encuentran disponibles en el archivo PDF adjunto a este correo electrónico.</p>
             
             <!-- Attachment Indicator -->
             <div class="attachment-box">
-                <div class="attachment-title">Archivo Adjunto a este correo</div>
+                <div class="attachment-icon">📎</div>
+                <div class="attachment-title">Archivo PDF Adjunto</div>
                 <p style="margin: 0; font-size: 14px; color: #666;">
-                    El reporte se encuentra en formato PDF
+                    DIAHMOES_{{ $info['FOLIO'] }}.pdf
                 </p>
+                <p style="margin: 5px 0 0 0; font-size: 12px; color: #888;">
+                    Reporte completo con interpretación clínica
+                </p>
+            </div>
+            
+            <div class="security-note">
+                <strong>Información Confidencial:</strong><br>
+                Este documento contiene información médica sensible y debe ser tratado con estricta confidencialidad según las normativas de protección de datos médicos.
             </div>
             
             <!-- Alternative Link -->
             <div class="link-section">
-                <strong style="color: #189BAF;">Enlace Alternativo:</strong>
-                <p style="margin: 5px 0; font-size: 11px;">Si no puede ver el adjunto:</p>
+                <strong style="color: #189BAF;">Acceso Alternativo:</strong>
+                <p style="margin: 5px 0; font-size: 11px;">Si presenta dificultades para acceder al archivo adjunto, puede consultar los resultados a través del siguiente enlace seguro:</p>
                 <div class="link-text">{{ route('estudios.pdf.public', ['id' => $info['ID'], 'aleatorio' => $info['ALEATORIO']]) }}</div>
             </div>
             
-            <p style="font-size: 12px; color: #999;">
-                <strong>Confidencial:</strong> Solo comparta con su médico tratante.
+            <p style="font-size: 13px; color: #777; margin-top: 20px;">
+                Para consultas técnicas o interpretación de resultados, nuestro equipo médico está disponible a través de los canales oficiales de comunicación.
             </p>
         </div>
         
@@ -158,8 +180,20 @@
         <div class="footer">
             <strong>DIAHMOES</strong><br>
             Laboratorio de Diagnóstico Molecular<br>
-            <a href="https://diahmoes.com.mx" style="color: #189BAF;">diahmoes.com.mx</a>
+            <a href="https://diahmoes.com.mx" style="color: #189BAF; text-decoration: none;">diahmoes.com.mx</a><br>
+            <br>
+            <span style="color: #bbb; font-size: 11px;">
+                Este correo fue generado automáticamente. Por favor no responda a esta dirección.
+            </span>
         </div>
     </div>
+
+    @if(!empty($tokenTracking))
+    <!-- Pixel de tracking - invisible -->
+    <img src="{{ route('tracking.pixel', ['token' => $tokenTracking]) }}" 
+         width="1" height="1" 
+         style="display:none; visibility:hidden; position:absolute;" 
+         alt="" />
+    @endif
 </body>
 </html>

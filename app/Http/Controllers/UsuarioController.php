@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Usuario;
 use App\Models\Institucion;
+use App\Models\Estudio; // Asegúrate de importar el modelo Estudio
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -304,6 +306,87 @@ class UsuarioController extends Controller
             });
 
         return response()->json($usuarios);
+    }
+
+    /**
+     * Buscar paciente por nombre y apellidos (nuevo método para la funcionalidad requerida)
+     */
+    public function buscarPaciente(Request $request)
+    {
+        try {
+            $request->validate([
+                'nombre' => 'required|string|min:2',
+                'apellidos' => 'required|string|min:2',
+            ]);
+
+            $nombre = trim($request->nombre);
+            $apellidos = trim($request->apellidos);
+
+            // Buscar paciente con coincidencia exacta o parcial
+            $paciente = DB::table('usuarios')
+                ->leftJoin('estudios', 'usuarios.ID_USUARIO', '=', 'estudios.ID_PACIENTE')
+                ->leftJoin('instituciones', 'usuarios.ID_INSTITUCION', '=', 'instituciones.ID_INSTITUCION')
+                ->where('usuarios.USUARIO_TIPO', Usuario::TIPO_PACIENTE)
+                ->where('usuarios.USUARIO_ESTADO', Usuario::ESTADO_ACTIVO)
+                ->where(function ($query) use ($nombre, $apellidos) {
+                    // Buscar coincidencia exacta primero
+                    $query->where(function ($q) use ($nombre, $apellidos) {
+                        $q->where('usuarios.USUARIO_NOMBRE', $nombre)
+                          ->where('usuarios.USUARIO_APELLIDOS', $apellidos);
+                    })
+                    // Si no hay exacta, buscar parcial
+                    ->orWhere(function ($q) use ($nombre, $apellidos) {
+                        $q->where('usuarios.USUARIO_NOMBRE', 'LIKE', "%{$nombre}%")
+                          ->where('usuarios.USUARIO_APELLIDOS', 'LIKE', "%{$apellidos}%");
+                    });
+                })
+                ->select([
+                    'usuarios.ID_USUARIO',
+                    'usuarios.USUARIO_NOMBRE',
+                    'usuarios.USUARIO_APELLIDOS',
+                    'instituciones.INSTITUCION_NOMBRE',
+                    // Subconsulta para obtener datos del último estudio
+                    DB::raw('(SELECT MAX(FECHA_SOLICITUD_RECOLECCION) FROM estudios WHERE ID_PACIENTE = usuarios.ID_USUARIO) as FECHA_ULTIMO_ESTUDIO'),
+                    DB::raw('(SELECT ID FROM estudios WHERE ID_PACIENTE = usuarios.ID_USUARIO ORDER BY FECHA_SOLICITUD_RECOLECCION DESC LIMIT 1) as ID_ULTIMO_ESTUDIO'),
+                    DB::raw('(SELECT CLAVE_INTERNA FROM estudios WHERE ID_PACIENTE = usuarios.ID_USUARIO ORDER BY FECHA_SOLICITUD_RECOLECCION DESC LIMIT 1) as CLAVE_INTERNA_ULTIMO'),
+                    DB::raw('(SELECT MUESTRA_EDAD FROM estudios WHERE ID_PACIENTE = usuarios.ID_USUARIO ORDER BY FECHA_SOLICITUD_RECOLECCION DESC LIMIT 1) as MUESTRA_EDAD')
+                ])
+                ->orderByRaw("
+                    CASE 
+                        WHEN usuarios.USUARIO_NOMBRE = ? AND usuarios.USUARIO_APELLIDOS = ? THEN 1
+                        ELSE 2
+                    END
+                ", [$nombre, $apellidos])
+                ->first();
+
+            if ($paciente) {
+                return response()->json([
+                    'success' => true,
+                    'paciente' => [
+                        'ID_USUARIO' => $paciente->ID_USUARIO,
+                        'USUARIO_NOMBRE' => $paciente->USUARIO_NOMBRE,
+                        'USUARIO_APELLIDOS' => $paciente->USUARIO_APELLIDOS,
+                        'MUESTRA_EDAD' => $paciente->MUESTRA_EDAD,
+                        'INSTITUCION_NOMBRE' => $paciente->INSTITUCION_NOMBRE,
+                        'FECHA_ULTIMO_ESTUDIO' => $paciente->FECHA_ULTIMO_ESTUDIO,
+                        'ID_ULTIMO_ESTUDIO' => $paciente->ID_ULTIMO_ESTUDIO,
+                        'CLAVE_INTERNA_ULTIMO' => $paciente->CLAVE_INTERNA_ULTIMO,
+                    ]
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'paciente' => null,
+                'message' => 'No se encontró un paciente con ese nombre y apellidos.'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al buscar el paciente: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

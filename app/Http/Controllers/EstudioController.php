@@ -7,6 +7,7 @@ use App\Models\Usuario;
 use App\Models\Institucion;
 use App\Models\Cliente;
 use App\Models\CorreoCopia;
+use App\Services\EnvioCorreoService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Validation\Rule;
@@ -20,7 +21,7 @@ class EstudioController extends Controller
      */
     public function index(Request $request)
 {
-    $query = Estudio::with(['medico', 'paciente', 'institucion', 'cliente']);
+    $query = Estudio::with(['medico', 'paciente', 'institucion', 'cliente', 'enviosCorreos']);
     
     // Búsqueda global simplificada
     if ($request->filled('search')) {
@@ -66,6 +67,18 @@ class EstudioController extends Controller
           ->orderBy('SERIADO', 'desc');
     
     $estudios = $query->paginate(20)->withQueryString();
+
+    $estudios->getCollection()->transform(function ($estudio) {
+        $estudio->estadisticas_envios = [
+            'total' => $estudio->enviosCorreos->count(),
+            'enviados' => $estudio->enviosCorreos->where('ESTADO', 'enviado')->count(),
+            'leidos' => $estudio->enviosCorreos->where('ESTADO', 'leido')->count(),
+            'porcentaje_lectura' => $estudio->enviosCorreos->count() > 0 
+                ? round(($estudio->enviosCorreos->where('ESTADO', 'leido')->count() / $estudio->enviosCorreos->count()) * 100)
+                : 0
+        ];
+        return $estudio;
+    });
     
     // Datos mínimos para filtros opcionales
     $estados = Estudio::getEstados() ?? [];
@@ -218,6 +231,7 @@ class EstudioController extends Controller
     $estudio->ID_INSTITUCION = $idInstitucion;
     
     // Asignar campos de dirección (siempre, incluso si NoAplica es true)
+    $estudio->MUESTRA_CLAVE = null;
     $estudio->MUESTRA_GUIA_MENSAJERIA = $request->NoAplica ? '' : ($request->MuestraGuiaMensajeria ?: '');
     $estudio->MUESTRA_GUIA = $request->NoAplica ? '' : ($request->MuestraGuia ?: '');
     $estudio->MUESTRA_DIRECCION = $request->NoAplica ? '' : ($request->MuestraDireccion ?: '');
@@ -294,9 +308,8 @@ class EstudioController extends Controller
         throw $e;
     }
 
-    // Crear estudio simple - siempre redirige al index
-    return redirect()->route('estudios.index')
-        ->with('success', 'Estudio creado exitosamente. Use "Editar" para completar la información adicional.');
+    return redirect()->route('estudios.edit.recepcion', ['estudio' => $estudio->ID])
+    ->with('success', 'Estudio creado exitosamente. Complete la información de recolección.');
 }
     
     private function manejarNuevoCliente(Request $request)
@@ -447,7 +460,8 @@ class EstudioController extends Controller
             'medico:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
             'paciente:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
             'institucion:ID_INSTITUCION,INSTITUCION_NOMBRE',
-            'cliente:ID_CLIENTE,CLIENTE_NOMBRE'
+            'cliente:ID_CLIENTE,CLIENTE_NOMBRE',
+            'correosCopia:ID,ID_ESTUDIO,ID_USUARIO,NOMBRE,CORREO,ENVIAR'
         ])->findOrFail($estudio->ID);
 
         // Obtener pacientes para el formulario (solo campos necesarios)
@@ -457,27 +471,32 @@ class EstudioController extends Controller
             ->orderBy('USUARIO_NOMBRE')
             ->get();
 
-        // Cargar correos de copia según la lógica especificada
-        $correosExistentes = [];
-        
-        // 1. Buscar correos con ID_ESTUDIO
-        $correosPorEstudio = CorreoCopia::where('ID_ESTUDIO', $estudio->ID)
-            ->select('ID', 'NOMBRE', 'CORREO', 'ID_ESTUDIO')
-            ->orderBy('NOMBRE')
-            ->get();
+        // Si no hay correos_copias para este estudio, buscar los correos_copias que tengan el mismo ID_USUARIO (médico)
+        if ($estudio->correosCopia->isEmpty() && $estudio->ID_MEDICO) {
+            // Buscar correos_copias que tengan el mismo ID_USUARIO que el médico del estudio
+            $correosDelMedico = \App\Models\CorreoCopia::select('ID_USUARIO', 'NOMBRE', 'CORREO', 'ENVIAR')
+                ->where('ID_USUARIO', $estudio->ID_MEDICO)
+                ->get();
             
-        if ($correosPorEstudio->count() > 0) {
-            $correosExistentes = $correosPorEstudio;
-        } else {
-            // 2. Si no hay correos con ID_ESTUDIO, buscar con ID_MEDICO
-            if ($estudio->ID_MEDICO) {
-                $correosPorMedico = CorreoCopia::where('ID_USUARIO', $estudio->ID_MEDICO)
-                    ->whereNull('ID_ESTUDIO')
-                    ->select('ID', 'NOMBRE', 'CORREO', 'ID_USUARIO')
-                    ->orderBy('NOMBRE')
-                    ->get();
-                    
-                $correosExistentes = $correosPorMedico;
+            // Si encontramos correos del médico, copiarlos para este estudio
+            if ($correosDelMedico->isNotEmpty()) {
+                foreach ($correosDelMedico as $correoOriginal) {
+                    try {
+                        \App\Models\CorreoCopia::create([
+                            'ID_ESTUDIO' => $estudio->ID,
+                            'ID_USUARIO' => $correoOriginal->ID_USUARIO, // Mantener la referencia al usuario original
+                            'NOMBRE' => $correoOriginal->NOMBRE,
+                            'CORREO' => $correoOriginal->CORREO,
+                            'ENVIAR' => $correoOriginal->ENVIAR,
+                        ]);
+                    } catch (\Exception $e) {
+                        // Continuar con el siguiente si hay error (correo duplicado, etc.)
+                        continue;
+                    }
+                }
+                
+                // Recargar la relación para obtener los correos recién copiados
+                $estudio->load('correosCopia:ID,ID_ESTUDIO,ID_USUARIO,NOMBRE,CORREO,ENVIAR');
             }
         }
 
@@ -485,7 +504,7 @@ class EstudioController extends Controller
             'estudio' => $estudio,
             'pacientes' => $pacientes,
             'tiposEnvio' => Estudio::getTiposEnvio(),
-            'correosExistentes' => $correosExistentes,
+            'correosExistentes' => $estudio->correosCopia,
         ]);
     }
 
@@ -688,9 +707,10 @@ class EstudioController extends Controller
         \Log::info('🔢 ID del estudio: ' . $estudio->ID);
 
         try {
-            $request->validate([
+
+            $rules = [
                 'FECHA_RECEPCION' => 'nullable|date',
-                'ID_PACIENTE' => 'nullable|integer|exists:usuarios,ID_USUARIO',
+                'ID_PACIENTE' => 'nullable|integer',
                 'CREAR_NUEVO_PACIENTE' => 'nullable|boolean',
                 'NOMBRE_USUARIO' => 'nullable|string|max:255',
                 'APELLIDOS_USUARIO' => 'nullable|string|max:255',
@@ -711,7 +731,13 @@ class EstudioController extends Controller
                 'MUESTRA_DIAGNOSTICO_CLINICO' => 'nullable|string|max:500',
                 'MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA' => 'nullable|string',
                 '_next' => 'nullable|string'
-            ]);
+            ];
+
+            if ($request->ID_PACIENTE && $request->ID_PACIENTE > 0) {
+                $rules['ID_PACIENTE'] .= '|exists:usuarios,ID_USUARIO';
+            }
+
+            $request->validate($rules);
 
             \Log::info('✅ Validación exitosa');
 
@@ -745,9 +771,9 @@ class EstudioController extends Controller
             \Log::info('📤 Datos a actualizar (filtrados):', $datosActualizar);
 
             // Crear nuevo paciente si es necesario
-            if ($request->CREAR_NUEVO_PACIENTE && 
-                $request->NOMBRE_USUARIO && 
-                $request->APELLIDOS_USUARIO) {
+            if (($request->ID_PACIENTE === 0 || $request->ID_PACIENTE === null) && 
+                    $request->NOMBRE_USUARIO && 
+                    $request->APELLIDOS_USUARIO) {
                 
                 \Log::info('👤 Creando nuevo paciente');
                 
@@ -808,134 +834,161 @@ class EstudioController extends Controller
     /**
      * Update the specified resource in storage - Paso Laboratorio
      */
-    public function updateLaboratorio(Request $request, Estudio $estudio)
-    {
-        \Log::info('🔴 updateLaboratorio iniciado');
-        \Log::info('📊 Datos recibidos:', $request->all());
-        \Log::info('🔢 ID del estudio: ' . $estudio->ID);
+public function updateLaboratorio(Request $request, Estudio $estudio)
+{
+    \Log::info('🔴 updateLaboratorio iniciado');
+    \Log::info('📊 Datos recibidos:', $request->all());
+    \Log::info('🔢 ID del estudio: ' . $estudio->ID);
 
-        try {
-            $request->validate([
-                // Fechas del laboratorio
-                'FECHA_RECEPCION_LABORATORIO' => 'nullable|date',
-                'HORA_RECEPCION_LABORATORIO' => 'nullable|string|max:10',
-                'FECHA_OBTENCION_RESULTADOS' => 'nullable|date',
-                'HORA_OBTENCION_RESULTADOS' => 'nullable|string|max:10',
-                // Estudio solicitado y métodos
-                'R_ESTUDIO_SOLICITADO' => 'nullable|string|max:255',
-                'R_METODO_PROCESO' => 'nullable|string|max:255',
-                'R_OTRO_METODO_PROCESO' => 'nullable|string|max:255',
-                // Condiciones de la muestra líquida
-                'MUESTRA_LIQ_CONDICION' => 'nullable|string|max:255',
-                'MUESTRA_LIQ_CONDICION_PRESENCIA' => 'nullable|string|max:255',
-                'MUESTRA_LIQ_CANTIDAD_ADECUADA' => 'nullable|string|max:50',
-                'MUESTRA_LIQ_CANTIDAD_ML' => 'nullable|string|max:50',
-                'MUESTRA_LIQ_HEMOLISIS' => 'nullable|string|max:50',
-                'MUESTRA_LIQ_AMP_INDICACION' => 'nullable|string|max:50',
-                'MUESTRA_LIQ_AMP_RAZON' => 'nullable|string|max:255',
-                // Análisis histopatológico
-                'R_PRESERVACION_H_E' => 'nullable|string|max:100',
-                'R_NUMERO_CELULAS_TUMORALES' => 'nullable|string|max:100',
-                'R_AREA_TUMORAL' => 'nullable|string|max:100',
-                'R_PORCENTAJE_TUMOR_TEJIDO' => 'nullable|string|max:100',
-                'R_ENRIQUECIMIENTO' => 'nullable|string|max:100',
-                'R_ADECUADO_PROCESAMIENTO' => 'nullable|string|max:100',
-                'R_RAZON_ADECUADO_PROCESAMIENTO' => 'nullable|string|max:255',
-                // Resultados genéticos
-                'R_ESTATUS_KRAS' => 'nullable|string|max:100',
-                'R_GENOTIPO_KRAS' => 'nullable|string|max:255',
-                'R_ESTATUS_NRAS' => 'nullable|string|max:100',
-                'R_GENOTIPO_NRAS' => 'nullable|string|max:255',
-                'R_ESTATUS_BRAF' => 'nullable|string|max:100',
-                'R_GENOTIPO_BRAF' => 'nullable|string|max:255',
-                // Otros resultados
-                'R_RESULTADO_HISTOPATOLOGICO' => 'nullable|string',
-                'R_COMPLETOS' => 'nullable|string',
-                'ESTUDIO_NOTAS' => 'nullable|string',
-                'ESTUDIO_COMENTARIOS' => 'nullable|string',
-                '_next' => 'nullable|string'
-            ]);
+    try {
+        $request->validate([
+            // Fechas del laboratorio
+            'FECHA_RECEPCION_LABORATORIO' => 'nullable|string',
+            'HORA_RECEPCION_LABORATORIO' => 'nullable|string|max:10',
+            'FECHA_OBTENCION_RESULTADOS' => 'nullable|string',
+            'HORA_OBTENCION_RESULTADOS' => 'nullable|string|max:10',
+            // Estudio solicitado y métodos
+            'R_ESTUDIO_SOLICITADO' => 'nullable|string|max:255',
+            'R_METODO_PROCESO' => 'nullable|string|max:255',
+            'R_OTRO_METODO_PROCESO' => 'nullable|string|max:255',
+            // Condiciones de la muestra líquida
+            'MUESTRA_LIQ_CONDICION' => 'nullable|string|max:255',
+            'MUESTRA_LIQ_CONDICION_PRESENCIA' => 'nullable|string|max:255',
+            'MUESTRA_LIQ_CANTIDAD_ADECUADA' => 'nullable|string|max:50',
+            'MUESTRA_LIQ_CANTIDAD_ML' => 'nullable|string|max:50',
+            'MUESTRA_LIQ_HEMOLISIS' => 'nullable|string|max:50',
+            'MUESTRA_LIQ_AMP_INDICACION' => 'nullable|string|max:50',
+            'MUESTRA_LIQ_AMP_RAZON' => 'nullable|string|max:255',
+            // Análisis histopatológico
+            'R_PRESERVACION_H_E' => 'nullable|string|max:100',
+            'R_NUMERO_CELULAS_TUMORALES' => 'nullable|string|max:100',
+            'R_AREA_TUMORAL' => 'nullable|string|max:100',
+            'R_PORCENTAJE_TUMOR_TEJIDO' => 'nullable|string|max:100',
+            'R_ENRIQUECIMIENTO' => 'nullable|string|max:100',
+            'R_ADECUADO_PROCESAMIENTO' => 'nullable|string|max:100',
+            'R_RAZON_ADECUADO_PROCESAMIENTO' => 'nullable|string|max:255',
+            // Resultados genéticos
+            'R_ESTATUS_KRAS' => 'nullable|string|max:100',
+            'R_GENOTIPO_KRAS' => 'nullable|string|max:255',
+            'R_ESTATUS_NRAS' => 'nullable|string|max:100',
+            'R_GENOTIPO_NRAS' => 'nullable|string|max:255',
+            'R_ESTATUS_BRAF' => 'nullable|string|max:100',
+            'R_GENOTIPO_BRAF' => 'nullable|string|max:255',
+            // Otros resultados
+            'R_RESULTADO_HISTOPATOLOGICO' => 'nullable|string',
+            'R_COMPLETOS' => 'nullable|string',
+            'ESTUDIO_NOTAS' => 'nullable|string',
+            'ESTUDIO_COMENTARIOS' => 'nullable|string',
+            '_next' => 'nullable|string'
+        ]);
 
-            \Log::info('✅ Validación exitosa');
+        \Log::info('✅ Validación exitosa');
 
-            // Campos a actualizar - usando los nombres reales que envía el frontend
-            $camposActualizar = [
-                'FECHA_RECEPCION_LABORATORIO',
-                'FECHA_OBTENCION_RESULTADOS',
-                'R_ESTUDIO_SOLICITADO',
-                'R_METODO_PROCESO',
-                'R_OTRO_METODO_PROCESO',
-                'MUESTRA_LIQ_CONDICION',
-                'MUESTRA_LIQ_CONDICION_PRESENCIA',
-                'MUESTRA_LIQ_CANTIDAD_ADECUADA',
-                'MUESTRA_LIQ_CANTIDAD_ML',
-                'MUESTRA_LIQ_HEMOLISIS',
-                'MUESTRA_LIQ_AMP_INDICACION',
-                'MUESTRA_LIQ_AMP_RAZON',
-                'R_PRESERVACION_H_E',
-                'R_NUMERO_CELULAS_TUMORALES',
-                'R_AREA_TUMORAL',
-                'R_PORCENTAJE_TUMOR_TEJIDO',
-                'R_ENRIQUECIMIENTO',
-                'R_ADECUADO_PROCESAMIENTO',
-                'R_RAZON_ADECUADO_PROCESAMIENTO',
-                'R_ESTATUS_KRAS',
-                'R_GENOTIPO_KRAS',
-                'R_ESTATUS_NRAS',
-                'R_GENOTIPO_NRAS',
-                'R_ESTATUS_BRAF',
-                'R_GENOTIPO_BRAF',
-                'R_RESULTADO_HISTOPATOLOGICO',
-                'R_COMPLETOS',
-                'ESTUDIO_NOTAS',
-                'ESTUDIO_COMENTARIOS'
-            ];
+        // Campos a actualizar - usando los nombres reales que envía el frontend
+        $camposActualizar = [
+            'R_ESTUDIO_SOLICITADO',
+            'R_METODO_PROCESO',
+            'R_OTRO_METODO_PROCESO',
+            'MUESTRA_LIQ_CONDICION',
+            'MUESTRA_LIQ_CONDICION_PRESENCIA',
+            'MUESTRA_LIQ_CANTIDAD_ADECUADA',
+            'MUESTRA_LIQ_CANTIDAD_ML',
+            'MUESTRA_LIQ_HEMOLISIS',
+            'MUESTRA_LIQ_AMP_INDICACION',
+            'MUESTRA_LIQ_AMP_RAZON',
+            'R_PRESERVACION_H_E',
+            'R_NUMERO_CELULAS_TUMORALES',
+            'R_AREA_TUMORAL',
+            'R_PORCENTAJE_TUMOR_TEJIDO',
+            'R_ENRIQUECIMIENTO',
+            'R_ADECUADO_PROCESAMIENTO',
+            'R_RAZON_ADECUADO_PROCESAMIENTO',
+            'R_ESTATUS_KRAS',
+            'R_GENOTIPO_KRAS',
+            'R_ESTATUS_NRAS',
+            'R_GENOTIPO_NRAS',
+            'R_ESTATUS_BRAF',
+            'R_GENOTIPO_BRAF',
+            'R_RESULTADO_HISTOPATOLOGICO',
+            'R_COMPLETOS',
+            'ESTUDIO_NOTAS',
+            'ESTUDIO_COMENTARIOS'
+        ];
 
-            $datosActualizar = $request->only($camposActualizar);
+        $datosActualizar = $request->only($camposActualizar);
 
-            // Combinar fecha y hora si están presentes
-            if ($request->FECHA_RECEPCION_LABORATORIO && $request->HORA_RECEPCION_LABORATORIO) {
-                $datosActualizar['FECHA_RECEPCION_LABORATORIO'] = $request->FECHA_RECEPCION_LABORATORIO . ' ' . $request->HORA_RECEPCION_LABORATORIO . ':00';
-                \Log::info('📅 Fecha recepción laboratorio combinada: ' . $datosActualizar['FECHA_RECEPCION_LABORATORIO']);
-            }
-
-            if ($request->FECHA_OBTENCION_RESULTADOS && $request->HORA_OBTENCION_RESULTADOS) {
-                $datosActualizar['FECHA_OBTENCION_RESULTADOS'] = $request->FECHA_OBTENCION_RESULTADOS . ' ' . $request->HORA_OBTENCION_RESULTADOS . ':00';
-                \Log::info('📅 Fecha obtención resultados combinada: ' . $datosActualizar['FECHA_OBTENCION_RESULTADOS']);
-            }
-
-            // Filtrar valores null para evitar problemas con columnas NOT NULL
-            $datosActualizar = array_filter($datosActualizar, function($value) {
-                return $value !== null && $value !== '';
-            });
+        // MANEJO MEJORADO DE FECHAS Y HORAS
+        
+        // Fecha de recepción en laboratorio
+        if ($request->filled('FECHA_RECEPCION_LABORATORIO')) {
+            $fechaRecepcion = $request->FECHA_RECEPCION_LABORATORIO;
             
-            \Log::info('📤 Datos a actualizar (filtrados):', $datosActualizar);
-
-            $estudio->update($datosActualizar);
-            \Log::info('✅ Estudio actualizado exitosamente');
-
-            // Manejar navegación
-            if ($request->_next === 'informe') {
-                \Log::info('🔄 Navegando a informe');
-                return redirect()->route('estudios.edit.informe', $estudio->ID)->with('success', 'Información de laboratorio actualizada. Continuando con informe.');
+            // Verificar si ya incluye hora (contiene más de 10 caracteres)
+            if (strlen($fechaRecepcion) > 10) {
+                // Ya está combinada, usar tal como viene
+                $datosActualizar['FECHA_RECEPCION_LABORATORIO'] = $fechaRecepcion;
+                \Log::info('📅 Fecha recepción ya combinada: ' . $fechaRecepcion);
+            } else if ($request->filled('HORA_RECEPCION_LABORATORIO')) {
+                // Combinar fecha y hora
+                $datosActualizar['FECHA_RECEPCION_LABORATORIO'] = $fechaRecepcion . ' ' . $request->HORA_RECEPCION_LABORATORIO . ':00';
+                \Log::info('📅 Fecha recepción combinada: ' . $datosActualizar['FECHA_RECEPCION_LABORATORIO']);
+            } else {
+                // Solo fecha, agregar hora por defecto
+                $datosActualizar['FECHA_RECEPCION_LABORATORIO'] = $fechaRecepcion . ' 00:00:00';
             }
-
-            \Log::info('✅ updateLaboratorio completado exitosamente');
-            return back()->with('success', 'Información de laboratorio actualizada.');
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            \Log::error('❌ Error de validación:', $e->errors());
-            throw $e;
-        } catch (\Exception $e) {
-            \Log::error('❌ Error en updateLaboratorio:', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            throw $e;
         }
+
+        // Fecha de obtención de resultados
+        if ($request->filled('FECHA_OBTENCION_RESULTADOS')) {
+            $fechaResultados = $request->FECHA_OBTENCION_RESULTADOS;
+            
+            // Verificar si ya incluye hora (contiene más de 10 caracteres)
+            if (strlen($fechaResultados) > 10) {
+                // Ya está combinada, usar tal como viene
+                $datosActualizar['FECHA_OBTENCION_RESULTADOS'] = $fechaResultados;
+                \Log::info('📅 Fecha resultados ya combinada: ' . $fechaResultados);
+            } else if ($request->filled('HORA_OBTENCION_RESULTADOS')) {
+                // Combinar fecha y hora
+                $datosActualizar['FECHA_OBTENCION_RESULTADOS'] = $fechaResultados . ' ' . $request->HORA_OBTENCION_RESULTADOS . ':00';
+                \Log::info('📅 Fecha resultados combinada: ' . $datosActualizar['FECHA_OBTENCION_RESULTADOS']);
+            } else {
+                // Solo fecha, agregar hora por defecto
+                $datosActualizar['FECHA_OBTENCION_RESULTADOS'] = $fechaResultados . ' 00:00:00';
+            }
+        }
+
+        // Filtrar valores null para evitar problemas con columnas NOT NULL
+        $datosActualizar = array_filter($datosActualizar, function($value) {
+            return $value !== null && $value !== '';
+        });
+        
+        \Log::info('📤 Datos a actualizar (filtrados):', $datosActualizar);
+
+        $estudio->update($datosActualizar);
+        \Log::info('✅ Estudio actualizado exitosamente');
+
+        // Manejar navegación
+        if ($request->_next === 'informe') {
+            \Log::info('🔄 Navegando a informe');
+            return redirect()->route('estudios.edit.informe', $estudio->ID)->with('success', 'Información de laboratorio actualizada. Continuando con informe.');
+        }
+
+        \Log::info('✅ updateLaboratorio completado exitosamente');
+        return back()->with('success', 'Información de laboratorio actualizada.');
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        \Log::error('❌ Error de validación:', $e->errors());
+        throw $e;
+    } catch (\Exception $e) {
+        \Log::error('❌ Error en updateLaboratorio:', [
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString()
+        ]);
+        throw $e;
     }
+}
 
 /**
  * Update the specified resource in storage - Paso Informe
@@ -1226,14 +1279,14 @@ public function updateInforme(Request $request, Estudio $estudio)
         throw $e;
     }
 }
-/**
- * 
- */
-public function enviarCorreoIndividual(Request $request, Estudio $estudio)
+    /**
+     * Enviar correo individual y registrar el envío
+     */
+    public function enviarCorreoIndividual(Request $request, Estudio $estudio)
 {
     try {
         $request->validate([
-            'nombre' => 'nullable|string|max:255', // Cambiar a nullable
+            'nombre' => 'nullable|string|max:255',
             'correo' => 'required|email|max:255',
             'enviar_adjunto' => 'boolean'
         ]);
@@ -1241,13 +1294,8 @@ public function enviarCorreoIndividual(Request $request, Estudio $estudio)
         // Procesar el nombre del destinatario
         $nombreDestinatario = $request->nombre;
         
-        // Si el nombre es null o vacío, usar la primera parte del correo
         if (empty($nombreDestinatario)) {
             $nombreDestinatario = explode('@', $request->correo)[0];
-            \Log::info('Nombre de destinatario generado automáticamente', [
-                'correo' => $request->correo,
-                'nombre_generado' => $nombreDestinatario
-            ]);
         }
 
         // Cargar relaciones necesarias
@@ -1258,19 +1306,33 @@ public function enviarCorreoIndividual(Request $request, Estudio $estudio)
             throw new \Exception('El estudio no tiene la información completa necesaria');
         }
 
-        // Enviar el correo usando Mail de Laravel
+        // Enviar el correo usando Mail de Laravel (método original)
         Mail::to($request->correo)->send(new \App\Mail\EstudioReporte($estudio, $request->enviar_adjunto ?? false));
 
-        \Log::info('Correo individual enviado exitosamente', [
+        // Registrar el envío directamente en la base de datos (SIN usar el service por ahora)
+        $envio = \App\Models\EnvioCorreo::create([
+            'ID_ESTUDIO' => $estudio->ID,
+            'ID_MEDICO' => $estudio->ID_MEDICO,
+            'ID_USUARIO_ENVIO' => auth()->user()->ID_USUARIO ?? auth()->id(),
+            'NOMBRE_DESTINATARIO' => $nombreDestinatario,
+            'CORREO_DESTINATARIO' => $request->correo,
+            'TIPO_ENVIO' => $request->enviar_adjunto ? 'adjunto' : 'enlace',
+            'MENSAJE_HTML' => 'Correo enviado - ' . ($estudio->CLAVE_INTERNA ?? 'Sin clave'),
+            'ESTADO' => 'enviado',
+            'FECHA_ENVIO' => now()
+        ]);
+
+        \Log::info('Correo individual enviado y registrado exitosamente', [
             'estudio_id' => $estudio->ID,
             'destinatario' => $request->correo,
-            'nombre_original' => $request->nombre,
-            'nombre_usado' => $nombreDestinatario
+            'nombre_usado' => $nombreDestinatario,
+            'envio_id' => $envio->id
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => "Correo enviado exitosamente a {$nombreDestinatario}"
+            'message' => "Correo enviado exitosamente a {$nombreDestinatario}",
+            'envio_id' => $envio->id
         ]);
 
     } catch (\Exception $e) {
@@ -1278,7 +1340,9 @@ public function enviarCorreoIndividual(Request $request, Estudio $estudio)
             'estudio_id' => $estudio->ID ?? null,
             'destinatario' => $request->correo ?? null,
             'nombre_original' => $request->nombre ?? null,
-            'error' => $e->getMessage()
+            'error' => $e->getMessage(),
+            'line' => $e->getLine(),
+            'file' => $e->getFile()
         ]);
 
         return response()->json([
@@ -1484,13 +1548,13 @@ public function enviarCorreoIndividual(Request $request, Estudio $estudio)
     public function storeCorreoCopia(Request $request, Estudio $estudio)
     {
         $request->validate([
-            'nombre' => 'required|string|max:255',
+            'nombre' => 'nullable|string|max:255',
             'correo' => 'required|email|max:255'
         ]);
 
         // Crear el correo de copia en la BD
         $correoCopia = $estudio->correosCopia()->create([
-            'NOMBRE' => $request->nombre,
+            'NOMBRE' => $request->nombre ?? '',
             'CORREO' => $request->correo,
             'ID_ESTUDIO' => $estudio->ID,
             'ID_USUARIO' => auth()->id() // Agregar el ID del usuario logueado
@@ -1512,74 +1576,117 @@ public function enviarCorreoIndividual(Request $request, Estudio $estudio)
         return redirect()->back()->with('success', 'Correo eliminado exitosamente');
     }
 
-    /**
-     * Enviar correos electrónicos del reporte a todos los destinatarios
-     */
-    private function enviarCorreosReporte(Estudio $estudio, bool $enviarAdjunto = true)
-    {
-        try {
-            // Cargar relaciones necesarias
-            $estudio->load(['correosCopia', 'medico', 'cliente']);
-            
-            // Lista de correos válidos para enviar
-            $correosDestino = [];
-            $correosRechazados = [];
-            
-            // Procesar correos de copia
-            foreach ($estudio->correosCopia as $correoCopia) {
-                if ($correoCopia->ENVIAR === 'si' && !empty($correoCopia->CORREO)) {
-                    if (filter_var($correoCopia->CORREO, FILTER_VALIDATE_EMAIL)) {
-                        $correosDestino[] = [
-                            'email' => $correoCopia->CORREO,
-                            'name' => $correoCopia->NOMBRE ?? 'Destinatario'
-                        ];
-                    } else {
-                        $correosRechazados[] = $correoCopia->CORREO;
-                    }
-                }
-            }
-            
-            // Si no hay correos de copia válidos, usar médico como fallback
-            if (empty($correosDestino) && $estudio->medico && !empty($estudio->medico->USUARIO_CORREO)) {
-                if (filter_var($estudio->medico->USUARIO_CORREO, FILTER_VALIDATE_EMAIL)) {
+/**
+ * Enviar correos electrónicos del reporte a todos los destinatarios
+ */
+private function enviarCorreosReporte(Estudio $estudio, bool $enviarAdjunto = true)
+{
+    try {
+        // Cargar relaciones necesarias
+        $estudio->load(['correosCopia', 'medico', 'cliente']);
+        
+        // Lista de correos válidos para enviar
+        $correosDestino = [];
+        $correosRechazados = [];
+        
+        // Procesar correos de copia
+        foreach ($estudio->correosCopia as $correoCopia) {
+            if ($correoCopia->ENVIAR === 'si' && !empty($correoCopia->CORREO)) {
+                if (filter_var($correoCopia->CORREO, FILTER_VALIDATE_EMAIL)) {
                     $correosDestino[] = [
-                        'email' => $estudio->medico->USUARIO_CORREO,
-                        'name' => $estudio->medico->USUARIO_NOMBRE . ' ' . $estudio->medico->USUARIO_APELLIDOS
+                        'email' => $correoCopia->CORREO,
+                        'name' => $correoCopia->NOMBRE ?? 'Destinatario'
                     ];
+                } else {
+                    $correosRechazados[] = $correoCopia->CORREO;
                 }
             }
-            
-            if (empty($correosDestino)) {
-                \Log::warning("No hay correos válidos para enviar reporte del estudio {$estudio->CLAVE_INTERNA}");
-                return;
-            }
-            
-            // Crear instancia del Mailable - Por defecto enviar con adjunto
-            $mail = new EstudioReporte($estudio, $enviarAdjunto);
-            
-            // Enviar a cada destinatario
-            $enviadosExitosos = 0;
-            foreach ($correosDestino as $destinatario) {
-                try {
-                    Mail::to($destinatario['email'], $destinatario['name'])->send($mail);
-                    $enviadosExitosos++;
-                    \Log::info("Correo enviado exitosamente a: {$destinatario['email']}");
-                } catch (\Exception $e) {
-                    \Log::error("Error enviando correo a {$destinatario['email']}: " . $e->getMessage());
-                    continue;
-                }
-            }
-            
-            \Log::info("Correos enviados: {$enviadosExitosos} de " . count($correosDestino) . " para estudio {$estudio->CLAVE_INTERNA}");
-            
-            if (!empty($correosRechazados)) {
-                \Log::warning("Correos rechazados (formato inválido): " . implode(', ', $correosRechazados));
-            }
-            
-        } catch (\Exception $e) {
-            \Log::error('Error general enviando correos para estudio ' . $estudio->CLAVE_INTERNA . ': ' . $e->getMessage());
         }
+        
+        // Si no hay correos de copia válidos, usar médico como fallback
+        if (empty($correosDestino) && $estudio->medico && !empty($estudio->medico->USUARIO_CORREO)) {
+            if (filter_var($estudio->medico->USUARIO_CORREO, FILTER_VALIDATE_EMAIL)) {
+                $correosDestino[] = [
+                    'email' => $estudio->medico->USUARIO_CORREO,
+                    'name' => $estudio->medico->USUARIO_NOMBRE . ' ' . $estudio->medico->USUARIO_APELLIDOS
+                ];
+            }
+        }
+        
+        if (empty($correosDestino)) {
+            \Log::warning("No hay correos válidos para enviar reporte del estudio {$estudio->CLAVE_INTERNA}");
+            return;
+        }
+        
+        // Crear instancia del service
+        $envioService = new EnvioCorreoService();
+        
+        // Preparar el HTML del correo una sola vez
+        $mailable = new \App\Mail\EstudioReporte($estudio, $enviarAdjunto);
+        $htmlContent = $mailable->render();
+        
+        // Enviar a cada destinatario y registrar
+        $enviadosExitosos = 0;
+        $erroresEnvio = [];
+        
+        foreach ($correosDestino as $destinatario) {
+            try {
+                // Preparar datos para el registro
+                $datosEnvio = [
+                    'ID_ESTUDIO' => $estudio->ID,
+                    'ID_MEDICO' => $estudio->ID_MEDICO,
+                    'ID_USUARIO_ENVIO' => auth()->user()->ID_USUARIO ?? auth()->id(),
+                    'NOMBRE_DESTINATARIO' => $destinatario['name'],
+                    'CORREO_DESTINATARIO' => $destinatario['email'],
+                    'TIPO_ENVIO' => $enviarAdjunto ? 'adjunto' : 'enlace',
+                    'MENSAJE_HTML' => $htmlContent,
+                    'ASUNTO' => 'Resultados de Estudio - ' . ($estudio->CLAVE_INTERNA ?? 'Sin clave')
+                ];
+
+                // Enviar correo y registrar automáticamente
+                $resultado = $envioService->enviarYRegistrar($datosEnvio, \App\Mail\EstudioReporte::class);
+
+                if ($resultado['success']) {
+                    $enviadosExitosos++;
+                    \Log::info("Correo enviado y registrado exitosamente", [
+                        'destinatario' => $destinatario['email'],
+                        'envio_id' => $resultado['envio']->id,
+                        'token_tracking' => $resultado['envio']->TOKEN_LECTURA
+                    ]);
+                } else {
+                    $erroresEnvio[] = "Error enviando a {$destinatario['email']}: {$resultado['message']}";
+                    \Log::error("Error enviando correo a {$destinatario['email']}", [
+                        'error' => $resultado['error'] ?? $resultado['message']
+                    ]);
+                }
+                
+            } catch (\Exception $e) {
+                $erroresEnvio[] = "Error enviando a {$destinatario['email']}: {$e->getMessage()}";
+                \Log::error("Error enviando correo a {$destinatario['email']}: " . $e->getMessage());
+                continue;
+            }
+        }
+        
+        \Log::info("Resumen de envío de correos", [
+            'estudio' => $estudio->CLAVE_INTERNA,
+            'enviados_exitosos' => $enviadosExitosos,
+            'total_destinatarios' => count($correosDestino),
+            'correos_rechazados' => count($correosRechazados),
+            'errores' => count($erroresEnvio)
+        ]);
+        
+        if (!empty($correosRechazados)) {
+            \Log::warning("Correos rechazados (formato inválido): " . implode(', ', $correosRechazados));
+        }
+        
+        if (!empty($erroresEnvio)) {
+            \Log::warning("Errores en envíos: " . implode('; ', $erroresEnvio));
+        }
+        
+    } catch (\Exception $e) {
+        \Log::error('Error general enviando correos para estudio ' . $estudio->CLAVE_INTERNA . ': ' . $e->getMessage());
     }
+}
 
     /**
      * Obtener datos del último estudio de una institución específica
@@ -1701,5 +1808,29 @@ public function enviarCorreoIndividual(Request $request, Estudio $estudio)
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Mostrar los envíos de correos de un estudio específico
+     */
+    public function mostrarEnviosCorreos(Estudio $estudio)
+    {
+        // Cargar envíos con relaciones
+        $envios = $estudio->enviosCorreos()
+            ->with(['usuarioEnvio:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS'])
+            ->orderBy('FECHA_ENVIO', 'desc')
+            ->get();
+
+        // Calcular estadísticas
+        $estadisticas = [
+            'total' => $envios->count(),
+            'enviados' => $envios->where('ESTADO', 'enviado')->count(),
+            'leidos' => $envios->where('ESTADO', 'leido')->count(),
+            'porcentaje_lectura' => $envios->count() > 0 
+                ? round(($envios->where('ESTADO', 'leido')->count() / $envios->count()) * 100, 1)
+                : 0
+        ];
+
+        return Inertia::render('estudios/envios-correos', compact('estudio', 'envios', 'estadisticas'));
     }
 }

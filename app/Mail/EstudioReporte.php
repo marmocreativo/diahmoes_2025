@@ -15,14 +15,16 @@ class EstudioReporte extends Mailable
     public $estudio;
     public $enviarAdjunto;
     public $info;
+    public $tokenTracking; // Nuevo campo para el token
 
     /**
      * Create a new message instance.
      */
-    public function __construct($estudio, $enviarAdjunto = false)
+    public function __construct($estudio, $enviarAdjunto = false, $tokenTracking = null)
     {
         $this->estudio = $estudio;
         $this->enviarAdjunto = $enviarAdjunto;
+        $this->tokenTracking = $tokenTracking; // Guardar el token
         
         // Preparar datos como en el legacy
         $this->info = [
@@ -46,12 +48,18 @@ class EstudioReporte extends Mailable
 
         // Elegir vista según si se envía adjunto o no
         if ($this->enviarAdjunto) {
-            $email->view('emails.adjunto', ['info' => $this->info]);
+            $email->view('emails.adjunto', [
+                'info' => $this->info,
+                'tokenTracking' => $this->tokenTracking // Pasar token a la vista
+            ]);
             
             // Generar y adjuntar PDF
             $this->attachPdf();
         } else {
-            $email->view('emails.enlace', ['info' => $this->info]);
+            $email->view('emails.enlace', [
+                'info' => $this->info,
+                'tokenTracking' => $this->tokenTracking // Pasar token a la vista
+            ]);
         }
 
         return $email;

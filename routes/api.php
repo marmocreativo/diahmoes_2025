@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\EstudioController;
+use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -14,3 +15,5 @@ Route::get('/estudios/ultimo-por-institucion', [EstudioController::class, 'getUl
 
 // Obtener último estudio por médico
 Route::get('/estudios/ultimo-por-medico', [EstudioController::class, 'getUltimoEstudioMedico']);
+
+Route::post('/pacientes/buscar', [UsuarioController::class, 'buscarPaciente']);

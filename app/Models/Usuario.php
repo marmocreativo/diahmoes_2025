@@ -107,6 +107,14 @@ class Usuario extends Model
     }
 
     /**
+     * Relación con estudios como paciente
+     */
+    public function estudiosComoPaciente(): HasMany
+    {
+        return $this->hasMany(Estudio::class, 'ID_PACIENTE', 'ID_USUARIO');
+    }
+
+    /**
      * Relación con estudios (si el usuario es médico)
      */
     public function estudios(): HasMany
@@ -155,6 +163,25 @@ class Usuario extends Model
             $q->where('USUARIO_NOMBRE', 'LIKE', "%{$termino}%")
               ->orWhere('USUARIO_APELLIDOS', 'LIKE', "%{$termino}%")
               ->orWhere('USUARIO_CORREO', 'LIKE', "%{$termino}%");
+        });
+    }
+
+    /**
+     * Scope para buscar por nombre y apellidos específicos (nuevo)
+     */
+    public function scopeBuscarPorNombreCompleto($query, string $nombre, string $apellidos)
+    {
+        return $query->where(function ($q) use ($nombre, $apellidos) {
+            // Buscar coincidencia exacta primero
+            $q->where(function ($subQ) use ($nombre, $apellidos) {
+                $subQ->where('USUARIO_NOMBRE', $nombre)
+                     ->where('USUARIO_APELLIDOS', $apellidos);
+            })
+            // Si no hay exacta, buscar parcial
+            ->orWhere(function ($subQ) use ($nombre, $apellidos) {
+                $subQ->where('USUARIO_NOMBRE', 'LIKE', "%{$nombre}%")
+                     ->where('USUARIO_APELLIDOS', 'LIKE', "%{$apellidos}%");
+            });
         });
     }
 
@@ -276,5 +303,23 @@ class Usuario extends Model
     public static function administradores()
     {
         return static::tipo(self::TIPO_ADMIN)->activos();
+    }
+
+    /**
+     * Obtener pacientes activos (nuevo)
+     */
+    public static function pacientes()
+    {
+        return static::tipo(self::TIPO_PACIENTE)->activos();
+    }
+
+    /**
+     * Obtener el último estudio del paciente (nuevo)
+     */
+    public function ultimoEstudio()
+    {
+        return $this->estudiosComoPaciente()
+                   ->orderBy('FECHA_SOLICITUD_RECOLECCION', 'desc')
+                   ->first();
     }
 }

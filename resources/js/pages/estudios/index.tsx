@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
-import { Search, X, Filter, Eye, Edit, Download, ArrowRight, Calendar, FileText, TestTube, Microscope, Plus, MessageCircle, Printer, Trash2 } from 'lucide-react';
+import { Search, X, Filter, Eye, Edit, Download, ArrowRight, Calendar, FileText, TestTube, Microscope, Plus, MessageCircle, Printer, Trash2, Mail, CheckCircle, Clock } from 'lucide-react';
 import { EstudioIndexProps } from '@/types/estudios';
 import WhatsAppDialog from '@/components/WhatsAppDialog';
 
@@ -105,6 +105,58 @@ export default function EstudiosIndex() {
         });
     };
     
+    // Función para renderizar el estado de envíos
+    const renderEstadoEnvios = (estadisticas: any) => {
+        if (!estadisticas || estadisticas.total === 0) {
+            return (
+                <div className="text-center text-gray-400">
+                    <Mail className="h-4 w-4 mx-auto mb-1" />
+                    <div className="text-xs">Sin envíos</div>
+                </div>
+            );
+        }
+
+        const todosLeidos = estadisticas.enviados === 0;
+        
+        return (
+            <div className="text-center">
+                <div className="flex items-center justify-center space-x-1 mb-1">
+                    <span className={`text-sm font-medium ${todosLeidos ? 'text-green-600' : 'text-gray-900'}`}>
+                        {estadisticas.total}
+                    </span>
+                    {todosLeidos ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                    ) : (
+                        <Clock className="h-4 w-4 text-yellow-500" />
+                    )}
+                </div>
+                
+                <div className="text-xs text-gray-500">
+                    {estadisticas.leidos}/{estadisticas.total} leídos
+                </div>
+                
+                {estadisticas.total > 0 && (
+                    <div className="mt-1">
+                        <div className="w-full bg-gray-200 rounded-full h-1.5">
+                            <div 
+                                className={`h-1.5 rounded-full ${
+                                    estadisticas.porcentaje_lectura === 100 
+                                        ? 'bg-green-500' 
+                                        : estadisticas.porcentaje_lectura > 50 
+                                        ? 'bg-yellow-500' 
+                                        : 'bg-red-500'
+                                }`}
+                                style={{ width: `${estadisticas.porcentaje_lectura}%` }}
+                            ></div>
+                        </div>
+                        <div className="text-xs text-gray-400 mt-0.5">
+                            {estadisticas.porcentaje_lectura}%
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     const hasActiveFilters = searchTerm || selectedEstado || fechaDesde || fechaHasta;
 
@@ -264,7 +316,7 @@ export default function EstudiosIndex() {
                     </div>
 
                     {/* Tabla */}
-                    <div>
+                    <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
@@ -285,6 +337,9 @@ export default function EstudiosIndex() {
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Estado
+                                    </th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Envíos
                                     </th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Acciones
@@ -359,6 +414,11 @@ export default function EstudiosIndex() {
                                             </span>
                                         </td>
 
+                                        {/* NUEVA COLUMNA: Estado de Envíos */}
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {renderEstadoEnvios(estudio.estadisticas_envios)}
+                                        </td>
+
                                         {/* Acciones */}
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex items-center justify-end space-x-2">
@@ -392,6 +452,14 @@ export default function EstudiosIndex() {
                                                 >
                                                     <MessageCircle className="h-5 w-5" />
                                                 </button>
+                                                
+                                                <Link
+                                                    href={`/estudios/${estudio.ID}/envios-correos`}
+                                                    className="text-blue-600 hover:text-blue-700 transition-colors"
+                                                    title="Ver envíos de correos"
+                                                >
+                                                    <Mail className="h-5 w-5" />
+                                                </Link>
                                                 
                                                 <div className="relative group">
                                                     <button className="text-[#D68B41] hover:text-[#b8763a] transition-colors">

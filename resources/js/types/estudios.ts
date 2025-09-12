@@ -2,6 +2,14 @@
 
 import { BaseFilters, PaginatedData, SharedData } from './index';
 
+// Interface para estadísticas de envíos
+export interface EstadisticasEnvios {
+    total: number;
+    enviados: number;
+    leidos: number;
+    porcentaje_lectura: number;
+}
+
 export interface Estudio {
     ID: number;
     ID_ALEATORIO: string;
@@ -104,6 +112,9 @@ export interface Estudio {
     ESTUDIO_NOTAS: string;
     ESTUDIO_COMENTARIOS: string;
     ESTUDIO_ESTADO?: string;
+    
+    // NUEVA PROPIEDAD: Estadísticas de envíos de correos
+    estadisticas_envios?: EstadisticasEnvios;
     
     // Relaciones inline
     medico?: {
@@ -305,4 +316,33 @@ export interface EstudioEditProps extends EstudioCreateProps {
 
 export interface EstudioShowProps {
     estudio: Estudio;
+}
+
+// NUEVOS TIPOS para envíos de correos
+
+// Interface para envío de correo individual
+export interface EnvioCorreo {
+    id: number;
+    ID_ESTUDIO: number;
+    ID_MEDICO: number;
+    ID_USUARIO_ENVIO: number;
+    NOMBRE_DESTINATARIO: string;
+    CORREO_DESTINATARIO: string;
+    TIPO_ENVIO: 'enlace' | 'adjunto';
+    ESTADO: 'enviado' | 'leido';
+    FECHA_ENVIO: string;
+    FECHA_LECTURA: string | null;
+    TOKEN_LECTURA: string;
+    usuario_envio?: {
+        ID_USUARIO: number;
+        USUARIO_NOMBRE: string;
+        USUARIO_APELLIDOS: string;
+    };
+}
+
+// Props para la vista de envíos de correos
+export interface EnviosCorreosProps extends SharedData {
+    estudio: Estudio;
+    envios: EnvioCorreo[];
+    estadisticas: EstadisticasEnvios;
 }

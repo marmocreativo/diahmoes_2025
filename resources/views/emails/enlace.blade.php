@@ -57,6 +57,7 @@
         font-weight: bold;
         color: #189BAF;
         margin: 15px 0;
+        font-size: 16px;
       }
       
       .btn {
@@ -68,6 +69,20 @@
         border-radius: 25px;
         margin: 20px 0;
         font-weight: bold;
+        transition: background-color 0.3s;
+      }
+      
+      .btn:hover {
+        background: #147a8a;
+      }
+      
+      .security-note {
+        background: #e8f4f8;
+        border-left: 4px solid #189BAF;
+        padding: 12px;
+        margin: 20px 0;
+        border-radius: 4px;
+        text-align: left;
       }
       
       .footer {
@@ -94,26 +109,32 @@
         <!-- Header -->
         <div class="header">
             <img src="https://diahmoes.com.mx/assets/logo.png" alt="DIAHMOES" class="logo">
-            <h2 style="margin: 0; font-size: 18px;">Reporte Disponible</h2>
+            <h2 style="margin: 0; font-size: 18px;">Resultados Disponibles</h2>
         </div>
         
         <!-- Content -->
         <div class="content">
-            <h1>¡Su reporte está listo!</h1>
+            <h1>Estimado Doctor/a</h1>
             
             <div class="folio">
-                Reporte {{ $info['FOLIO'] }}
+                Estudio {{ $info['FOLIO'] }}
             </div>
             
-            <p>Su análisis genético ha sido completado y está disponible para descarga.</p>
+            <p>Los resultados del análisis genético molecular han sido procesados exitosamente y están disponibles para su consulta.</p>
             
             <a href="{{ route('estudios.pdf.public', ['id' => $info['ID'], 'aleatorio' => $info['ALEATORIO']]) }}" 
                class="btn" target="_blank">
-                ⬇ Descargar Reporte
+                Ver Resultados
             </a>
             
-            <p style="font-size: 12px; color: #999;">
-                Enlace seguro y confidencial. Solo usted puede acceder a este reporte.
+            <div class="security-note">
+                <strong>Información Confidencial:</strong><br>
+                Este enlace es único y seguro. Los resultados son estrictamente confidenciales y solo pueden ser consultados mediante este acceso directo.
+            </div>
+            
+            <p style="font-size: 13px; color: #777; margin-top: 20px;">
+                Si requiere asistencia técnica o tiene consultas sobre los resultados, 
+                no dude en contactarnos a través de nuestros canales oficiales.
             </p>
         </div>
         
@@ -121,8 +142,20 @@
         <div class="footer">
             <strong>DIAHMOES</strong><br>
             Laboratorio de Diagnóstico Molecular<br>
-            <a href="https://diahmoes.com.mx" style="color: #189BAF;">diahmoes.com.mx</a>
+            <a href="https://diahmoes.com.mx" style="color: #189BAF; text-decoration: none;">diahmoes.com.mx</a><br>
+            <br>
+            <span style="color: #bbb; font-size: 11px;">
+                Este correo fue generado automáticamente. Por favor no responda a esta dirección.
+            </span>
         </div>
     </div>
+
+    @if(!empty($tokenTracking))
+    <!-- Pixel de tracking - invisible -->
+    <img src="{{ route('tracking.pixel', ['token' => $tokenTracking]) }}" 
+         width="1" height="1" 
+         style="display:none; visibility:hidden; position:absolute;" 
+         alt="" />
+    @endif
 </body>
 </html>

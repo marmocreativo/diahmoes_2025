@@ -7,6 +7,7 @@ use App\Http\Controllers\InstitucionController;
 use App\Http\Controllers\MensajeriaController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\ConfiguracionController;
+use App\Http\Controllers\EnviosCorreosController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -38,6 +39,12 @@ Route::redirect('/inicio', '/dashboard');
 // Ruta pública para generar PDF de estudios (sin autenticación)
 Route::get('/publicos/estudio', [EstudioController::class, 'generatePublicPdf'])
     ->name('estudios.pdf.public');
+
+// Ruta pública para el tracking de correos
+Route::get('/tracking/pixel/{token}', [EnviosCorreosController::class, 'trackingPixel'])->name('tracking.pixel');
+
+
+
 
 /*
 |--------------------------------------------------------------------------
@@ -194,6 +201,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Ruta para generar PDF del estudio
     Route::get('estudios/{estudio:ID}/pdf', [EstudioController::class, 'generatePdf'])
         ->name('estudios.pdf');
+    
+    Route::get('estudios/{estudio:ID}/envios-correos', [EstudioController::class, 'mostrarEnviosCorreos'])
+    ->name('estudios.envios-correos');
 
     // Rutas para obtener datos de estudios
     Route::get('estudios/ultimo-por-institucion', [EstudioController::class, 'getUltimoEstudioInstitucion']);
@@ -204,6 +214,32 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('api.estudios.correos-copia.store');
     Route::delete('api/estudios/{estudio:ID}/correos-copia/{correoId}', [EstudioController::class, 'destroyCorreoCopia'])
         ->name('api.estudios.correos-copia.destroy');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Rutas para envios de correos
+    |--------------------------------------------------------------------------
+    */
+    // Listar envíos
+    Route::get('/envios-correos', [EnviosCorreosController::class, 'index'])->name('envios-correos.index');
+    
+    // Ver detalle de envío
+    Route::get('/envios-correos/{id}', [EnviosCorreosController::class, 'show'])->name('envios-correos.show');
+    
+    // Registrar nuevo envío (API)
+    Route::post('/api/envios-correos/registrar', [EnviosCorreosController::class, 'registrarEnvio'])->name('api.envios-correos.registrar');
+    
+    // Estadísticas de envíos (API)
+    Route::get('/api/envios-correos/estadisticas', [EnviosCorreosController::class, 'estadisticas'])->name('api.envios-correos.estadisticas');
+    
+    // Envíos por estudio (API)
+    Route::get('/api/envios-correos/estudio/{estudioId}', [EnviosCorreosController::class, 'porEstudio'])->name('api.envios-correos.por-estudio');
+    
+    // Reenviar correo
+    Route::post('/api/envios-correos/{id}/reenviar', [EnviosCorreosController::class, 'reenviar'])->name('api.envios-correos.reenviar');
+    
+    // Exportar envíos
+    Route::get('/envios-correos/exportar', [EnviosCorreosController::class, 'exportar'])->name('envios-correos.exportar');
     
     /*
     |--------------------------------------------------------------------------

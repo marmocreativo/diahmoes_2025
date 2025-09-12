@@ -466,7 +466,7 @@ class Estudio extends Model
             }
             
             if (empty($estudio->MUESTRA_CLAVE)) {
-                $estudio->MUESTRA_CLAVE = 'M-' . date('Y') . '-' . strtoupper(uniqid());
+                $estudio->MUESTRA_CLAVE = null;
             }
             
             if (empty($estudio->FECHA_SOLICITUD_RECOLECCION)) {
@@ -485,5 +485,62 @@ class Estudio extends Model
                 $estudio->ESTUDIO_FACTURADO = 'no';
             }
         });
+    }
+    /**
+     * Relación con envíos de correos
+     */
+    public function enviosCorreos()
+    {
+        return $this->hasMany(\App\Models\EnvioCorreo::class, 'ID_ESTUDIO', 'ID');
+    }
+
+    /**
+     * Verificar si todos los correos del estudio fueron leídos
+     */
+    public function todosCorreosLeidos()
+    {
+        $totalEnvios = $this->enviosCorreos()->count();
+        
+        if ($totalEnvios === 0) {
+            return null; // No hay envíos
+        }
+        
+        $enviosLeidos = $this->enviosCorreos()->leidos()->count();
+        
+        return $totalEnvios === $enviosLeidos;
+    }
+
+    /**
+     * Obtener estadísticas de correos del estudio
+     */
+    public function getEstadisticasCorreos()
+    {
+        $envios = $this->enviosCorreos();
+        
+        return [
+            'total' => $envios->count(),
+            'enviados' => $envios->enviados()->count(),
+            'leidos' => $envios->leidos()->count(),
+            'pendientes_lectura' => $envios->enviados()->count(),
+            'porcentaje_lectura' => $envios->count() > 0 
+                ? round(($envios->leidos()->count() / $envios->count()) * 100, 2) 
+                : 0
+        ];
+    }
+
+    /**
+     * Obtener el último envío de correo
+     */
+    public function ultimoEnvioCorreo()
+    {
+        return $this->enviosCorreos()->latest('FECHA_ENVIO')->first();
+    }
+
+    /**
+     * Relación con el usuario que envió el correo
+     */
+    public function usuarioEnvio()
+    {
+        return $this->belongsTo(\App\Models\Usuario::class, 'ID_USUARIO_ENVIO', 'ID_USUARIO');
     }
 }
