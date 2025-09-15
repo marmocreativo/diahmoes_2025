@@ -469,10 +469,6 @@ class Estudio extends Model
                 $estudio->MUESTRA_CLAVE = null;
             }
             
-            if (empty($estudio->FECHA_SOLICITUD_RECOLECCION)) {
-                $estudio->FECHA_SOLICITUD_RECOLECCION = now();
-            }
-            
             if (empty($estudio->ESTUDIO_ESTADO)) {
                 $estudio->ESTUDIO_ESTADO = self::ESTADO_PENDIENTE;
             }

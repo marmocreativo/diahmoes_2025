@@ -9,12 +9,60 @@ import 'react-quill-new/dist/quill.snow.css';
 import { type BreadcrumbItem } from '@/types';
 
 interface EditLaboratorioProps {
-    estudio: any;
+    estudio: {
+        ID: number;
+        CLAVE_INTERNA: string;
+        MUESTRA_TIPO: string;
+        R_ESTUDIO_SOLICITADO: string;
+        R_ADECUADO_PROCESAMIENTO: string;
+        R_COMPLETOS: string;
+        R_METODO_PROCESO: string;
+        R_OTRO_METODO_PROCESO?: string;
+        R_ESTATUS_KRAS: string;
+        R_ESTATUS_NRAS: string;
+        R_ESTATUS_BRAF: string;
+        R_GENOTIPO_KRAS: string;
+        R_GENOTIPO_NRAS: string;
+        R_GENOTIPO_BRAF: string;
+        R_PRESERVACION_H_E?: string;
+        R_NUMERO_CELULAS_TUMORALES?: string;
+        R_AREA_TUMORAL?: string;
+        R_PORCENTAJE_TUMOR_TEJIDO?: string;
+        R_RAZON_ADECUADO_PROCESAMIENTO?: string;
+        R_RESULTADO_HISTOPATOLOGICO?: string;
+        ESTUDIO_NOTAS?: string;
+        ESTUDIO_COMENTARIOS?: string;
+        FECHA_RECEPCION_LABORATORIO?: string;
+        FECHA_OBTENCION_RESULTADOS?: string;
+        MUESTRA_LIQ_CONDICION?: string;
+        MUESTRA_LIQ_CONDICION_PRESENCIA?: string;
+        MUESTRA_LIQ_CANTIDAD_ADECUADA?: string;
+        MUESTRA_LIQ_CANTIDAD_ML?: string;
+        MUESTRA_LIQ_HEMOLISIS?: string;
+        MUESTRA_LIQ_AMP_INDICACION?: string;
+        MUESTRA_LIQ_AMP_RAZON?: string;
+    };
     [key: string]: any;
+}
+interface GenotipoOption {
+    value: string;
+    label: string;
+    disabled?: boolean;
+}
+
+interface CamposSangreTotal {
+    condicion: string;
+    condicionPresencia: string;
+    cantidadAdecuada: string;
+    cantidadMl: string;
+    hemolisis: string;
+    ampIndicacion: string;
+    ampRazon: string;
 }
 
 export default function EditLaboratorioConCondicionales() {
     const { estudio } = usePage<EditLaboratorioProps>().props;
+    // Este log no funciona por que ??
 
     // Referencias para inputs simples - no causan re-renders
     const formRef = useRef<HTMLFormElement>(null);
@@ -29,10 +77,24 @@ export default function EditLaboratorioConCondicionales() {
     const [resultadosCompletos, setResultadosCompletos] = useState(estudio.R_COMPLETOS === 'si');
     const [metodoSeleccionado, setMetodoSeleccionado] = useState(estudio.R_METODO_PROCESO || '');
 
+    const [camposSangreTotal, setCamposSangreTotal] = useState({
+        condicion: estudio.MUESTRA_LIQ_CONDICION || '',
+        condicionPresencia: estudio.MUESTRA_LIQ_CONDICION_PRESENCIA || '',
+        cantidadAdecuada: estudio.MUESTRA_LIQ_CANTIDAD_ADECUADA || '',
+        cantidadMl: estudio.MUESTRA_LIQ_CANTIDAD_ML || '',
+        hemolisis: estudio.MUESTRA_LIQ_HEMOLISIS || '',
+        ampIndicacion: estudio.MUESTRA_LIQ_AMP_INDICACION || '',
+        ampRazon: estudio.MUESTRA_LIQ_AMP_RAZON || ''
+    });
+
     // Estados para los estatus mutacionales - NUEVO
     const [estatusKRAS, setEstatusKRAS] = useState(estudio.R_ESTATUS_KRAS || '');
     const [estatusNRAS, setEstatusNRAS] = useState(estudio.R_ESTATUS_NRAS || '');
     const [estatusBRAF, setEstatusBRAF] = useState(estudio.R_ESTATUS_BRAF || '');
+    // Estados para los genotipos
+    const [genotipoKRAS, setGenotipoKRAS] = useState(estudio.R_GENOTIPO_KRAS || '');
+    const [genotipoNRAS, setGenotipoNRAS] = useState(estudio.R_GENOTIPO_NRAS || '');
+    const [genotipoBRAF, setGenotipoBRAF] = useState(estudio.R_GENOTIPO_BRAF || '');
 
     // Configuración React Quill
     const quillModules = {
@@ -51,7 +113,7 @@ export default function EditLaboratorioConCondicionales() {
     ];
 
     // Función para obtener fecha y hora actuales
-    const getCurrentDateTime = () => {
+    const getCurrentDateTime = (): { fecha: string; hora: string } => {
         const now = new Date();
         const fecha = now.toISOString().split('T')[0];
         const hora = now.toTimeString().slice(0, 5);
@@ -73,17 +135,16 @@ export default function EditLaboratorioConCondicionales() {
     // LÓGICA CONDICIONAL - Ahora usa estado reactivo para estudiosSeleccionados
     const esSangreTotal = estudio.MUESTRA_TIPO === 'Sangre total';
 
-    const getNotasDefault = () => {
-    let notasDefault = 'La mutación de KRAS como biomarcador en cáncer del tubo digestivo para la administración de agentes anti-EGFR sólo esta avalada en adenocarcinomas primarios de colon y recto, y cuando estos estén en estadio metastásico. Su empleo en otros contextos puede no estar indicado.';
-    
-    if (esSangreTotal) {
-        notasDefault += '\n\nLa determinación de mutaciones en RAS mediante biopsia líquida, dada una menor sensibilidad que la determinación en tejido, no está aún avalada para diagnóstico o como un biomarcador para determinación de recurrencia durante el seguimiento del paciente. La posibilidad de falsos negativos incrementa si no se siguen las recomendaciones sobre el estatus del paciente al momento de la toma de la muestra.';
-    }
-    
-    return notasDefault;
-};
-    
-    const estudiosIncluyen = (tipoEstudio: string) => {
+    const getNotasDefault = (): string => {
+        let notasDefault = 'La mutación de KRAS como biomarcador en cáncer del tubo digestivo para la administración de agentes anti-EGFR sólo esta avalada en adenocarcinomas primarios de colon y recto, y cuando estos estén en estadio metastásico. Su empleo en otros contextos puede no estar indicado.';
+        
+        if (esSangreTotal) {
+            notasDefault += '\n\nLa determinación de mutaciones en RAS mediante biopsia líquida, dada una menor sensibilidad que la determinación en tejido, no está aún avalada para diagnóstico o como un biomarcador para determinación de recurrencia durante el seguimiento del paciente. La posibilidad de falsos negativos incrementa si no se siguen las recomendaciones sobre el estatus del paciente al momento de la toma de la muestra.';
+        }
+        
+        return notasDefault;
+    };
+    const estudiosIncluyen = (tipoEstudio: string): boolean => {
         return estudiosSeleccionados.includes(tipoEstudio);
     };
     
@@ -105,14 +166,20 @@ export default function EditLaboratorioConCondicionales() {
     
     const mostrarOtroMetodo = metodoSeleccionado === 'Otro';
     
-    const mostrarCondicionPresencia = estudio.MUESTRA_LIQ_CONDICION === 'condiciones inadecuadas por la presencia de ';
+    const mostrarCondicionPresencia = camposSangreTotal.condicion === 'condiciones inadecuadas por la presencia de ';
+
     
     // Mostrar razón de procesamiento si el valor es subóptima, inadecuada o no es procesable
     const mostrarRazonProcesamiento = ['subóptima', 'inadecuada'].includes(adecuadoProcesamiento);
 
-    // NUEVA LÓGICA - Funciones para determinar qué opciones están habilitadas en los genotipos
-    const getGenotipoOptions = (estatus: string) => {
-        const baseOptions = [
+    const autoSelectIfSingleOption = (options: GenotipoOption[]): string => {
+        const availableOptions = options.filter(opt => !opt.disabled && opt.value !== '');
+        return availableOptions.length === 1 ? availableOptions[0].value : '';
+    };
+
+    // Funciones para determinar qué opciones están habilitadas en los genotipos
+    const getGenotipoOptions = (estatus: string): GenotipoOption[] => {
+        const baseOptions: GenotipoOption[] = [
             { value: 'NO PROCESABLE', label: 'NO PROCESABLE' },
             { value: 'NO APLICA', label: 'NO APLICA' },
             { value: 'INVALIDO', label: 'INVALIDO' },
@@ -131,16 +198,17 @@ export default function EditLaboratorioConCondicionales() {
                 return baseOptions.map(opt => ({...opt, disabled: opt.value !== 'NINGUNA'}));
             case 'MUTADO':
             case 'MUTADO (VER NOTAS)':
-                // Para mutado, habilitar todas las opciones incluidos los genes
-                return baseOptions.map(opt => ({...opt, disabled: false}));
+                return baseOptions.map(opt => ({
+                    ...opt, 
+                    disabled: ['NO APLICA', 'NO PROCESABLE', 'INVALIDO', 'NINGUNA'].includes(opt.value)
+                }));
             default:
-                // Si no hay estatus seleccionado, todo disabled
                 return baseOptions.map(opt => ({...opt, disabled: true}));
         }
     };
 
     // Opciones específicas de genes para cada tipo
-    const getKRASGeneOptions = () => [
+    const getKRASGeneOptions = (): GenotipoOption[] => [
         { value: "G12C (c.34G>T)", label: "G12C (c.34G>T)" },
         { value: "G12R (c.34G>C)", label: "G12R (c.34G>C)" },
         { value: "G12S (c.34G>A)", label: "G12S (c.34G>A)" },
@@ -163,7 +231,7 @@ export default function EditLaboratorioConCondicionales() {
         { value: "A146P/T/V (c.436G>C / c.436G>A / c.437C>T)", label: "A146P/T/V (c.436G>C / c.436G>A / c.437C>T)" }
     ];
 
-    const getNRASGeneOptions = () => [
+    const getNRASGeneOptions = (): GenotipoOption[] => [
         { value: "G12C (c.34G>T)", label: "G12C (c.34G>T)" },
         { value: "G12S (c.34G>A)", label: "G12S (c.34G>A)" },
         { value: "G12A (c.35G>C)", label: "G12A (c.35G>C)" },
@@ -185,7 +253,7 @@ export default function EditLaboratorioConCondicionales() {
         { value: "A146T (c.436G>A)", label: "A146T (c.436G>A)" }
     ];
 
-    const getBRAFGeneOptions = () => [
+    const getBRAFGeneOptions = (): GenotipoOption[] => [
         { value: "V600D (c.1799_1800delinsAT; c.1799_1800delinsAC)", label: "V600D (c.1799_1800delinsAT; c.1799_1800delinsAC)" },
         { value: "V600E (c.1799T>A)", label: "V600E (c.1799T>A)" },
         { value: "V600E/D (c.1799T>A; c.1799_1800delinsAA; c.1799_1800delinsAC)", label: "V600E/D (c.1799T>A; c.1799_1800delinsAA; c.1799_1800delinsAC)" },
@@ -197,7 +265,7 @@ export default function EditLaboratorioConCondicionales() {
     ];
 
     // Función para obtener todas las opciones de genotipo según el estatus
-    const getAllGenotipoOptions = (estatus: string, geneOptions: any[]) => {
+    const getAllGenotipoOptions = (estatus: string, geneOptions: GenotipoOption[]) => {
         const baseOptions = getGenotipoOptions(estatus);
         
         if (estatus === 'MUTADO' || estatus === 'MUTADO (VER NOTAS)') {
@@ -210,6 +278,13 @@ export default function EditLaboratorioConCondicionales() {
         return baseOptions;
     };
 
+    const handleCampoSangreTotalChange = (campo: keyof CamposSangreTotal, valor: string) => {
+        setCamposSangreTotal(prev => ({
+            ...prev,
+            [campo]: valor
+        }));
+    };
+
     // Inicializar contenido de notas
     useEffect(() => {
         if (!notasContent) {
@@ -218,102 +293,122 @@ export default function EditLaboratorioConCondicionales() {
     }, [estudio.ESTUDIO_NOTAS, notasContent]);
 
     // Manejadores de eventos
-    const handleEstudioSolicitadoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const handleEstudioSolicitadoChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
         const nuevoEstudio = e.target.value;
         console.log('🔄 Cambiando estudio solicitado de:', estudiosSeleccionados, 'a:', nuevoEstudio);
         setEstudiosSeleccionados(nuevoEstudio);
     };
 
-    const handleAdecuadoProcesamientoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const handleAdecuadoProcesamientoChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
         const nuevoValor = e.target.value;
         console.log('🔄 Cambiando adecuado procesamiento de:', adecuadoProcesamiento, 'a:', nuevoValor);
         setAdecuadoProcesamiento(nuevoValor);
     };
 
-    const handleMetodoProcesoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const handleMetodoProcesoChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
         const nuevoMetodo = e.target.value;
         console.log('🔄 Cambiando método de proceso de:', metodoSeleccionado, 'a:', nuevoMetodo);
         setMetodoSeleccionado(nuevoMetodo);
     };
 
     // NUEVOS MANEJADORES - Para estatus mutacionales
-    const handleEstatusKRASChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const handleEstatusKRASChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
         const nuevoEstatus = e.target.value;
-        console.log('🔄 Cambiando estatus K-RAS de:', estatusKRAS, 'a:', nuevoEstatus);
         setEstatusKRAS(nuevoEstatus);
-    };
-
-    const handleEstatusNRASChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const nuevoEstatus = e.target.value;
-        console.log('🔄 Cambiando estatus N-RAS de:', estatusNRAS, 'a:', nuevoEstatus);
-        setEstatusNRAS(nuevoEstatus);
-    };
-
-    const handleEstatusBRAFChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const nuevoEstatus = e.target.value;
-        console.log('🔄 Cambiando estatus B-RAF de:', estatusBRAF, 'a:', nuevoEstatus);
-        setEstatusBRAF(nuevoEstatus);
-    };
-
-    const handleResultadosCompletosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const isChecked = e.target.checked;
-        setResultadosCompletos(isChecked);
         
-        // Si se marca como completo, establecer fecha y hora actuales
-        if (isChecked) {
-            const { fecha, hora } = getCurrentDateTime();
-            const form = formRef.current;
-            if (form) {
-                const fechaInput = form.querySelector('[name="FECHA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
-                const horaInput = form.querySelector('[name="HORA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
-                if (fechaInput) fechaInput.value = fecha;
-                if (horaInput) horaInput.value = hora;
-            }
-        } else {
-            // Si se desmarca, limpiar los campos
-            const form = formRef.current;
-            if (form) {
-                const fechaInput = form.querySelector('[name="FECHA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
-                const horaInput = form.querySelector('[name="HORA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
-                if (fechaInput) fechaInput.value = '';
-                if (horaInput) horaInput.value = '';
-            }
-        }
+        const options = getAllGenotipoOptions(nuevoEstatus, getKRASGeneOptions());
+        const autoSelected = autoSelectIfSingleOption(options);
+        setGenotipoKRAS(autoSelected);
     };
+
+    const handleEstatusNRASChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
+        const nuevoEstatus = e.target.value;
+        setEstatusNRAS(nuevoEstatus);
+        
+        const options = getAllGenotipoOptions(nuevoEstatus, getNRASGeneOptions());
+        const autoSelected = autoSelectIfSingleOption(options);
+        setGenotipoNRAS(autoSelected);
+    };
+
+    const handleEstatusBRAFChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
+        const nuevoEstatus = e.target.value;
+        setEstatusBRAF(nuevoEstatus);
+        
+        const options = getAllGenotipoOptions(nuevoEstatus, getBRAFGeneOptions());
+        const autoSelected = autoSelectIfSingleOption(options);
+        setGenotipoBRAF(autoSelected);
+    };
+
+    
+    const handleResultadosCompletosChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    const isChecked = e.target.checked;
+    setResultadosCompletos(isChecked);
+    
+    if (isChecked) {
+        const { fecha, hora } = getCurrentDateTime();
+        const form = formRef.current;
+        if (form) {
+            const fechaInput = form.querySelector('[name="FECHA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
+            const horaInput = form.querySelector('[name="HORA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
+            if (fechaInput) fechaInput.value = fecha;
+            if (horaInput) horaInput.value = hora;
+        }
+    } else {
+        const form = formRef.current;
+        if (form) {
+            const fechaInput = form.querySelector('[name="FECHA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
+            const horaInput = form.querySelector('[name="HORA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
+            if (fechaInput) fechaInput.value = '';
+            if (horaInput) horaInput.value = '';
+        }
+    }
+};
 
     // Función para obtener datos del formulario
-    const getFormData = useCallback(() => {
-        if (!formRef.current) return {};
-        
-        const formData = new FormData(formRef.current);
-        const data: Record<string, any> = {};
-        
-        formData.forEach((value, key) => {
-            data[key] = value;
-        });
+const getFormData = useCallback((): Record<string, any> => {
+    if (!formRef.current) return {};
+    
+    const formData = new FormData(formRef.current);
+    const data: Record<string, any> = {};
+    
+    formData.forEach((value, key) => {
+        data[key] = value;
+    });
 
-        // Manejar checkbox R_COMPLETOS específicamente
-        data.R_COMPLETOS = resultadosCompletos ? 'si' : 'no';
+    // Agregar valores de estado para genotipos
+    data.R_GENOTIPO_KRAS = genotipoKRAS;
+    data.R_GENOTIPO_NRAS = genotipoNRAS;
+    data.R_GENOTIPO_BRAF = genotipoBRAF;
 
-        // Agregar contenido de notas desde React Quill
-        data.ESTUDIO_NOTAS = notasContent;
+    // Agregar valores de sangre total
+    if (esSangreTotal) {
+        data.MUESTRA_LIQ_CONDICION = camposSangreTotal.condicion;
+        data.MUESTRA_LIQ_CONDICION_PRESENCIA = camposSangreTotal.condicionPresencia;
+        data.MUESTRA_LIQ_CANTIDAD_ADECUADA = camposSangreTotal.cantidadAdecuada;
+        data.MUESTRA_LIQ_CANTIDAD_ML = camposSangreTotal.cantidadMl;
+        data.MUESTRA_LIQ_HEMOLISIS = camposSangreTotal.hemolisis;
+        data.MUESTRA_LIQ_AMP_INDICACION = camposSangreTotal.ampIndicacion;
+        data.MUESTRA_LIQ_AMP_RAZON = camposSangreTotal.ampRazon;
+    }
 
+    // Resto del código existente...
+    data.R_COMPLETOS = resultadosCompletos ? 'si' : 'no';
+    data.ESTUDIO_NOTAS = notasContent;
 
-        // Si resultados no están completos, enviar null para las fechas
-        if (!resultadosCompletos) {
-            data.FECHA_OBTENCION_RESULTADOS = null;
-            data.HORA_OBTENCION_RESULTADOS = null;
-        }
+    if (!resultadosCompletos) {
+        data.FECHA_OBTENCION_RESULTADOS = null;
+        data.HORA_OBTENCION_RESULTADOS = null;
+    }
 
-        // Combinar fecha y hora de recepción en laboratorio
-        const fechaRecepcion = data.FECHA_RECEPCION_LABORATORIO;
-        const horaRecepcion = data.HORA_RECEPCION_LABORATORIO;
-        if (fechaRecepcion && horaRecepcion) {
-            data.FECHA_RECEPCION_LABORATORIO = fechaRecepcion + ' ' + horaRecepcion + ':00';
-        }
+    const fechaRecepcion = data.FECHA_RECEPCION_LABORATORIO as string;
+    const horaRecepcion = data.HORA_RECEPCION_LABORATORIO as string;
+    if (fechaRecepcion && horaRecepcion) {
+        data.FECHA_RECEPCION_LABORATORIO = fechaRecepcion + ' ' + horaRecepcion + ':00';
+    }
 
-        return data;
-    }, [resultadosCompletos]);
+    return data;
+}, [resultadosCompletos, genotipoKRAS, genotipoNRAS, genotipoBRAF, notasContent, camposSangreTotal, esSangreTotal]);
+
 
     // Clases CSS compartidas
     const inputClass = "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent";
@@ -511,7 +606,8 @@ export default function EditLaboratorioConCondicionales() {
                                             <select
                                                 name="MUESTRA_LIQ_CONDICION"
                                                 className={selectClass}
-                                                defaultValue={estudio.MUESTRA_LIQ_CONDICION || ''}
+                                                value={camposSangreTotal.condicion}
+                                                onChange={(e) => handleCampoSangreTotalChange('condicion', e.target.value)}
                                             >
                                                 <option value="">Selecciona</option>
                                                 <option value="buenas condiciones">buenas condiciones</option>
@@ -519,15 +615,16 @@ export default function EditLaboratorioConCondicionales() {
                                             </select>
                                         </div>
 
-                                        {/* Campo condicional dentro de sangre total */}
-                                        {mostrarCondicionPresencia && (
+                                        {/* Campo condicional actualizado */}
+                                        {camposSangreTotal.condicion === 'condiciones inadecuadas por la presencia de ' && (
                                             <div>
                                                 <label className={labelClass}>condiciones inadecuadas por la presencia de:</label>
                                                 <input
                                                     type="text"
                                                     name="MUESTRA_LIQ_CONDICION_PRESENCIA"
                                                     className={inputClass}
-                                                    defaultValue={estudio.MUESTRA_LIQ_CONDICION_PRESENCIA || ''}
+                                                    value={camposSangreTotal.condicionPresencia}
+                                                    onChange={(e) => handleCampoSangreTotalChange('condicionPresencia', e.target.value)}
                                                 />
                                             </div>
                                         )}
@@ -537,10 +634,11 @@ export default function EditLaboratorioConCondicionales() {
                                             <select
                                                 name="MUESTRA_LIQ_CANTIDAD_ADECUADA"
                                                 className={selectClass}
-                                                defaultValue={estudio.MUESTRA_LIQ_CANTIDAD_ADECUADA || ''}
+                                                value={camposSangreTotal.cantidadAdecuada}
+                                                onChange={(e) => handleCampoSangreTotalChange('cantidadAdecuada', e.target.value)}
                                             >
                                                 <option value="">Selecciona</option>
-                                                <option value="es la adecuada, ">es la adecuada,</option>
+                                                <option value="es la adecuada,">es la adecuada,</option>
                                                 <option value="no es suficiente pues corresponde solo a ">no es suficiente pues corresponde solo a</option>
                                                 <option value="no es óptima pues corresponde solo a">no es óptima pues corresponde solo a</option>
                                             </select>
@@ -554,7 +652,8 @@ export default function EditLaboratorioConCondicionales() {
                                                     name="MUESTRA_LIQ_CANTIDAD_ML"
                                                     step="0.1"
                                                     className={inputClass + " rounded-r-none"}
-                                                    defaultValue={estudio.MUESTRA_LIQ_CANTIDAD_ML || ''}
+                                                    value={camposSangreTotal.cantidadMl}
+                                                    onChange={(e) => handleCampoSangreTotalChange('cantidadMl', e.target.value)}
                                                 />
                                                 <span className="inline-flex items-center px-3 text-sm text-gray-900 bg-gray-200 border border-l-0 border-gray-300 rounded-r-md">
                                                     ml
@@ -567,7 +666,8 @@ export default function EditLaboratorioConCondicionales() {
                                             <select
                                                 name="MUESTRA_LIQ_HEMOLISIS"
                                                 className={selectClass}
-                                                defaultValue={estudio.MUESTRA_LIQ_HEMOLISIS || ''}
+                                                value={camposSangreTotal.hemolisis}
+                                                onChange={(e) => handleCampoSangreTotalChange('hemolisis', e.target.value)}
                                             >
                                                 <option value="">Selecciona</option>
                                                 <option value="se observa hemólisis">se observa hemólisis</option>
@@ -581,7 +681,8 @@ export default function EditLaboratorioConCondicionales() {
                                             <select
                                                 name="MUESTRA_LIQ_AMP_INDICACION"
                                                 className={selectClass}
-                                                defaultValue={estudio.MUESTRA_LIQ_AMP_INDICACION || ''}
+                                                value={camposSangreTotal.ampIndicacion}
+                                                onChange={(e) => handleCampoSangreTotalChange('ampIndicacion', e.target.value)}
                                             >
                                                 <option value="">Selecciona</option>
                                                 <option value="buena calidad">buena calidad</option>
@@ -597,7 +698,8 @@ export default function EditLaboratorioConCondicionales() {
                                                 type="text"
                                                 name="MUESTRA_LIQ_AMP_RAZON"
                                                 className={inputClass}
-                                                defaultValue={estudio.MUESTRA_LIQ_AMP_RAZON || ''}
+                                                value={camposSangreTotal.ampRazon}
+                                                onChange={(e) => handleCampoSangreTotalChange('ampRazon', e.target.value)}
                                                 placeholder="Razón personalizada"
                                             />
                                         </div>
@@ -621,6 +723,46 @@ export default function EditLaboratorioConCondicionales() {
                                                 <option value="tiene preservación subóptima">tiene preservación subóptima</option>
                                                 <option value="tiene múltiples artificios por mala preservación ">tiene múltiples artificios por mala preservación</option>
                                             </select>
+                                        </div>
+
+                                        <div>
+                                            <label className={labelClass}>Número de Células Tumorales</label>
+                                            <input
+                                                type="number"
+                                                name="R_NUMERO_CELULAS_TUMORALES"
+                                                className={inputClass}
+                                                defaultValue={estudio.R_NUMERO_CELULAS_TUMORALES || ''}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}>Área tumoral</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="number"
+                                                    step="0.1"
+                                                    name="R_AREA_TUMORAL"
+                                                    className={`${inputClass} pr-12`}
+                                                    defaultValue={estudio.R_AREA_TUMORAL || ''}
+                                                />
+                                                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm pointer-events-none">
+                                                    mm²
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className={labelClass}>Porcentaje de Tumor en el tejido</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    name="R_PORCENTAJE_TUMOR_TEJIDO"
+                                                    className={`${inputClass} pr-12`}
+                                                    defaultValue={estudio.R_PORCENTAJE_TUMOR_TEJIDO || ''}
+                                                />
+                                                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm pointer-events-none">
+                                                    %
+                                                </span>
+                                            </div>
                                         </div>
 
                                         <div>
@@ -688,7 +830,8 @@ export default function EditLaboratorioConCondicionales() {
                                                 <select
                                                     name="R_GENOTIPO_KRAS"
                                                     className={selectClass}
-                                                    defaultValue={estudio.R_GENOTIPO_KRAS || ''}
+                                                    value={genotipoKRAS}
+                                                    onChange={(e) => setGenotipoKRAS(e.target.value)}
                                                 >
                                                     <option value=""></option>
                                                     {getAllGenotipoOptions(estatusKRAS, getKRASGeneOptions()).map((option, index) => (
@@ -737,7 +880,8 @@ export default function EditLaboratorioConCondicionales() {
                                                 <select
                                                     name="R_GENOTIPO_NRAS"
                                                     className={selectClass}
-                                                    defaultValue={estudio.R_GENOTIPO_NRAS || ''}
+                                                    value={genotipoNRAS}
+                                                    onChange={(e) => setGenotipoNRAS(e.target.value)}
                                                 >
                                                     <option value=""></option>
                                                     {getAllGenotipoOptions(estatusNRAS, getNRASGeneOptions()).map((option, index) => (
@@ -786,7 +930,8 @@ export default function EditLaboratorioConCondicionales() {
                                                 <select
                                                     name="R_GENOTIPO_BRAF"
                                                     className={selectClass}
-                                                    defaultValue={estudio.R_GENOTIPO_BRAF || ''}
+                                                    value={genotipoBRAF}
+                                                    onChange={(e) => setGenotipoBRAF(e.target.value)}
                                                 >
                                                     <option value=""></option>
                                                     {getAllGenotipoOptions(estatusBRAF, getBRAFGeneOptions()).map((option, index) => (
@@ -875,27 +1020,6 @@ export default function EditLaboratorioConCondicionales() {
                                     (Al marcar se establecerá la fecha y hora de obtención de resultados)
                                 </span>
                             </div>
-                        </div>
-                    </div>
-
-                    {/* Debug Info */}
-                    <div className="bg-gray-100 rounded-lg p-4 shadow-sm mb-6">
-                        <h4 className="font-medium mb-2">Debug Info</h4>
-                        <div className="text-sm space-y-1">
-                            <p>MUESTRA_TIPO: {estudio.MUESTRA_TIPO || 'null'}</p>
-                            <p>R_ESTUDIO_SOLICITADO (BD): {estudio.R_ESTUDIO_SOLICITADO || 'null'}</p>
-                            <p>estudiosSeleccionados (estado): {estudiosSeleccionados || 'null'}</p>
-                            <p>metodoSeleccionado (estado): {metodoSeleccionado || 'null'}</p>
-                            <p>resultadosCompletos (estado): {resultadosCompletos ? 'SI' : 'NO'}</p>
-                            <p>Es Sangre Total: {esSangreTotal ? 'SI' : 'NO'}</p>
-                            <p>Mostrar K-RAS: {mostrarKRAS ? 'SI' : 'NO'}</p>
-                            <p>Mostrar N-RAS: {mostrarNRAS ? 'SI' : 'NO'}</p>
-                            <p>Mostrar B-RAF: {mostrarBRAF ? 'SI' : 'NO'}</p>
-                            <p>Mostrar Otro Método: {mostrarOtroMetodo ? 'SI' : 'NO'}</p>
-                            <p className="font-bold text-blue-600">== NUEVOS ESTADOS ==</p>
-                            <p>estatusKRAS: {estatusKRAS || 'null'}</p>
-                            <p>estatusNRAS: {estatusNRAS || 'null'}</p>
-                            <p>estatusBRAF: {estatusBRAF || 'null'}</p>
                         </div>
                     </div>
 

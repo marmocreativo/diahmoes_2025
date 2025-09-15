@@ -76,12 +76,14 @@
         background: #147a8a;
       }
       
-      .security-note {
-        background: #e8f4f8;
-        border-left: 4px solid #189BAF;
+      .url-text {
+        background: #f8f9fa;
         padding: 12px;
-        margin: 20px 0;
+        margin: 15px 0;
         border-radius: 4px;
+        font-size: 12px;
+        color: #666;
+        word-break: break-all;
         text-align: left;
       }
       
@@ -109,33 +111,27 @@
         <!-- Header -->
         <div class="header">
             <img src="https://diahmoes.com.mx/assets/logo.png" alt="DIAHMOES" class="logo">
-            <h2 style="margin: 0; font-size: 18px;">Resultados Disponibles</h2>
+            <h2 style="margin: 0; font-size: 18px;">DIAHMOES</h2>
         </div>
         
         <!-- Content -->
         <div class="content">
-            <h1>Estimado Doctor/a</h1>
-            
             <div class="folio">
-                Estudio {{ $info['FOLIO'] }}
+                REPORTE {{ $info['FOLIO'] }}
             </div>
             
-            <p>Los resultados del análisis genético molecular han sido procesados exitosamente y están disponibles para su consulta.</p>
+            <p>Enlace de descarga del reporte</p>
             
             <a href="{{ route('estudios.pdf.public', ['id' => $info['ID'], 'aleatorio' => $info['ALEATORIO']]) }}" 
                class="btn" target="_blank">
-                Ver Resultados
+                Enlace Seguro
             </a>
             
-            <div class="security-note">
-                <strong>Información Confidencial:</strong><br>
-                Este enlace es único y seguro. Los resultados son estrictamente confidenciales y solo pueden ser consultados mediante este acceso directo.
-            </div>
+            <p>Si tienes problemas para dar click en el enlace puedes copiar y pegar la siguiente dirección en tu navegador</p>
             
-            <p style="font-size: 13px; color: #777; margin-top: 20px;">
-                Si requiere asistencia técnica o tiene consultas sobre los resultados, 
-                no dude en contactarnos a través de nuestros canales oficiales.
-            </p>
+            <div class="url-text">
+                {{ route('estudios.pdf.public', ['id' => $info['ID'], 'aleatorio' => $info['ALEATORIO']]) }}
+            </div>
         </div>
         
         <!-- Footer -->

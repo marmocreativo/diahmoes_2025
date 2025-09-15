@@ -5,15 +5,29 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>DIAHMOES - {{ $estudio->CLAVE_INTERNA ?? $estudio->folio_completo }}</title>
     <style>
+        @page {
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            margin-top: -25px;
+            margin-right: 60px;
+            margin-left: 60px;
+            padding: 0;
+        }
         body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            font-size: 10px;
+            font-size: 12px;
         }
         .header-table {
             width: 100%;
-            margin: 0;
+            margin-top: 0;            /* Solo margen superior */
+            margin-bottom: 0;
+            margin-left: 0;
+            margin-right: 0;
             border-collapse: collapse;
         }
         .header-table td {
@@ -30,7 +44,7 @@
             width: auto;
         }
         .title-cell {
-            font-size: 14px;
+            font-size: 18px;
             font-weight: bold;
             text-align: center;
             padding: 10px 0;
@@ -40,7 +54,7 @@
             font-size: 11px;
         }
         .info-cell b {
-            font-size: 9px;
+            font-size: 12px;
         }
         .data-table {
             width: 100%;
@@ -51,14 +65,19 @@
         .data-table td {
             border: 1px solid #000;
             padding: 4px;
-            font-size: 11px;
+            font-size: 12px;
             vertical-align: top;
         }
         .data-table td.small {
-            font-size: 8px;
+            font-size: 10px;
+            padding-top: 0px;
+            padding-bottom: 0px;
+        }
+        .data-table td.small p{
+            margin: 2px;
         }
         .data-table td.patient-name {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: bold;
         }
         .results-section {
@@ -83,27 +102,25 @@
             background-color: #aaa;
         }
         .gene-title {
-            font-size: 9px;
+            font-size: 12px;
             font-weight: bold;
             margin-bottom: 3px;
         }
         .gene-result {
-            font-size: 10px;
-            padding-left: 50px;
+            font-size: 12px;
         }
         .gene-result .highlight {
-            color: #d32f2f;
             font-weight: bold;
         }
         .notes-section {
             margin-top: 10px;
         }
         .notes-title {
-            font-size: 7px;
+            font-size: 12px;
             font-weight: bold;
         }
         .notes-content {
-            font-size: 7px;
+            font-size: 9px;
             margin-top: 3px;
         }
         /* Nuevo estilo para el footer solo en primera página */
@@ -132,7 +149,7 @@
             border: 1px solid #000;
             border-collapse: collapse;
             margin: 10px 0;
-            font-size: 6px;
+            font-size: 8px;
         }
         .mutation-table td {
             border: 1px solid #000;
@@ -145,6 +162,7 @@
             font-weight: bold;
         }
         .page-break {
+            margin-top:65px;
             page-break-before: always;
         }
         .hr-separator {
@@ -271,7 +289,7 @@
             @endif
             
             <tr>
-                <td colspan="2" style="font-size: 9px;">
+                <td colspan="2" style="font-size: 12px;">
                     <b>Calidad del especimen:</b><br>
                     @if($estudio->MUESTRA_TIPO == 'Sangre total')
                         La muestra se recibe en <b class="highlight">{{ $estudio->MUESTRA_LIQ_CONDICION ?? '' }}{{ $estudio->MUESTRA_LIQ_CONDICION_PRESENCIA ?? '' }}.</b>
@@ -362,7 +380,7 @@
 
             <div class="notes-section">
                 <div class="notes-title">NOTAS:</div>
-                <div class="notes-content">{{ $estudio->ESTUDIO_NOTAS ?? '' }}</div>
+                <div class="notes-content">{!! $estudio->ESTUDIO_NOTAS ?? '' !!}</div>
             </div>
         </div>
 

@@ -555,7 +555,14 @@ class EstudioController extends Controller
             'MUESTRA_GUIA_RETORNO',
             'MUESTRA_GUIA_RETORNO_MENSAJERIA',
             'ESTUDIO_NOTAS',
-            'ESTUDIO_COMENTARIOS'
+            'ESTUDIO_COMENTARIOS',
+            'MUESTRA_LIQ_CONDICION',
+            'MUESTRA_LIQ_CONDICION_PRESENCIA',
+            'MUESTRA_LIQ_CANTIDAD_ADECUADA',
+            'MUESTRA_LIQ_CANTIDAD_ML',
+            'MUESTRA_LIQ_HEMOLISIS',
+            'MUESTRA_LIQ_AMP_INDICACION',
+            'MUESTRA_LIQ_AMP_RAZON'
         ])->with([
             'medico:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
             'paciente:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
@@ -899,7 +906,6 @@ public function updateLaboratorio(Request $request, Estudio $estudio)
         $camposActualizar = [
             'R_ESTUDIO_SOLICITADO',
             'R_METODO_PROCESO',
-            'R_OTRO_METODO_PROCESO',
             'MUESTRA_LIQ_CONDICION',
             'MUESTRA_LIQ_CONDICION_PRESENCIA',
             'MUESTRA_LIQ_CANTIDAD_ADECUADA',
@@ -927,6 +933,15 @@ public function updateLaboratorio(Request $request, Estudio $estudio)
         ];
 
         $datosActualizar = $request->only($camposActualizar);
+
+        // LÓGICA ESPECIAL: Si R_METODO_PROCESO es "otro", usar R_OTRO_METODO_PROCESO
+        if ($request->filled('R_METODO_PROCESO') && 
+            $request->R_METODO_PROCESO === 'Otro' && 
+            $request->filled('R_OTRO_METODO_PROCESO')) {
+            
+            $datosActualizar['R_METODO_PROCESO'] = $request->R_OTRO_METODO_PROCESO;
+            \Log::info('🔄 Usando método personalizado: ' . $request->R_OTRO_METODO_PROCESO);
+        }
 
         // MANEJO MEJORADO DE FECHAS Y HORAS
         
@@ -1532,7 +1547,7 @@ public function updateInforme(Request $request, Estudio $estudio)
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.estudio', $data);
         
         // Configurar opciones del PDF
-        $pdf->setPaper('letter', 'portrait');
+        $pdf->setPaper('A4', 'portrait');
         $pdf->setOptions([
             'isHtml5ParserEnabled' => true,
             'isPhpEnabled' => true,

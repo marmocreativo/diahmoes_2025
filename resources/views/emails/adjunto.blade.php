@@ -38,12 +38,6 @@
         text-align: center;
       }
       
-      h1 {
-        color: #333;
-        font-size: 20px;
-        margin: 0 0 15px 0;
-      }
-      
       p {
         color: #666;
         line-height: 1.5;
@@ -81,33 +75,16 @@
         font-size: 16px;
       }
       
-      .link-section {
+      .url-text {
         background: #f8f9fa;
-        padding: 15px;
-        border-radius: 5px;
-        margin: 20px 0;
-        font-size: 12px;
-        border-left: 4px solid #189BAF;
-      }
-      
-      .link-text {
-        word-break: break-all;
-        background: white;
-        padding: 8px;
-        border-radius: 3px;
-        border: 1px solid #ddd;
-        font-family: monospace;
-        color: #666;
-        font-size: 10px;
-      }
-      
-      .security-note {
-        background: #fff3cd;
-        border-left: 4px solid #ffc107;
         padding: 12px;
-        margin: 20px 0;
+        margin: 15px 0;
         border-radius: 4px;
+        font-size: 12px;
+        color: #666;
+        word-break: break-all;
         text-align: left;
+        border-left: 4px solid #189BAF;
       }
       
       .footer {
@@ -134,46 +111,22 @@
         <!-- Header -->
         <div class="header">
             <img src="{{ asset('assets/logo.png') }}" alt="DIAHMOES" class="logo">
-            <h2 style="margin: 0; font-size: 18px;">Resultados en Archivo Adjunto</h2>
+            <h2 style="margin: 0; font-size: 18px;">DIAHMOES</h2>
         </div>
         
         <!-- Content -->
         <div class="content">
-            <h1>Estimado Doctor/a</h1>
-            
             <div class="folio">
-                Estudio {{ $info['FOLIO'] }}
+                REPORTE {{ $info['FOLIO'] }}
             </div>
             
-            <p>Los resultados del análisis genético molecular se encuentran disponibles en el archivo PDF adjunto a este correo electrónico.</p>
+            <p>Adjunto a este correo podrás encontrar el reporte {{ $info['FOLIO'] }}</p>
             
-            <!-- Attachment Indicator -->
-            <div class="attachment-box">
-                <div class="attachment-icon">📎</div>
-                <div class="attachment-title">Archivo PDF Adjunto</div>
-                <p style="margin: 0; font-size: 14px; color: #666;">
-                    DIAHMOES_{{ $info['FOLIO'] }}.pdf
-                </p>
-                <p style="margin: 5px 0 0 0; font-size: 12px; color: #888;">
-                    Reporte completo con interpretación clínica
-                </p>
+            <p>Si tienes problemas para ver el adjunto puedes copiar y pegar la siguiente dirección en tu navegador</p>
+            
+            <div class="url-text">
+                {{ route('estudios.pdf.public', ['id' => $info['ID'], 'aleatorio' => $info['ALEATORIO']]) }}
             </div>
-            
-            <div class="security-note">
-                <strong>Información Confidencial:</strong><br>
-                Este documento contiene información médica sensible y debe ser tratado con estricta confidencialidad según las normativas de protección de datos médicos.
-            </div>
-            
-            <!-- Alternative Link -->
-            <div class="link-section">
-                <strong style="color: #189BAF;">Acceso Alternativo:</strong>
-                <p style="margin: 5px 0; font-size: 11px;">Si presenta dificultades para acceder al archivo adjunto, puede consultar los resultados a través del siguiente enlace seguro:</p>
-                <div class="link-text">{{ route('estudios.pdf.public', ['id' => $info['ID'], 'aleatorio' => $info['ALEATORIO']]) }}</div>
-            </div>
-            
-            <p style="font-size: 13px; color: #777; margin-top: 20px;">
-                Para consultas técnicas o interpretación de resultados, nuestro equipo médico está disponible a través de los canales oficiales de comunicación.
-            </p>
         </div>
         
         <!-- Footer -->
