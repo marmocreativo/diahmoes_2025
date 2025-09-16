@@ -25,5 +25,6 @@ class AppServiceProvider extends ServiceProvider
         // Model binding para rutas
         Route::model('usuario', Usuario::class);
         Route::model('institucion', Institucion::class);
+        
     }
 }

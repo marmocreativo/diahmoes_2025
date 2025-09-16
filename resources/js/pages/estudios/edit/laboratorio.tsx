@@ -411,10 +411,10 @@ const getFormData = useCallback((): Record<string, any> => {
 
 
     // Clases CSS compartidas
-    const inputClass = "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent";
+    const inputClass = "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent bg-white";
     const selectClass = "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent bg-white";
-    const textareaClass = "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent resize-none";
-    const labelClass = "block text-sm font-medium text-gray-700 mb-1";
+    const textareaClass = "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent bg-white resize-none";
+    const labelClass = "block text-sm font-medium mb-1";
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -422,42 +422,91 @@ const getFormData = useCallback((): Record<string, any> => {
             
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
                 {/* Header con información del estudio y progreso */}
-                <div className="bg-white rounded-lg p-6 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-4">
+                    <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm">
+                        {/* Header principal */}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                             <div className="flex items-center gap-2">
-                                <FlaskConical className="h-6 w-6 text-[#189BAF]" />
-                                <h1 className="text-2xl font-bold text-gray-800">{estudio.CLAVE_INTERNA}</h1>
+                                <FlaskConical className="h-6 w-6 text-[#189BAF] flex-shrink-0" />
+                                <h1 className="text-xl sm:text-2xl font-bold text-gray-800 truncate">
+                                    {estudio.CLAVE_INTERNA}
+                                </h1>
+                            </div>
+                            
+                            <Link href={`/estudios/${estudio.ID}`}>
+                                <Button variant="outline" className="w-full sm:w-auto">
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Ver Estudio
+                                </Button>
+                            </Link>
+                        </div>
+                        
+                        {/* Pasos del proceso - Versión desktop */}
+                        <div className="hidden lg:block mb-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-4 w-full">
+                                    <Badge variant="outline">1. Recolección</Badge>
+                                    <div className="w-8 h-0.5 bg-gray-300"></div>
+                                    <Badge variant="outline">2. Recepción</Badge>
+                                    <div className="w-8 h-0.5 bg-gray-300"></div>
+                                    <Badge className="bg-[#189BAF] text-white">3. Laboratorio</Badge>
+                                    <div className="w-8 h-0.5 bg-gray-300"></div>
+                                    <Badge variant="outline">4. Informe</Badge>
+                                </div>
                             </div>
                         </div>
-                        <Link href={`/estudios/${estudio.ID}`}>
-                            <Button variant="outline">
-                                <Eye className="h-4 w-4 mr-2" />
-                                Ver Estudio
-                            </Button>
-                        </Link>
-                    </div>
-                    
-                    {/* Progreso de pasos */}
-                    <div className="flex justify-between items-center">
-                        <div className="flex items-center space-x-2">
-                            <Badge variant="outline">1. Recolección</Badge>
-                            <div className="w-8 h-0.5 bg-gray-300"></div>
-                            <Badge variant="outline">2. Recepción</Badge>
-                            <div className="w-8 h-0.5 bg-gray-300"></div>
-                            <Badge className="bg-[#189BAF] text-white">3. Laboratorio</Badge>
-                            <div className="w-8 h-0.5 bg-gray-300"></div>
-                            <Badge variant="outline">4. Informe</Badge>
+
+                        {/* Pasos del proceso - Versión tablet */}
+                        <div className="hidden sm:block lg:hidden mb-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="flex items-center space-x-2">
+                                    <Badge variant="outline" className="text-xs">1. Recolección</Badge>
+                                    <div className="flex-1 h-0.5 bg-gray-300"></div>
+                                    <Badge variant="outline" className="text-xs">2. Recepción</Badge>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Badge className="bg-[#189BAF] text-white text-xs">3. Laboratorio</Badge>
+                                    <div className="flex-1 h-0.5 bg-gray-300"></div>
+                                    <Badge variant="outline" className="text-xs">4. Informe</Badge>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Pasos del proceso - Versión móvil */}
+                        <div className="block sm:hidden mb-4">
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <Badge variant="outline" className="text-xs">1. Recolección</Badge>
+                                    <span className="text-xs text-gray-500">Completado</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <Badge variant="outline" className="text-xs">2. Recepción</Badge>
+                                    <span className="text-xs text-gray-500">Completado</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <Badge className="bg-[#189BAF] text-white text-xs">3. Laboratorio</Badge>
+                                    <span className="text-xs text-[#189BAF] font-medium">En proceso</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <Badge variant="outline" className="text-xs">4. Informe</Badge>
+                                    <span className="text-xs text-gray-400">Pendiente</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* Barra de progreso */}
+                        <div>
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-sm font-medium text-gray-700">Progreso del estudio</span>
+                                <span className="text-sm text-gray-500">75%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div 
+                                    className="bg-[#189BAF] h-2 rounded-full transition-all duration-300 ease-in-out" 
+                                    style={{ width: '75%' }}
+                                ></div>
+                            </div>
                         </div>
                     </div>
-                    
-                    {/* Barra de progreso */}
-                    <div className="mt-4">
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div className="bg-[#189BAF] h-2 rounded-full" style={{ width: '75%' }}></div>
-                        </div>
-                    </div>
-                </div>
 
                 {/* Formulario Principal */}
                 <form ref={formRef} onSubmit={(e) => e.preventDefault()}>
@@ -790,7 +839,7 @@ const getFormData = useCallback((): Record<string, any> => {
                                                 <textarea
                                                     name="R_RAZON_ADECUADO_PROCESAMIENTO"
                                                     className={textareaClass}
-                                                    rows={3}
+                                                    rows={12}
                                                     defaultValue={estudio.R_RAZON_ADECUADO_PROCESAMIENTO || ''}
                                                 />
                                             </div>
@@ -965,7 +1014,7 @@ const getFormData = useCallback((): Record<string, any> => {
                                     <textarea
                                         name="R_RESULTADO_HISTOPATOLOGICO"
                                         className={textareaClass}
-                                        rows={8}
+                                        rows={12}
                                         defaultValue={estudio.R_RESULTADO_HISTOPATOLOGICO || ''}
                                         placeholder="Ingrese el resultado histopatológico..."
                                     />
@@ -983,7 +1032,7 @@ const getFormData = useCallback((): Record<string, any> => {
                                         modules={quillModules}
                                         formats={quillFormats}
                                         style={{
-                                            height: '200px',
+                                            height: '500px',
                                             marginBottom: '42px'
                                         }}
                                         placeholder="Ingrese las notas del estudio..."
@@ -997,7 +1046,7 @@ const getFormData = useCallback((): Record<string, any> => {
                                 <textarea
                                     name="ESTUDIO_COMENTARIOS"
                                     className={textareaClass}
-                                    rows={8}
+                                    rows={12}
                                     defaultValue={estudio.ESTUDIO_COMENTARIOS || ''}
                                     placeholder="Ingrese comentarios del estudio..."
                                 />
@@ -1023,9 +1072,10 @@ const getFormData = useCallback((): Record<string, any> => {
                         </div>
                     </div>
 
-                    {/* Botones de navegación */}
+                   {/* Botones de navegación */}
                     <div className="bg-white rounded-lg p-4 shadow-sm">
-                        <div className="flex justify-between">
+                        {/* Versión Desktop */}
+                        <div className="hidden md:flex justify-between">
                             <div className="flex gap-2">
                                 <Button 
                                     type="button"
@@ -1091,6 +1141,145 @@ const getFormData = useCallback((): Record<string, any> => {
                                     <ChevronRight className="h-4 w-4 ml-2" />
                                 </Button>
                             </div>
+                        </div>
+
+                        {/* Versión Tablet */}
+                        <div className="hidden sm:flex md:hidden flex-col gap-3">
+                            {/* Primera fila */}
+                            <div className="flex gap-2">
+                                <Button 
+                                    type="button"
+                                    variant="outline" 
+                                    onClick={() => router.visit(`/estudios/${estudio.ID}/edit/recepcion`)}
+                                    disabled={processing}
+                                    className="flex-1"
+                                >
+                                    <ChevronLeft className="h-4 w-4 mr-2" />
+                                    Anterior
+                                </Button>
+                                <Button
+                                    type="button"
+                                    className="bg-yellow-600 hover:bg-yellow-700 text-white flex-1"
+                                    onClick={() => {
+                                        const formData = getFormData();
+                                        setProcessing(true);
+                                        router.patch(`/estudios/${estudio.ID}/laboratorio`, formData, {
+                                            onSuccess: () => router.visit(`/estudios/${estudio.ID}/edit/informe`),
+                                            onFinish: () => setProcessing(false)
+                                        });
+                                    }}
+                                    disabled={processing}
+                                >
+                                    Guardar y Siguiente
+                                    <ChevronRight className="h-4 w-4 ml-2" />
+                                </Button>
+                            </div>
+                            {/* Segunda fila */}
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    disabled={processing}
+                                    onClick={() => {
+                                        const formData = getFormData();
+                                        setProcessing(true);
+                                        router.patch(`/estudios/${estudio.ID}/laboratorio`, formData, {
+                                            onSuccess: () => console.log('Datos guardados exitosamente'),
+                                            onFinish: () => setProcessing(false)
+                                        });
+                                    }}
+                                    className="bg-blue-600 text-white hover:bg-blue-700 flex-1"
+                                >
+                                    <Save className="h-4 w-4 mr-2" />
+                                    Solo Guardar
+                                </Button>
+                                <Button 
+                                    type="button"
+                                    variant="outline" 
+                                    className="bg-red-600 text-white hover:bg-red-700 flex-1"
+                                    onClick={() => {
+                                        const formData = getFormData();
+                                        setProcessing(true);
+                                        router.patch(`/estudios/${estudio.ID}/laboratorio`, formData, {
+                                            onSuccess: () => router.visit('/estudios'),
+                                            onFinish: () => setProcessing(false)
+                                        });
+                                    }}
+                                    disabled={processing}
+                                >
+                                    <Save className="h-4 w-4 mr-2" />
+                                    Guardar y Salir
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Versión Móvil */}
+                        <div className="flex sm:hidden flex-col gap-3">
+                            {/* Botón principal más prominente */}
+                            <Button
+                                type="button"
+                                className="bg-yellow-600 hover:bg-yellow-700 text-white w-full py-3"
+                                onClick={() => {
+                                    const formData = getFormData();
+                                    setProcessing(true);
+                                    router.patch(`/estudios/${estudio.ID}/laboratorio`, formData, {
+                                        onSuccess: () => router.visit(`/estudios/${estudio.ID}/edit/informe`),
+                                        onFinish: () => setProcessing(false)
+                                    });
+                                }}
+                                disabled={processing}
+                            >
+                                Guardar y Siguiente
+                                <ChevronRight className="h-4 w-4 ml-2" />
+                            </Button>
+                            
+                            {/* Grid de botones secundarios */}
+                            <div className="grid grid-cols-2 gap-2">
+                                <Button
+                                    type="button"
+                                    disabled={processing}
+                                    onClick={() => {
+                                        const formData = getFormData();
+                                        setProcessing(true);
+                                        router.patch(`/estudios/${estudio.ID}/laboratorio`, formData, {
+                                            onSuccess: () => console.log('Datos guardados exitosamente'),
+                                            onFinish: () => setProcessing(false)
+                                        });
+                                    }}
+                                    className="bg-blue-600 text-white hover:bg-blue-700 text-sm py-2"
+                                >
+                                    <Save className="h-4 w-4 mr-1" />
+                                    Guardar
+                                </Button>
+                                <Button 
+                                    type="button"
+                                    variant="outline" 
+                                    onClick={() => router.visit(`/estudios/${estudio.ID}/edit/recepcion`)}
+                                    disabled={processing}
+                                    className="text-sm py-2"
+                                >
+                                    <ChevronLeft className="h-4 w-4 mr-1" />
+                                    Anterior
+                                </Button>
+                            </div>
+                            
+                            {/* Botón de salir en línea separada para mayor visibilidad */}
+                            <Button 
+                                type="button"
+                                variant="outline" 
+                                className="bg-red-600 text-white hover:bg-red-700 w-full"
+                                onClick={() => {
+                                    const formData = getFormData();
+                                    setProcessing(true);
+                                    router.patch(`/estudios/${estudio.ID}/laboratorio`, formData, {
+                                        onSuccess: () => router.visit('/estudios'),
+                                        onFinish: () => setProcessing(false)
+                                    });
+                                }}
+                                disabled={processing}
+                            >
+                                <Save className="h-4 w-4 mr-2" />
+                                Guardar y Salir
+                            </Button>
                         </div>
                     </div>
                 </form>

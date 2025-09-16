@@ -38,6 +38,8 @@ export default function EditRecepcionOptimized() {
     // Referencias para inputs simples - no causan re-renders
     const formRef = useRef<HTMLFormElement>(null);
     const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+    const muestraClaveRef = useRef<HTMLInputElement>(null);
+    const muestraTipoRef = useRef<HTMLSelectElement>(null);
     
     // Estado mínimo para campos dependientes
     const [dependentFields, setDependentFields] = useState({
@@ -69,6 +71,59 @@ export default function EditRecepcionOptimized() {
         { title: `${estudio.CLAVE_INTERNA}`, href: `/estudios/${estudio.ID}` },
         { title: 'Recepción', href: `/estudios/${estudio.ID}/edit/recepcion` },
     ];
+
+    // Función para generar automáticamente MUESTRA_CLAVE para Biopsia Líquida
+const generarMuestraClaveAutomatica = useCallback(() => {
+    console.log('=== GENERANDO MUESTRA_CLAVE AUTOMÁTICA ===');
+    
+    // Solo generar si MUESTRA_CLAVE está vacío en el estudio original
+    if (estudio.MUESTRA_CLAVE && estudio.MUESTRA_CLAVE.trim() !== '') {
+        console.log('MUESTRA_CLAVE ya tiene valor, no se genera automáticamente:', estudio.MUESTRA_CLAVE);
+        return;
+    }
+
+    console.log('MUESTRA_CLAVE está vacío, procediendo con generación automática');
+    console.log('Valores actuales:', {
+        nombrePaciente: `"${nombrePaciente}"`,
+        apellidosPaciente: `"${apellidosPaciente}"`
+    });
+
+    if (nombrePaciente.trim() && apellidosPaciente.trim()) {
+        const muestraClaveGenerada = `${nombrePaciente.trim()} ${apellidosPaciente.trim()} (BL)`;
+        console.log('MUESTRA_CLAVE generada:', `"${muestraClaveGenerada}"`);
+        
+        // Actualizar el input de MUESTRA_CLAVE
+        if (muestraClaveRef.current) {
+            muestraClaveRef.current.value = muestraClaveGenerada;
+            console.log('Input MUESTRA_CLAVE actualizado');
+        }
+        
+        // Seleccionar automáticamente "Sangre total" en MUESTRA_TIPO
+        if (muestraTipoRef.current) {
+            muestraTipoRef.current.value = 'Sangre total';
+            console.log('MUESTRA_TIPO seleccionado automáticamente: Sangre total');
+            
+            // Disparar el evento change para actualizar el estado
+            const event = new Event('change', { bubbles: true });
+            muestraTipoRef.current.dispatchEvent(event);
+        }
+    } else {
+        console.log('No se puede generar MUESTRA_CLAVE: nombre o apellidos están vacíos');
+    }
+}, [nombrePaciente, apellidosPaciente, estudio.MUESTRA_CLAVE]);
+
+// Función para manejar cambio en tipo de estudio
+const handleTipoEstudioChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    const tipoEstudio = e.target.value;
+    console.log('=== CAMBIO EN TIPO DE ESTUDIO ===');
+    console.log('Nuevo valor:', `"${tipoEstudio}"`);
+    
+    if (tipoEstudio === 'Biopsia Líquida') {
+        console.log('Tipo de estudio es Biopsia Líquida, generando MUESTRA_CLAVE automática...');
+        generarMuestraClaveAutomatica();
+    }
+}, [generarMuestraClaveAutomatica]);
+
 // Función para buscar paciente por nombre y apellidos con logs detallados
 const buscarPaciente = useCallback(async (nombre: string, apellidos: string) => {
     console.log('=== INICIO BÚSQUEDA PACIENTE ===');
@@ -218,6 +273,17 @@ const buscarPaciente = useCallback(async (nombre: string, apellidos: string) => 
         console.log('Estado buscandoPaciente establecido a false');
     }
 }, []);
+
+// Efecto para regenerar MUESTRA_CLAVE cuando cambian nombre o apellidos (solo para Biopsia Líquida)
+useEffect(() => {
+    // Verificar si el tipo de estudio actual es "Biopsia Líquida"
+    const tipoEstudioSelect = document.querySelector('select[name="MUESTRA_TIPO_ESTUDIO"]') as HTMLSelectElement;
+    if (tipoEstudioSelect && tipoEstudioSelect.value === 'Biopsia Líquida') {
+        console.log('=== EFECTO REGENERACIÓN MUESTRA_CLAVE ===');
+        console.log('Tipo de estudio es Biopsia Líquida, regenerando MUESTRA_CLAVE...');
+        generarMuestraClaveAutomatica();
+    }
+}, [nombrePaciente, apellidosPaciente, generarMuestraClaveAutomatica]);
 
 // Efecto para búsqueda automática con debounce - con logs
 useEffect(() => {
@@ -444,39 +510,88 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
                 
                 {/* Header con información del estudio y pasos */}
-                <div className="bg-white rounded-lg p-6 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2">
-                                <FileText className="h-6 w-6 text-[#189BAF]" />
-                                <h1 className="text-2xl font-bold text-gray-800">{estudio.CLAVE_INTERNA}</h1>
-                            </div>
+                <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm">
+                    {/* Header principal */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                        <div className="flex items-center gap-2">
+                            <FileText className="h-6 w-6 text-[#189BAF] flex-shrink-0" />
+                            <h1 className="text-xl sm:text-2xl font-bold text-gray-800 truncate">
+                                {estudio.CLAVE_INTERNA}
+                            </h1>
                         </div>
+                        
                         <Link href={`/estudios/${estudio.ID}`}>
-                            <Button variant="outline">
+                            <Button variant="outline" className="w-full sm:w-auto">
                                 <Eye className="h-4 w-4 mr-2" />
                                 Ver Estudio
                             </Button>
                         </Link>
                     </div>
                     
-                    {/* Pasos del proceso */}
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                            <Badge variant="outline">1. Recolección</Badge>
-                            <div className="w-8 h-0.5 bg-gray-300"></div>
-                            <Badge className="bg-[#189BAF] text-white">2. Recepción</Badge>
-                            <div className="w-8 h-0.5 bg-gray-300"></div>
-                            <Badge variant="outline">3. Laboratorio</Badge>
-                            <div className="w-8 h-0.5 bg-gray-300"></div>
-                            <Badge variant="outline">4. Informe</Badge>
+                    {/* Pasos del proceso - Versión desktop */}
+                    <div className="hidden lg:block mb-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4 w-full">
+                                <Badge variant="outline">1. Recolección</Badge>
+                                <div className="w-8 h-0.5 bg-gray-300"></div>
+                                <Badge className="bg-[#189BAF] text-white">2. Recepción</Badge>
+                                <div className="w-8 h-0.5 bg-gray-300"></div>
+                                <Badge variant="outline">3. Laboratorio</Badge>
+                                <div className="w-8 h-0.5 bg-gray-300"></div>
+                                <Badge variant="outline">4. Informe</Badge>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Pasos del proceso - Versión tablet */}
+                    <div className="hidden sm:block lg:hidden mb-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="flex items-center space-x-2">
+                                <Badge variant="outline" className="text-xs">1. Recolección</Badge>
+                                <div className="flex-1 h-0.5 bg-gray-300"></div>
+                                <Badge className="bg-[#189BAF] text-white text-xs">2. Recepción</Badge>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Badge variant="outline" className="text-xs">3. Laboratorio</Badge>
+                                <div className="flex-1 h-0.5 bg-gray-300"></div>
+                                <Badge variant="outline" className="text-xs">4. Informe</Badge>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Pasos del proceso - Versión móvil */}
+                    <div className="block sm:hidden mb-4">
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <Badge variant="outline" className="text-xs">1. Recolección</Badge>
+                                <span className="text-xs text-gray-500">Completado</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <Badge className="bg-[#189BAF] text-white text-xs">2. Recepción</Badge>
+                                <span className="text-xs text-[#189BAF] font-medium">En proceso</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <Badge variant="outline" className="text-xs">3. Laboratorio</Badge>
+                                <span className="text-xs text-gray-400">Pendiente</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <Badge variant="outline" className="text-xs">4. Informe</Badge>
+                                <span className="text-xs text-gray-400">Pendiente</span>
+                            </div>
                         </div>
                     </div>
                     
                     {/* Barra de progreso */}
-                    <div className="mt-4">
+                    <div>
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm font-medium text-gray-700">Progreso del estudio</span>
+                            <span className="text-sm text-gray-500">50%</span>
+                        </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div className="bg-[#189BAF] h-2 rounded-full" style={{ width: '50%' }}></div>
+                            <div 
+                                className="bg-[#189BAF] h-2 rounded-full transition-all duration-300 ease-in-out" 
+                                style={{ width: '50%' }}
+                            ></div>
                         </div>
                     </div>
                 </div>
@@ -805,6 +920,21 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                                 <h3 className="text-lg font-semibold mb-4">Información de la Muestra</h3>
                                 
                                 <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Tipo de Estudio
+                                        </label>
+                                       <select
+                                            name="MUESTRA_TIPO_ESTUDIO"
+                                            defaultValue={estudio.MUESTRA_TIPO_ESTUDIO || ''}
+                                            onChange={handleTipoEstudioChange}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                        >
+                                            <option value="">Selecciona</option>
+                                            <option value="Biopsia Sólida">Biopsia Sólida</option>
+                                            <option value="Biopsia Líquida">Biopsia Líquida</option>
+                                        </select>
+                                    </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -841,9 +971,16 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                                         <input
                                             type="text"
                                             name="MUESTRA_CLAVE"
+                                            ref={muestraClaveRef}
                                             defaultValue={estudio.MUESTRA_CLAVE || ''}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
                                         />
+                                        {/* Mostrar indicador si se auto-generó la clave */}
+                                        {(!estudio.MUESTRA_CLAVE || estudio.MUESTRA_CLAVE.trim() === '') && (
+                                            <p className="text-xs text-blue-600 mt-1">
+                                                💡 Se generará automáticamente al seleccionar "Biopsia Líquida"
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">
@@ -879,7 +1016,7 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                                         <textarea
                                             name="MUESTRA_OTROS_ROTULOS"
                                             defaultValue={estudio.MUESTRA_OTROS_ROTULOS || ''}
-                                            rows={3}
+                                            rows={12}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
                                         />
                                     </div>
@@ -910,20 +1047,7 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Tipo de Estudio
-                                        </label>
-                                        <select
-                                            name="MUESTRA_TIPO_ESTUDIO"
-                                            defaultValue={estudio.MUESTRA_TIPO_ESTUDIO || ''}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
-                                        >
-                                            <option value="">Selecciona</option>
-                                            <option value="Biopsia Sólida">Biopsia Sólida</option>
-                                            <option value="Biopsia Líquida">Biopsia Líquida</option>
-                                        </select>
-                                    </div>
+                                    
 
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -931,6 +1055,7 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                                         </label>
                                         <select
                                             name="MUESTRA_TIPO"
+                                            ref={muestraTipoRef}
                                             defaultValue={estudio.MUESTRA_TIPO || ''}
                                             onChange={(e) => handleDependentFieldChange('MUESTRA_TIPO', e.target.value)}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
@@ -943,6 +1068,12 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                                             <option value="Muestra Tisular">Muestra Tisular</option>
                                             <option value="Muestra Citológica">Muestra Citológica</option>
                                         </select>
+                                        {/* Mostrar indicador si se auto-seleccionó el tipo */}
+                                        {(!estudio.MUESTRA_CLAVE || estudio.MUESTRA_CLAVE.trim() === '') && (
+                                            <p className="text-xs text-blue-600 mt-1">
+                                                💡 Se seleccionará "Sangre total" automáticamente para Biopsia Líquida
+                                            </p>
+                                        )}
                                     </div>
 
                                     {/* Campos condicionales */}
@@ -993,7 +1124,7 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                                         <textarea
                                             name="MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA"
                                             defaultValue={estudio.MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA || ''}
-                                            rows={3}
+                                            rows={12}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
                                         />
                                     </div>
@@ -1004,7 +1135,8 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 
                     {/* Botones de navegación */}
                     <div className="bg-white rounded-lg p-4 shadow-sm mt-6">
-                        <div className="flex justify-between">
+                        {/* Versión Desktop */}
+                        <div className="hidden md:flex justify-between">
                             <div className="flex gap-2">
                                 <Button 
                                     type="button"
@@ -1046,6 +1178,103 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                                     <ChevronRight className="h-4 w-4 ml-2" />
                                 </Button>
                             </div>
+                        </div>
+
+                        {/* Versión Tablet */}
+                        <div className="hidden sm:flex md:hidden flex-col gap-3">
+                            {/* Primera fila */}
+                            <div className="flex gap-2">
+                                <Button 
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handlePrev}
+                                    disabled={dependentFields.processing}
+                                    className="flex-1"
+                                >
+                                    <ChevronLeft className="h-4 w-4 mr-2" />
+                                    Anterior
+                                </Button>
+                                <Button
+                                    type="button"
+                                    className="bg-yellow-600 hover:bg-yellow-700 text-white flex-1"
+                                    onClick={handleNext}
+                                    disabled={dependentFields.processing}
+                                >
+                                    Guardar y Siguiente
+                                    <ChevronRight className="h-4 w-4 ml-2" />
+                                </Button>
+                            </div>
+                            {/* Segunda fila */}
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={handleSave}
+                                    disabled={dependentFields.processing}
+                                    className="bg-blue-600 text-white hover:bg-blue-700 flex-1"
+                                >
+                                    <Save className="h-4 w-4 mr-2" />
+                                    Solo Guardar
+                                </Button>
+                                <Button 
+                                    type="button"
+                                    variant="outline" 
+                                    className="bg-red-600 text-white hover:bg-red-700 flex-1"
+                                    onClick={handleSaveAndExit}
+                                    disabled={dependentFields.processing}
+                                >
+                                    Guardar y Salir
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Versión Móvil */}
+                        <div className="flex sm:hidden flex-col gap-3">
+                            {/* Botón principal más prominente */}
+                            <Button
+                                type="button"
+                                className="bg-yellow-600 hover:bg-yellow-700 text-white w-full py-3"
+                                onClick={handleNext}
+                                disabled={dependentFields.processing}
+                            >
+                                Guardar y Siguiente
+                                <ChevronRight className="h-4 w-4 ml-2" />
+                            </Button>
+                            
+                            {/* Grid de botones secundarios */}
+                            <div className="grid grid-cols-2 gap-2">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={handleSave}
+                                    disabled={dependentFields.processing}
+                                    className="bg-blue-600 text-white hover:bg-blue-700 text-sm py-2"
+                                >
+                                    <Save className="h-4 w-4 mr-1" />
+                                    Guardar
+                                </Button>
+                                <Button 
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handlePrev}
+                                    disabled={dependentFields.processing}
+                                    className="text-sm py-2"
+                                >
+                                    <ChevronLeft className="h-4 w-4 mr-1" />
+                                    Anterior
+                                </Button>
+                            </div>
+                            
+                            {/* Botón de salir en línea separada para mayor visibilidad */}
+                            <Button 
+                                type="button"
+                                variant="outline" 
+                                className="bg-red-600 text-white hover:bg-red-700 w-full"
+                                onClick={handleSaveAndExit}
+                                disabled={dependentFields.processing}
+                            >
+                                Guardar y Salir
+                            </Button>
                         </div>
                     </div>
                 </form>

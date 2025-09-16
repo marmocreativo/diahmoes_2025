@@ -1057,49 +1057,56 @@ public function updateInforme(Request $request, Estudio $estudio)
         \Log::info('✅ Validación completada exitosamente');
 
         // Combinar fecha y hora de informe
-        \Log::info('📅 Procesando fecha de informe', [
-            'FECHA_INFORME' => $request->FECHA_INFORME,
-            'HORA_INFORME' => $request->HORA_INFORME
-        ]);
+\Log::info('📅 Procesando fecha de informe', [
+    'FECHA_INFORME' => $request->FECHA_INFORME,
+    'HORA_INFORME' => $request->HORA_INFORME
+]);
+
+$fechaInforme = null;
+
+if ($request->FECHA_INFORME) {
+    // Si ya tiene hora (formato completo), usarla tal como viene
+    if (strlen($request->FECHA_INFORME) > 10) {
+        $fechaInforme = $request->FECHA_INFORME;
+        \Log::info('🕐 Fecha de informe ya incluye hora', ['fecha_completa' => $fechaInforme]);
+    } 
+    // Si solo es fecha, agregar la hora
+    elseif ($request->HORA_INFORME) {
+        $fechaInforme = $request->FECHA_INFORME . ' ' . $request->HORA_INFORME . ':00';
+        \Log::info('🕐 Combinando fecha y hora de informe', ['fecha_combinada' => $fechaInforme]);
+    }
+    else {
+        $fechaInforme = $request->FECHA_INFORME . ' 00:00:00';
+        \Log::info('📅 Solo fecha de informe proporcionada', ['fecha_solo' => $fechaInforme]);
+    }
+
+    // CAMBIO AQUÍ: Validación mejorada de fechas
+    try {
+        $carbonDate = \Carbon\Carbon::parse($fechaInforme);
         
-        $fechaInforme = null;
-
-        if ($request->FECHA_INFORME) {
-            // Si ya tiene hora (formato completo), usarla tal como viene
-            if (strlen($request->FECHA_INFORME) > 10) {
-                $fechaInforme = $request->FECHA_INFORME;
-                \Log::info('🕐 Fecha de informe ya incluye hora', ['fecha_completa' => $fechaInforme]);
-            } 
-            // Si solo es fecha, agregar la hora
-            elseif ($request->HORA_INFORME) {
-                $fechaInforme = $request->FECHA_INFORME . ' ' . $request->HORA_INFORME . ':00';
-                \Log::info('🕐 Combinando fecha y hora de informe', ['fecha_combinada' => $fechaInforme]);
-            }
-            else {
-                $fechaInforme = $request->FECHA_INFORME;
-                \Log::info('📅 Solo fecha de informe proporcionada', ['fecha_solo' => $fechaInforme]);
-            }
-
-            // Validar que sea una fecha válida
-            $timestamp = strtotime($fechaInforme);
-            if ($timestamp === false || $timestamp < 0) {
-                // Fecha inválida, usar fecha actual
-                \Log::warning('⚠️ Fecha de informe inválida detectada', [
-                    'fecha_original' => $fechaInforme,
-                    'timestamp' => $timestamp
-                ]);
-                $fechaInforme = date('Y-m-d H:i:s');
-                \Log::info('🔄 Usando fecha actual para informe', ['fecha_nueva' => $fechaInforme]);
-            } else {
-                // Convertir a formato estándar
-                $fechaInforme = date('Y-m-d H:i:s', $timestamp);
-                \Log::info('✅ Fecha de informe validada', ['fecha_final' => $fechaInforme]);
-            }
-        } else {
-            // Si no hay fecha, usar la fecha actual
-            $fechaInforme = date('Y-m-d H:i:s');
-            \Log::info('🔄 No se proporcionó fecha de informe, usando actual', ['fecha_actual' => $fechaInforme]);
+        // Verificar que la fecha esté en un rango razonable (1900 - 2100)
+        if ($carbonDate->year < 1900 || $carbonDate->year > 2100) {
+            throw new \Exception('Fecha fuera del rango válido');
         }
+        
+        $fechaInforme = $carbonDate->format('Y-m-d H:i:s');
+        \Log::info('✅ Fecha de informe validada', ['fecha_final' => $fechaInforme]);
+        
+    } catch (\Exception $e) {
+        // Fecha inválida, usar fecha actual
+        \Log::warning('⚠️ Fecha de informe inválida detectada', [
+            'fecha_original' => $fechaInforme,
+            'error' => $e->getMessage()
+        ]);
+        $fechaInforme = now()->format('Y-m-d H:i:s');
+        \Log::info('🔄 Usando fecha actual para informe', ['fecha_nueva' => $fechaInforme]);
+    }
+} else {
+    // Si no hay fecha, usar la fecha actual
+    $fechaInforme = now()->format('Y-m-d H:i:s');
+    \Log::info('🔄 No se proporcionó fecha de informe, usando actual', ['fecha_actual' => $fechaInforme]);
+}
+
 
         // Combinar fecha y hora de resultados por correo
         \Log::info('📧 Procesando fecha de resultados por correo', [
