@@ -265,4 +265,49 @@ class EnviosCorreosController extends Controller
 
         return response()->stream($callback, 200, $headers);
     }
+
+    // En EnviosCorreosController, agrega esta función:
+    public function destroy($id)
+    {
+        try {
+            // Buscar el envío
+            $envio = \App\Models\EnvioCorreo::findOrFail($id);
+            
+            // Obtener el estudio para verificar permisos si es necesario
+            $estudio = \App\Models\Estudio::findOrFail($envio->ID_ESTUDIO);
+            
+            // Eliminar el registro
+            $envio->delete();
+            
+            \Log::info('Envío de correo eliminado exitosamente', [
+                'envio_id' => $id,
+                'estudio_id' => $estudio->ID,
+                'usuario_elimino' => auth()->user()->ID_USUARIO ?? auth()->id()
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Envío eliminado exitosamente'
+            ]);
+            
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Envío no encontrado'
+            ], 404);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error eliminando envío de correo', [
+                'envio_id' => $id,
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar el envío: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

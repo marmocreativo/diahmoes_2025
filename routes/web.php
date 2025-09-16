@@ -204,7 +204,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     Route::get('estudios/{estudio:ID}/envios-correos', [EstudioController::class, 'mostrarEnviosCorreos'])
     ->name('estudios.envios-correos');
-
+    
     // Rutas para obtener datos de estudios
     Route::get('estudios/ultimo-por-institucion', [EstudioController::class, 'getUltimoEstudioInstitucion']);
     Route::get('estudios/ultimo-por-medico', [EstudioController::class, 'getUltimoEstudioMedico']);
@@ -222,6 +222,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     */
     // Listar envíos
     Route::get('/envios-correos', [EnviosCorreosController::class, 'index'])->name('envios-correos.index');
+
+    // IMPORTANTE: La ruta DELETE debe ir ANTES que la ruta GET {id}
+    Route::delete('/envios-correos/{id}', [EnviosCorreosController::class, 'destroy'])->name('envios-correos.destroy');
     
     // Ver detalle de envío
     Route::get('/envios-correos/{id}', [EnviosCorreosController::class, 'show'])->name('envios-correos.show');
