@@ -204,6 +204,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     Route::get('estudios/{estudio:ID}/envios-correos', [EstudioController::class, 'mostrarEnviosCorreos'])
     ->name('estudios.envios-correos');
+
+    Route::post('estudios/reparar', [EstudioController::class, 'repararEstudios'])
+    ->name('estudios.reparar');
     
     // Rutas para obtener datos de estudios
     Route::get('estudios/ultimo-por-institucion', [EstudioController::class, 'getUltimoEstudioInstitucion']);

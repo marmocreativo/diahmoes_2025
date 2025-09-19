@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
-import { Search, X, Filter, Eye, Edit, Download, ArrowRight, Calendar, FileText, TestTube, Microscope, Plus, MessageCircle, Printer, Trash2, Mail, CheckCircle, Clock, ChevronDown, ChevronUp, Monitor, Smartphone } from 'lucide-react';
+import { Search, X, Filter, Eye, Edit, Download, ArrowRight, Calendar, FileText, TestTube, Microscope, Plus, MessageCircle, Printer, Trash2, Mail, CheckCircle, Clock, ChevronDown, ChevronUp, Monitor, Smartphone, Settings, Wrench, AlertTriangle } from 'lucide-react';
 import { EstudioIndexProps } from '@/types/estudios';
 import WhatsAppDialog from '@/components/WhatsAppDialog';
 
@@ -15,6 +15,13 @@ export default function EstudiosIndex() {
     const [selectedEstado, setSelectedEstado] = useState(filters?.estado || '');
     const [fechaDesde, setFechaDesde] = useState(filters?.fecha_desde || '');
     const [fechaHasta, setFechaHasta] = useState(filters?.fecha_hasta || '');
+
+    // Estado para manejar el dropdown de fechas
+    const [expandedDateDropdown, setExpandedDateDropdown] = useState<number | null>(null);
+
+    // Estado para manejar el dropdown
+    const [showMaintenanceDropdown, setShowMaintenanceDropdown] = useState(false);
+    const [isRepairing, setIsRepairing] = useState(false);
 
     // Estado para detectar móvil y alternar vistas
     const [isMobile, setIsMobile] = useState(false);
@@ -33,6 +40,191 @@ export default function EstudiosIndex() {
     // Estado para el botón de eliminar
     const [deletingId, setDeletingId] = useState<number | null>(null);
 
+    // Función para formatear fecha y hora
+    const formatearFechaHora = (fechaString: string | null) => {
+        if (!fechaString || fechaString === '0000-00-00 00:00:00') {
+            return { fecha: 'N/A', hora: 'N/A' };
+        }
+        
+        try {
+            // Usar el mismo fix de zona horaria que implementamos
+            const fecha = fechaString.split('T')[0];
+            const hora = fechaString.split('T')[1]?.substring(0, 5) || 'N/A';
+            
+            // Formatear la fecha a formato legible
+            const fechaFormateada = new Date(fecha + 'T00:00:00').toLocaleDateString('es-MX', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+            
+            return { fecha: fechaFormateada, hora };
+        } catch (error) {
+            return { fecha: 'Error', hora: 'Error' };
+        }
+    };
+
+    // Componente para el dropdown de fechas
+    const FechasDropdown = ({ estudio }: { estudio: any }) => {
+    const fechas = [
+        {
+            label: 'Solicitud Recolección',
+            fecha: estudio.FECHA_SOLICITUD_RECOLECCION,
+            icon: '📅',
+            color: 'text-orange-600'
+        },
+        {
+            label: 'Recepción',
+            fecha: estudio.FECHA_RECEPCION,
+            icon: '📦',
+            color: 'text-blue-600'
+        },
+        {
+            label: 'Recepción Laboratorio',
+            fecha: estudio.FECHA_RECEPCION_LABORATORIO,
+            icon: '🧪',
+            color: 'text-purple-600'
+        },
+        {
+            label: 'Obtención Resultados',
+            fecha: estudio.FECHA_OBTENCION_RESULTADOS,
+            icon: '📊',
+            color: 'text-green-600'
+        },
+        {
+            label: 'Resultados Enviados',
+            fecha: estudio.FECHA_RESULTADOS_CORREO,
+            icon: '📧',
+            color: 'text-teal-600'
+        }
+    ];
+
+    return (
+        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-20">
+            <div className="p-3">
+                <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
+                    <h3 className="text-sm font-semibold text-gray-800">
+                        Historial de Fechas
+                    </h3>
+                    <span className="text-xs text-gray-500 font-mono">
+                        {estudio.CLAVE_INTERNA}
+                    </span>
+                </div>
+                
+                <div className="space-y-2">
+                    {fechas.map((item, index) => {
+                        const { fecha, hora } = formatearFechaHora(item.fecha);
+                        const tieneValor = item.fecha && item.fecha !== '0000-00-00 00:00:00';
+                        
+                        return (
+                            <div 
+                                key={index}
+                                className={`flex items-center justify-between py-2 px-3 rounded-md transition-colors ${
+                                    tieneValor ? 'bg-gray-50 hover:bg-gray-100' : 'bg-gray-25 opacity-60'
+                                }`}
+                            >
+                                <div className="flex items-center space-x-2 flex-1">
+                                    <span className="text-sm">{item.icon}</span>
+                                    <div className="flex-1">
+                                        <div className={`text-xs font-medium ${item.color}`}>
+                                            {item.label}
+                                        </div>
+                                        {tieneValor ? (
+                                            <div className="text-xs text-gray-600">
+                                                {fecha} • {hora}
+                                            </div>
+                                        ) : (
+                                            <div className="text-xs text-gray-400 italic">
+                                                Pendiente
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                
+                                {tieneValor && (
+                                    <div className="text-green-500">
+                                        <CheckCircle className="h-4 w-4" />
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+                
+                {/* Footer con estadísticas */}
+                <div className="mt-3 pt-2 border-t border-gray-100">
+                    <div className="flex justify-between text-xs text-gray-500">
+                        <span>
+                            Completado: {fechas.filter(f => f.fecha && f.fecha !== '0000-00-00 00:00:00').length}/5
+                        </span>
+                        <span>
+                            {estudio.ESTUDIO_ESTADO || 'Sin estado'}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+    // Función para reparar estudios
+    const handleRepararEstudios = async () => {
+        if (!window.confirm('¿Estás seguro de que deseas ejecutar la reparación de estudios?\n\nEsto actualizará fechas inválidas y estados legacy en todos los estudios.')) {
+            return;
+        }
+
+        setIsRepairing(true);
+        setShowMaintenanceDropdown(false);
+
+        try {
+            const response = await fetch('/estudios/reparar', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const { resumen } = data;
+                const mensaje = `Reparación completada exitosamente:
+                
+    • Total de estudios procesados: ${resumen.total_estudios}
+    • Estudios modificados: ${resumen.estudios_modificados}
+    • Fechas reparadas: ${resumen.fechas_reparadas}
+    • Estados legacy actualizados: ${resumen.estados_legacy_reparados}
+    • Estados por fecha de correo: ${resumen.estados_por_fecha_correo}
+    • Estados por envíos existentes: ${resumen.estados_por_envios}
+    • Errores encontrados: ${resumen.total_errores}`;
+
+                alert(mensaje);
+                
+                // Recargar la página para mostrar los cambios
+                window.location.reload();
+            } else {
+                throw new Error(data.message || 'Error desconocido');
+            }
+        } catch (error) {
+            console.error('Error reparando estudios:', error);
+            
+            // Type narrowing para manejar el error correctamente
+            let errorMessage = 'Error desconocido';
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            }
+            
+            alert('Error al reparar estudios: ' + errorMessage);
+        } finally {
+            setIsRepairing(false);
+        }
+    };
+
+    
+
     // Detectar móvil
     useEffect(() => {
         const checkMobile = () => {
@@ -44,6 +236,61 @@ export default function EstudiosIndex() {
         
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
+
+    // Detectanto el estado para dar color
+    
+    const getEstadoClasses = (estado: string | undefined) => {
+        switch (estado) {
+            case 'Solicitud Recolección':
+                return 'bg-orange-50 text-orange-800 border-orange-200';
+            case 'Recepción Laboratorio':
+                return 'bg-yellow-50 text-yellow-800 border-yellow-200';
+            case 'Resultados Completos':
+                return 'bg-blue-50 text-blue-800 border-blue-200';
+            case 'Resultados Enviados':
+                return 'bg-green-50 text-green-800 border-green-200';
+            case 'Cancelado':
+                return 'bg-gray-50 text-gray-800 border-gray-200';
+            default:
+                return 'bg-gray-50 text-gray-800 border-gray-200';
+        }
+    };
+
+    // Función para determinar el siguiente paso según el estado
+    const getSiguientePaso = (estado: string | undefined) => {
+        switch (estado) {
+            case 'Solicitud Recolección':
+                return {
+                    href: 'recepcion',
+                    texto: 'Recepción',
+                    icono: <FileText className="h-4 w-4" />,
+                    color: 'text-blue-600 hover:text-blue-700'
+                };
+            case 'Recepción Laboratorio':
+                return {
+                    href: 'laboratorio',
+                    texto: 'Laboratorio',
+                    icono: <TestTube className="h-4 w-4" />,
+                    color: 'text-purple-600 hover:text-purple-700'
+                };
+            case 'Resultados Completos':
+                return {
+                    href: 'informe',
+                    texto: 'Informe',
+                    icono: <Microscope className="h-4 w-4" />,
+                    color: 'text-green-600 hover:text-green-700'
+                };
+            case 'Resultados Enviados':
+            default:
+                return null; // No mostrar botón
+        }
+    };
+
+    // Función para determinar si mostrar botones de edición y borrar
+    const mostrarBotonesEdicion = (estado: string | undefined) => {
+        return estado !== 'Resultados Enviados';
+    };
+
 
     // Funciones existentes (sin cambios)
     const openWhatsAppDialog = (estudio: any) => {
@@ -134,57 +381,30 @@ export default function EstudiosIndex() {
     
     // Función para renderizar el estado de envíos
     const renderEstadoEnvios = (estadisticas: any) => {
-        if (!estadisticas || estadisticas.total === 0) {
-            return (
-                <div className="text-center text-gray-400">
-                    <Mail className="h-4 w-4 mx-auto mb-1" />
-                    <div className="text-xs">Sin envíos</div>
-                </div>
-            );
-        }
-
-        const todosLeidos = estadisticas.enviados === 0;
-        
+    if (!estadisticas || estadisticas.total === 0) {
         return (
-            <div className="text-center">
-                <div className="flex items-center justify-center space-x-1 mb-1">
-                    <span className={`text-sm font-medium ${todosLeidos ? 'text-green-600' : 'text-gray-900'}`}>
-                        {estadisticas.total}
-                    </span>
-                    {todosLeidos ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                    ) : (
-                        <Clock className="h-4 w-4 text-yellow-500" />
-                    )}
-                </div>
-                
-                <div className="text-xs text-gray-500">
-                    {estadisticas.leidos}/{estadisticas.total} leídos
-                </div>
-                
-                {estadisticas.total > 0 && (
-                    <div className="mt-1">
-                        <div className="w-full bg-gray-200 rounded-full h-1.5">
-                            <div 
-                                className={`h-1.5 rounded-full ${
-                                    estadisticas.porcentaje_lectura === 100 
-                                        ? 'bg-green-500' 
-                                        : estadisticas.porcentaje_lectura > 50 
-                                        ? 'bg-yellow-500' 
-                                        : 'bg-red-500'
-                                }`}
-                                style={{ width: `${estadisticas.porcentaje_lectura}%` }}
-                            ></div>
-                        </div>
-                        <div className="text-xs text-gray-400 mt-0.5">
-                            {estadisticas.porcentaje_lectura}%
-                        </div>
-                    </div>
-                )}
+            <div className="text-center text-gray-400">
+                <Mail className="h-4 w-4 mx-auto mb-1" />
+                <div className="text-xs">Sin envíos</div>
             </div>
         );
-    };
+    }
 
+    return (
+        <div className="text-center">
+            <div className="flex items-center justify-center space-x-1 mb-1">
+                <span className="text-sm font-medium text-blue-600">
+                    {estadisticas.total}
+                </span>
+                <Mail className="h-4 w-4 text-blue-500" />
+            </div>
+            
+            <div className="text-xs text-gray-500">
+                {estadisticas.total === 1 ? 'correo enviado' : 'correos enviados'}
+            </div>
+        </div>
+    );
+};
     // NUEVA: Componente de tarjeta móvil
     const MobileEstudioCard = ({ estudio }: { estudio: any }) => {
         const isExpanded = expandedCards.has(estudio.ID);
@@ -209,7 +429,7 @@ export default function EstudiosIndex() {
                         
                         {/* Estado y toggle */}
                         <div className="flex flex-col items-end space-y-2">
-                            <span className="px-2 py-1 rounded-full text-xs font-medium border bg-gray-50 text-gray-800 border-gray-200">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getEstadoClasses(estudio.ESTUDIO_ESTADO)}`}>
                                 {estudio.ESTUDIO_ESTADO || 'Sin estado'}
                             </span>
                             <button
@@ -245,22 +465,20 @@ export default function EstudiosIndex() {
                                 >
                                     <Eye className="h-5 w-5" />
                                 </Link>
-                                
-                                <button 
-                                    onClick={() => window.open(`/publicos/estudio?id=${estudio.ID}&aleatorio=${estudio.ID_ALEATORIO}`, '_blank')}
-                                    className="text-green-600 hover:text-green-700 transition-colors"
-                                    title="Descargar PDF"
-                                >
-                                    <Download className="h-5 w-5" />
-                                </button>
-
-                                <button 
-                                    onClick={() => openWhatsAppDialog(estudio)}
-                                    className="text-green-600 hover:text-green-700 transition-colors"
-                                    title="Enviar por WhatsApp"
-                                >
-                                    <MessageCircle className="h-5 w-5" />
-                                </button>
+                                {/* BOTÓN DE SIGUIENTE PASO */}
+                                {(() => {
+                                    const siguientePaso = getSiguientePaso(estudio.ESTUDIO_ESTADO);
+                                    return siguientePaso ? (
+                                        <Link
+                                            href={`/estudios/${estudio.ID}/edit/${siguientePaso.href}`}
+                                            className="inline-flex items-center space-x-1 px-3 py-1.5 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
+                                            title={`Ir a ${siguientePaso.texto}`}
+                                        >
+                                            {siguientePaso.icono}
+                                            <span>{siguientePaso.texto}</span>
+                                        </Link>
+                                    ) : null;
+                                })()}
                             </div>
 
                             {/* Estado de envíos compacto */}
@@ -303,69 +521,98 @@ export default function EstudiosIndex() {
 
                             {/* Todas las acciones expandidas */}
                             <div>
+                                
                                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Todas las Acciones</div>
                                 <div className="grid grid-cols-2 gap-2">
-                                    <button 
-                                        onClick={() => window.open(`/publicos/estudio?id=${estudio.ID}&aleatorio=${estudio.ID_ALEATORIO}&imprimir=si`, '_blank')}
-                                        className="flex items-center justify-center space-x-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-colors"
-                                    >
-                                        <Printer className="h-4 w-4" />
-                                        <span>Imprimir</span>
-                                    </button>
+                                    <div>
+                                        <Link
+                                            href={`/estudios/${estudio.ID}`}
+                                            className="w-full mb-2 flex items-center justify-center space-x-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors"
+                                            title="Ver estudio"
+                                        >
+                                            <Eye className="h-5 w-5" />
+                                            <span>Ver estudio</span>
+                                        </Link>
+                                        
+                                        <button 
+                                            onClick={() => window.open(`/publicos/estudio?id=${estudio.ID}&aleatorio=${estudio.ID_ALEATORIO}`, '_blank')}
+                                            className="w-full mb-2 flex items-center justify-center space-x-2 px-3 py-2 bg-green-100 text-green-700 rounded-lg text-sm hover:bg-green-200 transition-colors"
+                                            title="Descargar PDF"
+                                        >
+                                            <Download className="h-5 w-5" />
+                                            <span>PDF</span>
+                                        </button>
 
-                                    <Link
-                                        href={`/estudios/${estudio.ID}/envios-correos`}
-                                        className="flex items-center justify-center space-x-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors"
-                                    >
-                                        <Mail className="h-4 w-4" />
-                                        <span>Envíos</span>
-                                    </Link>
+                                        <button 
+                                            onClick={() => openWhatsAppDialog(estudio)}
+                                            className="w-full mb-2 flex items-center justify-center space-x-2 px-3 py-2 bg-green-100 text-green-700 rounded-lg text-sm hover:bg-green-200 transition-colors"
+                                            title="Enviar por WhatsApp"
+                                        >
+                                            <MessageCircle className="h-5 w-5" />
+                                            <span> WhatsApp</span>
+                                        </button>
+                                        <button 
+                                            onClick={() => window.open(`/publicos/estudio?id=${estudio.ID}&aleatorio=${estudio.ID_ALEATORIO}&imprimir=si`, '_blank')}
+                                            className="w-full mb-2 flex items-center justify-center space-x-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-colors"
+                                        >
+                                            <Printer className="h-4 w-4" />
+                                            <span>Imprimir</span>
+                                        </button>
+                                        <Link
+                                            href={`/estudios/${estudio.ID}/envios-correos`}
+                                            className="w-full mb-2 flex items-center justify-center space-x-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors"
+                                        >
+                                            <Mail className="h-4 w-4" />
+                                            <span>Envíos</span>
+                                        </Link>
+                                    </div>
+                                    <div>
+                                        <Link
+                                            href={`/estudios/${estudio.ID}/edit/recoleccion`}
+                                            className="mb-2 w-full flex items-center justify-center space-x-2 px-3 py-2 bg-yellow-100 text-yellow-700 rounded-lg text-sm hover:bg-yellow-200 transition-colors"
+                                        >
+                                            <Calendar className="h-4 w-4" />
+                                            <span>Recolección</span>
+                                        </Link>
 
-                                    <Link
-                                        href={`/estudios/${estudio.ID}/edit/recoleccion`}
-                                        className="flex items-center justify-center space-x-2 px-3 py-2 bg-yellow-100 text-yellow-700 rounded-lg text-sm hover:bg-yellow-200 transition-colors"
-                                    >
-                                        <Calendar className="h-4 w-4" />
-                                        <span>Recolección</span>
-                                    </Link>
+                                        <Link
+                                            href={`/estudios/${estudio.ID}/edit/recepcion`}
+                                            className="mb-2 w-full flex items-center justify-center space-x-2 px-3 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm hover:bg-purple-200 transition-colors"
+                                        >
+                                            <FileText className="h-4 w-4" />
+                                            <span>Recepción</span>
+                                        </Link>
 
-                                    <Link
-                                        href={`/estudios/${estudio.ID}/edit/recepcion`}
-                                        className="flex items-center justify-center space-x-2 px-3 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm hover:bg-purple-200 transition-colors"
-                                    >
-                                        <FileText className="h-4 w-4" />
-                                        <span>Recepción</span>
-                                    </Link>
+                                        <Link
+                                            href={`/estudios/${estudio.ID}/edit/laboratorio`}
+                                            className="mb-2 w-full flex items-center justify-center space-x-2 px-3 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm hover:bg-indigo-200 transition-colors"
+                                        >
+                                            <TestTube className="h-4 w-4" />
+                                            <span>Laboratorio</span>
+                                        </Link>
 
-                                    <Link
-                                        href={`/estudios/${estudio.ID}/edit/laboratorio`}
-                                        className="flex items-center justify-center space-x-2 px-3 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm hover:bg-indigo-200 transition-colors"
-                                    >
-                                        <TestTube className="h-4 w-4" />
-                                        <span>Laboratorio</span>
-                                    </Link>
+                                        <Link
+                                            href={`/estudios/${estudio.ID}/edit/informe`}
+                                            className="mb-2 w-full flex items-center justify-center space-x-2 px-3 py-2 bg-green-100 text-green-700 rounded-lg text-sm hover:bg-green-200 transition-colors"
+                                        >
+                                            <Microscope className="h-4 w-4" />
+                                            <span>Informe</span>
+                                        </Link>
 
-                                    <Link
-                                        href={`/estudios/${estudio.ID}/edit/informe`}
-                                        className="flex items-center justify-center space-x-2 px-3 py-2 bg-green-100 text-green-700 rounded-lg text-sm hover:bg-green-200 transition-colors"
-                                    >
-                                        <Microscope className="h-4 w-4" />
-                                        <span>Informe</span>
-                                    </Link>
-
-                                    {/* Botón de eliminar */}
-                                    <button
-                                        onClick={() => handleDeleteEstudio(estudio)}
-                                        disabled={deletingId === estudio.ID}
-                                        className="flex items-center justify-center space-x-2 px-3 py-2 bg-red-100 text-red-700 rounded-lg text-sm hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {deletingId === estudio.ID ? (
-                                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent"></div>
-                                        ) : (
-                                            <Trash2 className="h-4 w-4" />
-                                        )}
-                                        <span>Eliminar</span>
-                                    </button>
+                                        {/* Botón de eliminar */}
+                                        <button
+                                            onClick={() => handleDeleteEstudio(estudio)}
+                                            disabled={deletingId === estudio.ID}
+                                            className="mb-2 w-full flex items-center justify-center space-x-2 px-3 py-2 bg-red-100 text-red-700 rounded-lg text-sm hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {deletingId === estudio.ID ? (
+                                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent"></div>
+                                            ) : (
+                                                <Trash2 className="h-4 w-4" />
+                                            )}
+                                            <span>Eliminar</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -403,6 +650,68 @@ export default function EstudiosIndex() {
                                     {forceDesktopView ? <Smartphone className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}
                                 </button>
                             )}
+                            
+                            {/* Dropdown de Funciones de Mantenimiento */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowMaintenanceDropdown(!showMaintenanceDropdown)}
+                                    className="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg text-white font-medium transition-colors flex items-center space-x-2"
+                                    title="Funciones de mantenimiento"
+                                >
+                                    <Settings className="h-4 w-4" />
+                                    {!showMobileView && <span className="text-sm">Mantenimiento</span>}
+                                </button>
+
+                                {/* Dropdown Menu */}
+                                {showMaintenanceDropdown && (
+                                    <>
+                                        {/* Overlay para cerrar el dropdown */}
+                                        <div 
+                                            className="fixed inset-0 z-10" 
+                                            onClick={() => setShowMaintenanceDropdown(false)}
+                                        ></div>
+                                        
+                                        {/* Menu Items */}
+                                        <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+                                            <div className="py-2">
+                                                {/* Header del dropdown */}
+                                                <div className="px-4 py-2 border-b border-gray-100">
+                                                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Funciones de Mantenimiento
+                                                    </div>
+                                                </div>
+                                                
+                                                {/* Opción: Reparar Estudios */}
+                                                <button
+                                                    onClick={handleRepararEstudios}
+                                                    disabled={isRepairing}
+                                                    className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {isRepairing ? (
+                                                        <div className="h-4 w-4 mr-3 animate-spin rounded-full border-2 border-orange-500 border-t-transparent"></div>
+                                                    ) : (
+                                                        <Wrench className="h-4 w-4 mr-3 text-orange-500" />
+                                                    )}
+                                                    <div className="text-left">
+                                                        <div className="font-medium">Reparar Estudios</div>
+                                                        <div className="text-xs text-gray-500">
+                                                            Corregir fechas inválidas y estados legacy
+                                                        </div>
+                                                    </div>
+                                                </button>
+
+                                                {/* Separador para futuras opciones */}
+                                                <div className="border-t border-gray-100 my-1"></div>
+                                                
+                                                {/* Placeholder para futuras opciones */}
+                                                <div className="px-4 py-3 text-xs text-gray-400 italic">
+                                                    Más funciones próximamente...
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                             
                             <Link 
                                 href="/estudios/create"
@@ -650,16 +959,50 @@ export default function EstudiosIndex() {
                                             </td>
 
                                             {/* Fecha Solicitud */}
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {estudio.FECHA_SOLICITUD_RECOLECCION && estudio.FECHA_SOLICITUD_RECOLECCION !== '0000-00-00 00:00:00' 
-                                                    ? new Date(estudio.FECHA_SOLICITUD_RECOLECCION).toLocaleDateString('es-MX')
-                                                    : 'N/A'
-                                                }
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 relative">
+                                                <div 
+                                                    className="cursor-pointer hover:text-gray-700 hover:bg-gray-50 px-2 py-1 rounded transition-colors"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setExpandedDateDropdown(
+                                                            expandedDateDropdown === estudio.ID ? null : estudio.ID
+                                                        );
+                                                    }}
+                                                    title="Ver historial de fechas"
+                                                >
+                                                    <div className="flex items-center space-x-1">
+                                                        <Calendar className="h-4 w-4" />
+                                                        <span>
+                                                            {estudio.FECHA_SOLICITUD_RECOLECCION && estudio.FECHA_SOLICITUD_RECOLECCION !== '0000-00-00 00:00:00' 
+                                                                ? (() => {
+                                                                    const { fecha, hora } = formatearFechaHora(estudio.FECHA_SOLICITUD_RECOLECCION);
+                                                                    return `${fecha} ${hora}`;
+                                                                })()
+                                                                : 'N/A'
+                                                            }
+                                                        </span>
+                                                        <ChevronDown className={`h-3 w-3 transition-transform ${
+                                                            expandedDateDropdown === estudio.ID ? 'rotate-180' : ''
+                                                        }`} />
+                                                    </div>
+                                                </div>
+
+                                                {/* Dropdown de fechas */}
+                                                {expandedDateDropdown === estudio.ID && (
+                                                    <>
+                                                        {/* Overlay para cerrar */}
+                                                        <div 
+                                                            className="fixed inset-0 z-10" 
+                                                            onClick={() => setExpandedDateDropdown(null)}
+                                                        />
+                                                        <FechasDropdown estudio={estudio} />
+                                                    </>
+                                                )}
                                             </td>
 
                                             {/* Estado */}
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="px-3 py-1 rounded-full text-xs font-medium border bg-gray-50 text-gray-800 border-gray-200">
+                                                <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getEstadoClasses(estudio.ESTUDIO_ESTADO)}`}>
                                                     {estudio.ESTUDIO_ESTADO || 'Sin estado'}
                                                 </span>
                                             </td>
@@ -687,12 +1030,13 @@ export default function EstudiosIndex() {
                                                     >
                                                         <Download className="h-5 w-5" />
                                                     </button>
+                                                    
                                                     <button 
                                                         onClick={() => window.open(`/publicos/estudio?id=${estudio.ID}&aleatorio=${estudio.ID_ALEATORIO}&imprimir=si`, '_blank')}
                                                         className="text-gray-600 hover:text-gray-700 transition-colors"
                                                         title="PDF para impresión"
                                                     >
-                                                        <Printer  className="h-4 w-4" />
+                                                        <Printer className="h-4 w-4" />
                                                     </button>
 
                                                     <button 
@@ -711,55 +1055,75 @@ export default function EstudiosIndex() {
                                                         <Mail className="h-5 w-5" />
                                                     </Link>
                                                     
-                                                    <div className="relative group">
-                                                        <button className="text-[#D68B41] hover:text-[#b8763a] transition-colors">
-                                                            <Edit className="h-5 w-5" />
-                                                        </button>
-                                                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                                                    {/* BOTÓN DE SIGUIENTE PASO */}
+                                                    {(() => {
+                                                        const siguientePaso = getSiguientePaso(estudio.ESTUDIO_ESTADO);
+                                                        return siguientePaso ? (
                                                             <Link
-                                                                href={`/estudios/${estudio.ID}/edit/recoleccion`}
-                                                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                                                href={`/estudios/${estudio.ID}/edit/${siguientePaso.href}`}
+                                                                className="inline-flex items-center space-x-1 px-3 py-1.5 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
+                                                                title={`Ir a ${siguientePaso.texto}`}
                                                             >
-                                                                <Calendar className="h-4 w-4 mr-2" />
-                                                                1. Recolección
+                                                                {siguientePaso.icono}
+                                                                <span>{siguientePaso.texto}</span>
                                                             </Link>
-                                                            <Link
-                                                                href={`/estudios/${estudio.ID}/edit/recepcion`}
-                                                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                                                            >
-                                                                <FileText className="h-4 w-4 mr-2" />
-                                                                2. Recepción
-                                                            </Link>
-                                                            <Link
-                                                                href={`/estudios/${estudio.ID}/edit/laboratorio`}
-                                                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                                                            >
-                                                                <TestTube className="h-4 w-4 mr-2" />
-                                                                3. Laboratorio
-                                                            </Link>
-                                                            <Link
-                                                                href={`/estudios/${estudio.ID}/edit/informe`}
-                                                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                                                            >
-                                                                <Microscope className="h-4 w-4 mr-2" />
-                                                                4. Informe
-                                                            </Link>
-                                                        </div>
-                                                    </div>
+                                                        ) : null;
+                                                    })()}
+                                                    
+                                                    {/* BOTONES DE EDICIÓN Y BORRAR (solo si no es "Resultados Enviados") */}
+                                                    {mostrarBotonesEdicion(estudio.ESTUDIO_ESTADO) && (
+                                                        <>
+                                                            <div className="relative group">
+                                                                <button className="text-[#D68B41] hover:text-[#b8763a] transition-colors">
+                                                                    <Edit className="h-5 w-5" />
+                                                                </button>
+                                                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                                                                    <Link
+                                                                        href={`/estudios/${estudio.ID}/edit/recoleccion`}
+                                                                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                                                    >
+                                                                        <Calendar className="h-4 w-4 mr-2" />
+                                                                        1. Recolección
+                                                                    </Link>
+                                                                    <Link
+                                                                        href={`/estudios/${estudio.ID}/edit/recepcion`}
+                                                                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                                                    >
+                                                                        <FileText className="h-4 w-4 mr-2" />
+                                                                        2. Recepción
+                                                                    </Link>
+                                                                    <Link
+                                                                        href={`/estudios/${estudio.ID}/edit/laboratorio`}
+                                                                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                                                    >
+                                                                        <TestTube className="h-4 w-4 mr-2" />
+                                                                        3. Laboratorio
+                                                                    </Link>
+                                                                    <Link
+                                                                        href={`/estudios/${estudio.ID}/edit/informe`}
+                                                                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                                                    >
+                                                                        <Microscope className="h-4 w-4 mr-2" />
+                                                                        4. Informe
+                                                                    </Link>
+                                                                </div>
+                                                            </div>
 
-                                                    {/* BOTÓN DE ELIMINAR */}
-                                                    <button
-                                                        onClick={() => handleDeleteEstudio(estudio)}
-                                                        disabled={deletingId === estudio.ID}
-                                                        className="text-red-600 hover:text-red-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        title="Eliminar estudio"
-                                                    >
-                                                        {deletingId === estudio.ID ? (
-                                                            <div className="h-5 w-5 animate-spin rounded-full border-2 border-red-600 border-t-transparent"></div>
-                                                        ) : (
-                                                            <Trash2 className="h-5 w-5" />
-                                                        )}
-                                                    </button>
+                                                            {/* BOTÓN DE ELIMINAR */}
+                                                            <button
+                                                                onClick={() => handleDeleteEstudio(estudio)}
+                                                                disabled={deletingId === estudio.ID}
+                                                                className="text-red-600 hover:text-red-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                title="Eliminar estudio"
+                                                            >
+                                                                {deletingId === estudio.ID ? (
+                                                                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-red-600 border-t-transparent"></div>
+                                                                ) : (
+                                                                    <Trash2 className="h-5 w-5" />
+                                                                )}
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

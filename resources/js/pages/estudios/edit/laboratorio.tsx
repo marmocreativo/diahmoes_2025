@@ -122,15 +122,15 @@ export default function EditLaboratorioConCondicionales() {
 
     // Preparar fechas y horas iniciales
     const fechaRecepcionInicial = estudio.FECHA_RECEPCION_LABORATORIO ? 
-        new Date(estudio.FECHA_RECEPCION_LABORATORIO).toISOString().split('T')[0] : '';
+        estudio.FECHA_RECEPCION_LABORATORIO.split('T')[0] : '';
     const horaRecepcionInicial = estudio.FECHA_RECEPCION_LABORATORIO ? 
-        new Date(estudio.FECHA_RECEPCION_LABORATORIO).toTimeString().slice(0, 5) : '';
+        estudio.FECHA_RECEPCION_LABORATORIO.split('T')[1].substring(0, 5) : '';
     
     // Para fecha de resultados: usar valores existentes si los hay, o vacío si no están completos
     const fechaResultadosInicial = (estudio.FECHA_OBTENCION_RESULTADOS && resultadosCompletos) ? 
-        new Date(estudio.FECHA_OBTENCION_RESULTADOS).toISOString().split('T')[0] : '';
+        estudio.FECHA_OBTENCION_RESULTADOS.split('T')[0] : '';
     const horaResultadosInicial = (estudio.FECHA_OBTENCION_RESULTADOS && resultadosCompletos) ? 
-        new Date(estudio.FECHA_OBTENCION_RESULTADOS).toTimeString().slice(0, 5) : '';
+        estudio.FECHA_OBTENCION_RESULTADOS.split('T')[1].substring(0, 5) : '';
 
     // LÓGICA CONDICIONAL - Ahora usa estado reactivo para estudiosSeleccionados
     const esSangreTotal = estudio.MUESTRA_TIPO === 'Sangre total';
@@ -414,7 +414,7 @@ const getFormData = useCallback((): Record<string, any> => {
     const inputClass = "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent bg-white";
     const selectClass = "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent bg-white";
     const textareaClass = "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent bg-white resize-none";
-    const labelClass = "block text-sm font-medium mb-1";
+    const labelClass = "block text-sm font-medium mb-1 text-gray-800";
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>

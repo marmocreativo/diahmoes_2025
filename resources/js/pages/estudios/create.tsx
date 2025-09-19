@@ -590,7 +590,7 @@ export default function CrearEstudio() {
 
                                                 <div>
                                                     <label className="block text-sm font-medium mb-1">
-                                                        Correo *
+                                                        Correo (Opcional)
                                                     </label>
                                                     <input
                                                         type="email"
@@ -603,7 +603,7 @@ export default function CrearEstudio() {
 
                                                 <div>
                                                     <label className="block text-sm font-medium mb-1">
-                                                        Teléfono
+                                                        Teléfono (Opcional)
                                                     </label>
                                                     <input
                                                         type="tel"
@@ -732,7 +732,7 @@ export default function CrearEstudio() {
 
                                                 <div>
                                                     <label className="block text-sm font-medium mb-1">
-                                                        Correo de la Institución *
+                                                        Correo de la Institución (Opcional)
                                                     </label>
                                                     <input
                                                         type="email"
@@ -745,7 +745,7 @@ export default function CrearEstudio() {
 
                                                 <div>
                                                     <label className="block text-sm font-medium mb-1">
-                                                        Teléfono de la Institución
+                                                        Teléfono de la Institución (Opcional)
                                                     </label>
                                                     <input
                                                         type="tel"

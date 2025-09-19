@@ -89,6 +89,9 @@ export default function EditRecoleccionOptimized() {
         processing: false,
         IdMedico: estudio.ID_MEDICO || 0,
         IdInstitucion: estudio.ID_INSTITUCION || 0,
+        // Nuevos campos para mostrar/ocultar secciones
+        showMedicoForm: false,
+        showInstitucionForm: false,
     });
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -213,10 +216,22 @@ export default function EditRecoleccionOptimized() {
 
     // Manejar cambios en campos dependientes
     const handleDependentFieldChange = useCallback((key: string, value: boolean | number) => {
-        setDependentFields(prev => ({
-            ...prev,
-            [key]: value
-        }));
+        setDependentFields(prev => {
+            const newState = {
+                ...prev,
+                [key]: value
+            };
+
+            // Lógica para mostrar/ocultar formularios
+            if (key === 'IdMedico') {
+                newState.showMedicoForm = value === 0;
+            }
+            if (key === 'IdInstitucion') {
+                newState.showInstitucionForm = value === 0;
+            }
+
+            return newState;
+        });
     }, []);
 
     const handleSave = useCallback((e?: React.MouseEvent) => {
@@ -284,9 +299,9 @@ export default function EditRecoleccionOptimized() {
 
     // Preparar fecha y hora iniciales
     const fechaInicial = estudio.FECHA_SOLICITUD_RECOLECCION ? 
-        new Date(estudio.FECHA_SOLICITUD_RECOLECCION).toISOString().split('T')[0] : '';
+        estudio.FECHA_SOLICITUD_RECOLECCION.split('T')[0] : '';
     const horaInicial = estudio.FECHA_SOLICITUD_RECOLECCION ? 
-        new Date(estudio.FECHA_SOLICITUD_RECOLECCION).toTimeString().slice(0, 5) : '';
+        estudio.FECHA_SOLICITUD_RECOLECCION.split('T')[1].substring(0, 5) : '';
 
     // Inicializar buscadores con valores actuales
     useEffect(() => {
@@ -358,6 +373,10 @@ export default function EditRecoleccionOptimized() {
                         </div>
                     </div>
                 </div>
+
+                {/* Campos Hidden con datos automáticos */}
+                <input type="hidden" name="UsuarioTipo" value="medico" />
+                <input type="hidden" name="PassUsuario" value="135DIAHMOES" />
 
                 {/* Formulario Principal - HTML Puro para performance */}
                 <form ref={formRef} onSubmit={(e) => e.preventDefault()}>
@@ -472,6 +491,21 @@ export default function EditRecoleccionOptimized() {
                                     {/* Lista desplegable */}
                                     {medicoSearch.isOpen && (
                                         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                            {/* Opción "Nuevo Médico" */}
+                                            <div
+                                                className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b"
+                                                onClick={() => {
+                                                    setMedicoSearch({
+                                                        isOpen: false,
+                                                        searchText: 'Nuevo Médico',
+                                                        selectedMedico: null
+                                                    });
+                                                    handleDependentFieldChange('IdMedico', 0);
+                                                }}
+                                            >
+                                                <strong>Nuevo Médico</strong>
+                                            </div>
+                                            
                                             {/* Médicos filtrados */}
                                             {medicos
                                                 .filter(medico => 
@@ -517,6 +551,66 @@ export default function EditRecoleccionOptimized() {
                                         value={dependentFields.IdMedico}
                                     />
                                 </div>
+
+                                {/* Formulario de nuevo médico */}
+                                {dependentFields.showMedicoForm && (
+                                    <div className="space-y-4 p-4 bg-gray-50 rounded-md border mt-4">
+                                        <h4 className="font-medium text-gray-800">Datos del Nuevo Médico</h4>
+                                        
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">
+                                                    Nombre *
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    name="USUARIO_NOMBRE"
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                    placeholder="Nombre"
+                                                    required
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">
+                                                    Apellidos *
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    name="USUARIO_APELLIDOS"
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                    placeholder="Apellidos"
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">
+                                                Correo (Opcional)
+                                            </label>
+                                            <input
+                                                type="email"
+                                                name="USUARIO_CORREO"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                placeholder="medico@ejemplo.com"
+                                                required
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">
+                                                Teléfono (Opcional)
+                                            </label>
+                                            <input
+                                                type="tel"
+                                                name="USUARIO_TELEFONO"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                placeholder="55-1234-5678"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Institución con Buscador */}
@@ -545,6 +639,21 @@ export default function EditRecoleccionOptimized() {
                                     {/* Lista desplegable */}
                                     {institucionSearch.isOpen && (
                                         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                            {/* Opción "Nueva Institución" */}
+                                            <div
+                                                className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b"
+                                                onClick={() => {
+                                                    setInstitucionSearch({
+                                                        isOpen: false,
+                                                        searchText: 'Nueva Institución',
+                                                        selectedInstitucion: null
+                                                    });
+                                                    handleDependentFieldChange('IdInstitucion', 0);
+                                                }}
+                                            >
+                                                <strong>Nueva Institución</strong>
+                                            </div>
+                                            
                                             {/* Instituciones filtradas */}
                                             {instituciones
                                                 .filter(inst => 
@@ -593,6 +702,51 @@ export default function EditRecoleccionOptimized() {
                                         value={dependentFields.IdInstitucion}
                                     />
                                 </div>
+
+                                {/* Formulario de nueva institución */}
+                                {dependentFields.showInstitucionForm && (
+                                    <div className="space-y-4 p-4 bg-gray-50 rounded-md border mt-4">
+                                        <h4 className="font-medium text-gray-800">Datos de la Nueva Institución</h4>
+                                        
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">
+                                                Nombre de la Institución *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                name="INSTITUCION_NOMBRE"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                placeholder="Nombre de la institución"
+                                                required
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">
+                                                Correo de la Institución (Opcional)
+                                            </label>
+                                            <input
+                                                type="email"
+                                                name="INSTITUCION_CORREO"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                placeholder="institucion@ejemplo.com"
+                                                required
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">
+                                                Teléfono de la Institución (Opcional)
+                                            </label>
+                                            <input
+                                                type="tel"
+                                                name="INSTITUCION_TELEFONO"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                placeholder="55-1234-5678"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 

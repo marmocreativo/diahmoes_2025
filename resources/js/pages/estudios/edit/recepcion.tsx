@@ -340,9 +340,9 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Preparar fecha y hora iniciales (actuales por defecto o existentes)
     const { fecha: fechaActual, hora: horaActual } = getCurrentDateTime();
     const fechaInicial = estudio.FECHA_RECEPCION ? 
-        new Date(estudio.FECHA_RECEPCION).toISOString().split('T')[0] : fechaActual;
+        estudio.FECHA_RECEPCION.split('T')[0] : fechaActual;
     const horaInicial = estudio.FECHA_RECEPCION ? 
-        new Date(estudio.FECHA_RECEPCION).toTimeString().slice(0, 5) : horaActual;
+        estudio.FECHA_RECEPCION.split('T')[1].substring(0, 5) : horaActual;
 
     // Función para obtener todos los valores del formulario
     const getFormData = useCallback(() => {

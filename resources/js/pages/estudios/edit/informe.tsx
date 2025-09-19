@@ -51,10 +51,10 @@ export default function EditInformeComplete() {
     // Estado para los campos del formulario
     const [formData, setFormData] = useState({
         FECHA_INFORME: estudio.FECHA_INFORME ? 
-            new Date(estudio.FECHA_INFORME).toISOString().split('T')[0] : 
+            estudio.FECHA_INFORME.split('T')[0] : 
             new Date().toISOString().split('T')[0],
         HORA_INFORME: estudio.FECHA_INFORME ? 
-            new Date(estudio.FECHA_INFORME).toTimeString().slice(0, 5) : 
+            estudio.FECHA_INFORME.split('T')[1].substring(0, 5) : 
             new Date().toTimeString().slice(0, 5),
         ESTUDIO_FACTURADO: estudio.ESTUDIO_FACTURADO || '',
         ESTUDIO_ESTADO: estudio.ESTUDIO_ESTADO || '',
@@ -959,10 +959,11 @@ export default function EditInformeComplete() {
                                     
                                     <div className="flex gap-3">
                                         <button
-                                            onClick={cancelarEnvio}
-                                            className="px-6 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                                            onClick={() => router.visit('/estudios')}
+                                            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 transition-colors"
                                         >
-                                            Cancelar
+                                            <ChevronLeft className="h-4 w-4" />
+                                            Salir
                                         </button>
                                         <button
                                             onClick={() => {
@@ -976,11 +977,20 @@ export default function EditInformeComplete() {
                                         </button>
                                     </div>
                                 </div>
-                            ) : (
+                            ) : modalEnvio.enviando ? (
                                 <div className="flex items-center gap-2 text-blue-600">
                                     <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
                                     Enviando correos...
                                 </div>
+                            ) : (
+                                // NUEVO: Botón para salir cuando el envío ha terminado
+                                <button
+                                    onClick={() => router.visit('/estudios')}
+                                    className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 transition-colors"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                    Salir
+                                </button>
                             )}
                         </div>
                     </div>
