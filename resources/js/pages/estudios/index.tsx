@@ -10,14 +10,19 @@ export default function EstudiosIndex() {
     const { estudios, filters, estados } = usePage<EstudioIndexProps>().props;
     
     // Estados para el buscador
+    // Estados para el buscador
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
     const [showFilters, setShowFilters] = useState(false);
     const [selectedEstado, setSelectedEstado] = useState(filters?.estado || '');
     const [fechaDesde, setFechaDesde] = useState(filters?.fecha_desde || '');
     const [fechaHasta, setFechaHasta] = useState(filters?.fecha_hasta || '');
 
+    // NUEVO: Estado para controlar cuándo hacer búsqueda automática
+    const [shouldAutoSearch, setShouldAutoSearch] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
+
     // Estado para manejar el dropdown de fechas
-    const [expandedDateDropdown, setExpandedDateDropdown] = useState<number | null>(null);
+    const [expandedDateDropdown, setExpandedDateDropdown] = useState<number | null>(null)
 
     // Estado para manejar el dropdown
     const [showMaintenanceDropdown, setShowMaintenanceDropdown] = useState(false);
@@ -336,24 +341,43 @@ export default function EstudiosIndex() {
 
     // Búsqueda en tiempo real con debounce
     useEffect(() => {
+        // Solo hacer búsqueda automática si el flag está activado Y ha cambiado el término
+        if (!shouldAutoSearch || searchTerm === filters?.search) {
+            return;
+        }
+
         const timeoutId = setTimeout(() => {
             if (searchTerm !== filters?.search) {
-                handleSearch();
+                handleSearch(true); // true indica que es búsqueda automática
             }
         }, 500);
 
         return () => clearTimeout(timeoutId);
-    }, [searchTerm]);
+    }, [searchTerm, shouldAutoSearch]);
 
-    const handleSearch = () => {
-        router.get('/estudios', {
+     const handleSearch = (isAutoSearch = false) => {
+        setIsSearching(true);
+        
+        // Si es búsqueda automática (por typing), resetear a página 1
+        // Si es búsqueda manual (botón), mantener página actual
+        const searchParams = {
             search: searchTerm,
             estado: selectedEstado,
             fecha_desde: fechaDesde,
             fecha_hasta: fechaHasta,
-        }, {
+            // Solo resetear página en búsqueda automática
+            ...(isAutoSearch ? {} : { page: estudios?.meta?.current_page || 1 })
+        };
+
+        router.get('/estudios', searchParams, {
             preserveState: true,
-            replace: true,
+            preserveScroll: true,
+            replace: false, // CAMBIADO: No reemplazar historial
+            onFinish: () => {
+                setIsSearching(false);
+                // Después de la primera búsqueda, permitir auto-búsqueda
+                setShouldAutoSearch(true);
+            }
         });
     };
 
@@ -362,9 +386,39 @@ export default function EstudiosIndex() {
         setSelectedEstado('');
         setFechaDesde('');
         setFechaHasta('');
+        setShouldAutoSearch(false); // Desactivar auto-búsqueda temporalmente
+        
         router.get('/estudios', {}, {
             preserveState: true,
-            replace: true,
+            preserveScroll: true,
+            replace: false,
+            onFinish: () => {
+                // Reactivar auto-búsqueda después de limpiar
+                setTimeout(() => setShouldAutoSearch(true), 100);
+            }
+        });
+    };
+
+    // NUEVA: Función específica para manejar cambios en el input de búsqueda
+    const handleSearchInputChange = (value: string) => {
+        setSearchTerm(value);
+        // Activar auto-búsqueda solo después del primer cambio
+        if (!shouldAutoSearch) {
+            setShouldAutoSearch(true);
+        }
+    };
+
+    // CORREGIDA: Función para manejar paginación
+    const handlePaginationClick = (url: string) => {
+        setIsSearching(true);
+        
+        router.get(url, {}, {
+            preserveState: true,
+            preserveScroll: false, // Hacer scroll arriba en paginación
+            replace: false,
+            onFinish: () => {
+                setIsSearching(false);
+            }
         });
     };
 
@@ -735,13 +789,14 @@ export default function EstudiosIndex() {
                             <input
                                 type="text"
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(e) => handleSearchInputChange(e.target.value)} // CAMBIADO
                                 placeholder={showMobileView ? "Buscar estudios..." : "Buscar por clave, folio Merck, médico, paciente o institución..."}
                                 className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                disabled={isSearching} // NUEVO: Deshabilitar durante búsqueda
                             />
                             {searchTerm && (
                                 <button
-                                    onClick={() => setSearchTerm('')}
+                                    onClick={() => handleSearchInputChange('')} // ← CAMBIAR de setSearchTerm a handleSearchInputChange
                                     className="absolute inset-y-0 right-0 pr-3 flex items-center"
                                 >
                                     <X className="h-5 w-5 text-gray-400 hover:text-gray-600" />
@@ -821,10 +876,11 @@ export default function EstudiosIndex() {
 
                             <div className="flex justify-end space-x-2 mt-4">
                                 <button
-                                    onClick={handleSearch}
-                                    className="bg-[#189BAF] hover:bg-[#157a8c] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                    onClick={() => handleSearch(false)} // ← AGREGAR (false)
+                                    disabled={isSearching} // ← AGREGAR disabled
+                                    className="bg-[#189BAF] hover:bg-[#157a8c] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    Aplicar Filtros
+                                    {isSearching ? 'Buscando...' : 'Aplicar Filtros'} {/* ← CAMBIAR texto dinámico */}
                                 </button>
                             </div>
                         </div>
@@ -1139,17 +1195,20 @@ export default function EstudiosIndex() {
                             <div className={`flex items-center ${showMobileView ? 'flex-col space-y-2' : 'justify-between'}`}>
                                 <div className="text-sm text-gray-700">
                                     Mostrando {estudios?.meta?.from || 0} - {estudios?.meta?.to || 0} de {estudios?.meta?.total || 0} resultados
+                                    {isSearching && (
+                                        <span className="ml-2 text-xs text-gray-500">(Buscando...)</span>
+                                    )}
                                 </div>
                                 <div className={`flex items-center space-x-2 ${showMobileView ? 'flex-wrap justify-center' : ''}`}>
                                     {estudios.links.map((link, index) => (
                                         <button
                                             key={index}
-                                            onClick={() => link.url && router.get(link.url)}
-                                            disabled={!link.url}
+                                            onClick={() => link.url && handlePaginationClick(link.url)} // CAMBIADO
+                                            disabled={!link.url || isSearching} // CAMBIADO: Deshabilitar durante búsqueda
                                             className={`px-3 py-1 rounded text-sm font-medium transition-colors ${showMobileView ? 'text-xs' : ''} ${
                                                 link.active
                                                     ? 'bg-[#189BAF] text-white'
-                                                    : link.url
+                                                    : link.url && !isSearching
                                                     ? 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                                                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                             }`}

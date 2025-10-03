@@ -20,75 +20,75 @@ class EstudioController extends Controller
      * Display a listing of the resource.
      */
     public function index(Request $request)
-{
-    $query = Estudio::with(['medico', 'paciente', 'institucion', 'cliente', 'enviosCorreos']);
-    
-    // Búsqueda global simplificada
-    if ($request->filled('search')) {
-        $search = $request->get('search');
-        $query->where(function($q) use ($search) {
-            $q->where('CLAVE_INTERNA', 'like', "%{$search}%")
-              ->orWhere('FOLIO_MERCK', 'like', "%{$search}%")
-              ->orWhere('MUESTRA_INICIALES', 'like', "%{$search}%")
-              // Búsqueda por nombre completo del médico
-              ->orWhereHas('medico', function($subQ) use ($search) {
-                  $subQ->where('USUARIO_NOMBRE', 'like', "%{$search}%")
-                       ->orWhere('USUARIO_APELLIDOS', 'like', "%{$search}%")
-                       ->orWhere(\DB::raw('CONCAT(USUARIO_NOMBRE, " ", USUARIO_APELLIDOS)'), 'like', "%{$search}%");
-              })
-              // Búsqueda por nombre completo del paciente
-              ->orWhereHas('paciente', function($subQ) use ($search) {
-                  $subQ->where('USUARIO_NOMBRE', 'like', "%{$search}%")
-                       ->orWhere('USUARIO_APELLIDOS', 'like', "%{$search}%")
-                       ->orWhere(\DB::raw('CONCAT(USUARIO_NOMBRE, " ", USUARIO_APELLIDOS)'), 'like', "%{$search}%");
-              })
-              // Búsqueda por nombre de institución
-              ->orWhereHas('institucion', function($subQ) use ($search) {
-                  $subQ->where('INSTITUCION_NOMBRE', 'like', "%{$search}%");
-              });
-        });
-    }
-    
-    // Filtros adicionales opcionales (mantener solo los esenciales)
-    if ($request->filled('estado')) {
-        $query->where('ESTUDIO_ESTADO', $request->get('estado'));
-    }
-    
-    if ($request->filled('fecha_desde')) {
-        $query->where('FECHA_SOLICITUD_RECOLECCION', '>=', $request->get('fecha_desde'));
-    }
-    
-    if ($request->filled('fecha_hasta')) {
-        $query->where('FECHA_SOLICITUD_RECOLECCION', '<=', $request->get('fecha_hasta'));
-    }
-    
-    // Ordenamiento por defecto
-    $query->orderBy('ANIO', 'desc')
-          ->orderBy('SERIADO', 'desc');
-    
-    $estudios = $query->paginate(20)->withQueryString();
+    {
+        $query = Estudio::with(['medico', 'paciente', 'institucion', 'cliente', 'enviosCorreos']);
+        
+        // Búsqueda global simplificada
+        if ($request->filled('search')) {
+            $search = $request->get('search');
+            $query->where(function($q) use ($search) {
+                $q->where('CLAVE_INTERNA', 'like', "%{$search}%")
+                ->orWhere('FOLIO_MERCK', 'like', "%{$search}%")
+                ->orWhere('MUESTRA_INICIALES', 'like', "%{$search}%")
+                // Búsqueda por nombre completo del médico
+                ->orWhereHas('medico', function($subQ) use ($search) {
+                    $subQ->where('USUARIO_NOMBRE', 'like', "%{$search}%")
+                        ->orWhere('USUARIO_APELLIDOS', 'like', "%{$search}%")
+                        ->orWhere(\DB::raw('CONCAT(USUARIO_NOMBRE, " ", USUARIO_APELLIDOS)'), 'like', "%{$search}%");
+                })
+                // Búsqueda por nombre completo del paciente
+                ->orWhereHas('paciente', function($subQ) use ($search) {
+                    $subQ->where('USUARIO_NOMBRE', 'like', "%{$search}%")
+                        ->orWhere('USUARIO_APELLIDOS', 'like', "%{$search}%")
+                        ->orWhere(\DB::raw('CONCAT(USUARIO_NOMBRE, " ", USUARIO_APELLIDOS)'), 'like', "%{$search}%");
+                })
+                // Búsqueda por nombre de institución
+                ->orWhereHas('institucion', function($subQ) use ($search) {
+                    $subQ->where('INSTITUCION_NOMBRE', 'like', "%{$search}%");
+                });
+            });
+        }
+        
+        // Filtros adicionales opcionales (mantener solo los esenciales)
+        if ($request->filled('estado')) {
+            $query->where('ESTUDIO_ESTADO', $request->get('estado'));
+        }
+        
+        if ($request->filled('fecha_desde')) {
+            $query->where('FECHA_SOLICITUD_RECOLECCION', '>=', $request->get('fecha_desde'));
+        }
+        
+        if ($request->filled('fecha_hasta')) {
+            $query->where('FECHA_SOLICITUD_RECOLECCION', '<=', $request->get('fecha_hasta'));
+        }
+        
+        // Ordenamiento por defecto
+        $query->orderBy('ANIO', 'desc')
+            ->orderBy('SERIADO', 'desc');
+        
+        $estudios = $query->paginate(20)->withQueryString();
 
-    $estudios->getCollection()->transform(function ($estudio) {
-        $estudio->estadisticas_envios = [
-            'total' => $estudio->enviosCorreos->count(),
-            'enviados' => $estudio->enviosCorreos->where('ESTADO', 'enviado')->count(),
-            'leidos' => $estudio->enviosCorreos->where('ESTADO', 'leido')->count(),
-            'porcentaje_lectura' => $estudio->enviosCorreos->count() > 0 
-                ? round(($estudio->enviosCorreos->where('ESTADO', 'leido')->count() / $estudio->enviosCorreos->count()) * 100)
-                : 0
-        ];
-        return $estudio;
-    });
-    
-    // Datos mínimos para filtros opcionales
-    $estados = Estudio::getEstados() ?? [];
-    
-    return Inertia::render('estudios/index', [
-        'estudios' => $estudios,
-        'filters' => $request->only(['search', 'estado', 'fecha_desde', 'fecha_hasta']),
-        'estados' => $estados,
-    ]);
-}
+        $estudios->getCollection()->transform(function ($estudio) {
+            $estudio->estadisticas_envios = [
+                'total' => $estudio->enviosCorreos->count(),
+                'enviados' => $estudio->enviosCorreos->where('ESTADO', 'enviado')->count(),
+                'leidos' => $estudio->enviosCorreos->where('ESTADO', 'leido')->count(),
+                'porcentaje_lectura' => $estudio->enviosCorreos->count() > 0 
+                    ? round(($estudio->enviosCorreos->where('ESTADO', 'leido')->count() / $estudio->enviosCorreos->count()) * 100)
+                    : 0
+            ];
+            return $estudio;
+        });
+        
+        // Datos mínimos para filtros opcionales
+        $estados = Estudio::getEstados() ?? [];
+        
+        return Inertia::render('estudios/index', [
+            'estudios' => $estudios,
+            'filters' => $request->only(['search', 'estado', 'fecha_desde', 'fecha_hasta']),
+            'estados' => $estados,
+        ]);
+    }
 
     /**
      * Show the form for creating a new resource.
@@ -201,8 +201,8 @@ class EstudioController extends Controller
 
         // Manejar creación de nuevos registros si es necesario
         $idCliente = $this->manejarNuevoCliente($request);
-        $idMedico = $this->manejarNuevoMedico($request);
-        $idInstitucion = $this->manejarNuevaInstitucion($request);
+        $idMedico = $this->obtenerIdMedico($request);
+        $idInstitucion = $this->obtenerIdInstitucion($request);
 
         \Log::info('🔗 IDs obtenidos:', [
             'idCliente' => $idCliente,
@@ -300,6 +300,8 @@ class EstudioController extends Controller
         try {
             $estudio->save();
             \Log::info('✅ Estudio guardado exitosamente con ID: ' . $estudio->ID);
+
+            $this->asignarCorreosCopia($estudio);
         } catch (\Exception $e) {
             \Log::error('❌ Error al guardar estudio:', [
                 'message' => $e->getMessage(),
@@ -500,34 +502,12 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
             ->orderBy('USUARIO_NOMBRE')
             ->get();
 
-        // Si no hay correos_copias para este estudio, buscar los correos_copias que tengan el mismo ID_USUARIO (médico)
-        if ($estudio->correosCopia->isEmpty() && $estudio->ID_MEDICO) {
-            // Buscar correos_copias que tengan el mismo ID_USUARIO que el médico del estudio
-            $correosDelMedico = \App\Models\CorreoCopia::select('ID_USUARIO', 'NOMBRE', 'CORREO', 'ENVIAR')
-                ->where('ID_USUARIO', $estudio->ID_MEDICO)
-                ->get();
-            
-            // Si encontramos correos del médico, copiarlos para este estudio
-            if ($correosDelMedico->isNotEmpty()) {
-                foreach ($correosDelMedico as $correoOriginal) {
-                    try {
-                        \App\Models\CorreoCopia::create([
-                            'ID_ESTUDIO' => $estudio->ID,
-                            'ID_USUARIO' => $correoOriginal->ID_USUARIO, // Mantener la referencia al usuario original
-                            'NOMBRE' => $correoOriginal->NOMBRE,
-                            'CORREO' => $correoOriginal->CORREO,
-                            'ENVIAR' => $correoOriginal->ENVIAR,
-                        ]);
-                    } catch (\Exception $e) {
-                        // Continuar con el siguiente si hay error (correo duplicado, etc.)
-                        continue;
-                    }
-                }
-                
-                // Recargar la relación para obtener los correos recién copiados
-                $estudio->load('correosCopia:ID,ID_ESTUDIO,ID_USUARIO,NOMBRE,CORREO,ENVIAR');
-            }
-        }
+        // Si no hay correos_copias para este estudio
+        $this->asignarCorreosCopia($estudio);
+
+         // AGREGAR ESTE LOG TEMPORAL
+        \Log::info('Correos antes de enviar al frontend: ' . $estudio->correosCopia->count());
+        \Log::info('Correos data: ', $estudio->correosCopia->toArray());
 
         return Inertia::render('estudios/edit/recepcion', [
             'estudio' => $estudio,
@@ -610,34 +590,8 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
             'correosCopia:ID,ID_ESTUDIO,ID_USUARIO,NOMBRE,CORREO,ENVIAR'
         ])->findOrFail($estudio->ID);
         
-        // Si no hay correos_copias para este estudio, buscar los correos_copias que tengan el mismo ID_USUARIO (médico)
-        if ($estudio->correosCopia->isEmpty() && $estudio->ID_MEDICO) {
-            // Buscar correos_copias que tengan el mismo ID_USUARIO que el médico del estudio
-            $correosDelMedico = \App\Models\CorreoCopia::select('ID_USUARIO', 'NOMBRE', 'CORREO', 'ENVIAR')
-                ->where('ID_USUARIO', $estudio->ID_MEDICO)
-                ->get();
-            
-            // Si encontramos correos del médico, copiarlos para este estudio
-            if ($correosDelMedico->isNotEmpty()) {
-                foreach ($correosDelMedico as $correoOriginal) {
-                    try {
-                        \App\Models\CorreoCopia::create([
-                            'ID_ESTUDIO' => $estudio->ID,
-                            'ID_USUARIO' => $correoOriginal->ID_USUARIO, // Mantener la referencia al usuario original
-                            'NOMBRE' => $correoOriginal->NOMBRE,
-                            'CORREO' => $correoOriginal->CORREO,
-                            'ENVIAR' => $correoOriginal->ENVIAR,
-                        ]);
-                    } catch (\Exception $e) {
-                        // Continuar con el siguiente si hay error (correo duplicado, etc.)
-                        continue;
-                    }
-                }
-                
-                // Recargar la relación para obtener los correos recién copiados
-                $estudio->load('correosCopia:ID,ID_ESTUDIO,ID_USUARIO,NOMBRE,CORREO,ENVIAR');
-            }
-        }
+        // Si no hay correos_copias para este estudio
+        $this->asignarCorreosCopia($estudio);
         
         // Solo campos necesarios para el dropdown de médicos
         $medicos = Usuario::where('USUARIO_TIPO', 'medico')
@@ -1710,6 +1664,120 @@ public function enviarCorreoIndividual(Request $request, Estudio $estudio)
     }
 
     /**
+ * Asigna correos de copia al estudio si no los tiene
+ * Busca primero en el último estudio del médico, si no encuentra usa correos por defecto
+ */
+private function asignarCorreosCopia($estudio)
+{
+    \Log::info('=== DEBUG CORREOS INICIO ===');
+    \Log::info('Estudio ID: ' . $estudio->ID);
+    \Log::info('Correos existentes: ' . $estudio->correosCopia->count());
+    \Log::info('ID_MEDICO: ' . $estudio->ID_MEDICO . ' (tipo: ' . gettype($estudio->ID_MEDICO) . ')');
+    
+    // Si ya tiene correos asignados, no hacer nada
+    if ($estudio->correosCopia->count() > 0) {
+        \Log::info('Saliendo: ya tiene correos asignados');
+        return;
+    }
+    
+    // Si no tiene médico asignado, no crear correos
+    if (!$estudio->ID_MEDICO || $estudio->ID_MEDICO <= 0) {
+        \Log::info('Saliendo: no tiene médico válido (ID_MEDICO: ' . $estudio->ID_MEDICO . ')');
+        return;
+    }
+    
+    \Log::info('Entrando en lógica de creación de correos...');
+    
+    // Buscar el último estudio del mismo médico
+    $ultimoEstudio = Estudio::where('ID_MEDICO', $estudio->ID_MEDICO)
+        ->where('ID', '!=', $estudio->ID)
+        ->orderBy('ID', 'desc')
+        ->first();
+
+    \Log::info('Último estudio encontrado: ' . ($ultimoEstudio ? $ultimoEstudio->ID : 'ninguno'));
+
+    $correosPorDefecto = [];
+    
+    if ($ultimoEstudio && $ultimoEstudio->correosCopia->count() > 0) {
+        // Usar correos del último estudio del médico
+        \Log::info('Copiando correos del estudio: ' . $ultimoEstudio->ID);
+        
+        foreach ($ultimoEstudio->correosCopia as $correo) {
+            $correosPorDefecto[] = [
+                'ID_USUARIO' => $estudio->ID_MEDICO,
+                'ID_ESTUDIO' => $estudio->ID,
+                'NOMBRE' => $correo->NOMBRE,
+                'CORREO' => $correo->CORREO,
+                'ENVIAR' => $correo->ENVIAR
+            ];
+        }
+        
+        \Log::info('Correos copiados preparados: ' . count($correosPorDefecto));
+    } else {
+        // Usar correos por defecto
+        \Log::info('No se encontraron correos del último estudio, usando por defecto');
+        
+        $correosPorDefecto = [
+            [
+                'ID_USUARIO' => $estudio->ID_MEDICO,
+                'ID_ESTUDIO' => $estudio->ID,
+                'NOMBRE' => 'Dr. Alejandro Limón Rodríguez',
+                'CORREO' => 'alimon@diahmoes.com',
+                'ENVIAR' => 'si'
+            ],
+            [
+                'ID_USUARIO' => $estudio->ID_MEDICO,
+                'ID_ESTUDIO' => $estudio->ID,
+                'NOMBRE' => 'Dra. Ivonne Aguirre González',
+                'CORREO' => 'iaguirre@diahmoes.com',
+                'ENVIAR' => 'no'
+            ],
+            [
+                'ID_USUARIO' => $estudio->ID_MEDICO,
+                'ID_ESTUDIO' => $estudio->ID,
+                'NOMBRE' => 'Dra. Claudia Contreras Limón',
+                'CORREO' => 'ccontreras@diahmoes.com',
+                'ENVIAR' => 'no'
+            ],
+            [
+                'ID_USUARIO' => $estudio->ID_MEDICO,
+                'ID_ESTUDIO' => $estudio->ID,
+                'NOMBRE' => 'Dr. Guillermo Castillo Castillo',
+                'CORREO' => 'gcastillo@diahmoes.com',
+                'ENVIAR' => 'no'
+            ],
+            [
+                'ID_USUARIO' => $estudio->ID_MEDICO,
+                'ID_ESTUDIO' => $estudio->ID,
+                'NOMBRE' => 'Secretaria',
+                'CORREO' => 'secretaria@diahmoes.com',
+                'ENVIAR' => 'no'
+            ]
+        ];
+        
+        \Log::info('Correos por defecto preparados: ' . count($correosPorDefecto));
+    }
+
+    // Crear los correos en la base de datos
+    \Log::info('Creando ' . count($correosPorDefecto) . ' correos...');
+    
+    foreach ($correosPorDefecto as $index => $correoData) {
+        try {
+            $correoCreado = CorreoCopia::create($correoData);
+            \Log::info('Correo #' . $index . ' creado con ID: ' . $correoCreado->ID);
+        } catch (\Exception $e) {
+            \Log::error('Error creando correo #' . $index . ': ' . $e->getMessage());
+        }
+    }
+
+    // Recargar la relación para asegurar que los correos estén disponibles
+    $estudio->load('correosCopia');
+    \Log::info('Relación recargada. Total correos ahora: ' . $estudio->correosCopia->count());
+    
+    \Log::info('=== DEBUG CORREOS FIN ===');
+}
+
+    /**
      * Store a new correo copia for the study
      */
     public function storeCorreoCopia(Request $request, Estudio $estudio)
@@ -2221,5 +2289,81 @@ private function enviarCorreosReporte(Estudio $estudio, bool $enviarAdjunto = tr
                 'reporte' => $reporte ?? []
             ], 500);
         }
+    }
+
+    private function obtenerIdMedico($request)
+    {
+        \Log::info('🔍 obtenerIdMedico - Request IdMedico: ' . $request->IdMedico);
+        
+        // Si se seleccionó un médico existente
+        if ($request->IdMedico && $request->IdMedico > 0) {
+            \Log::info('✅ Usando médico existente con ID: ' . $request->IdMedico);
+            return $request->IdMedico;
+        }
+
+        // Si se va a crear un nuevo médico
+        if ($request->NombreUsuario && $request->ApellidosUsuario) {
+            \Log::info('👨‍⚕️ Creando nuevo médico');
+            
+            $nuevoMedico = Usuario::create([
+                'USUARIO_NOMBRE' => $request->NombreUsuario,
+                'USUARIO_APELLIDOS' => $request->ApellidosUsuario,
+                'USUARIO_CORREO' => $request->CorreoUsuario ?: 'sin_correo_' . time() . '@temp.com',
+                'USUARIO_TELEFONO' => $request->TelefonoUsuario,
+                'USUARIO_PASS' => bcrypt('135DIAHMOES'),
+                'FECHA_REGISTRO' => now(),
+                'FECHA_ACTUALIZACION' => now(),
+                'USUARIO_TIPO' => 'medico',
+                'ID_INSTITUCION' => 0,
+                'USUARIO_ESTADO' => 'activo',
+            ]);
+
+            \Log::info('✅ Médico creado con ID: ' . $nuevoMedico->ID_USUARIO);
+            return $nuevoMedico->ID_USUARIO;
+        }
+
+        \Log::warning('⚠️ No se pudo obtener ID de médico');
+        return null;
+    }
+
+    private function obtenerIdInstitucion($request)
+    {
+        \Log::info('🔍 obtenerIdInstitucion - Request IdInstitucion: ' . $request->IdInstitucion);
+        
+        // Si se seleccionó una institución existente
+        if ($request->IdInstitucion && $request->IdInstitucion > 0) {
+            \Log::info('✅ Usando institución existente con ID: ' . $request->IdInstitucion);
+            return $request->IdInstitucion;
+        }
+
+        // Si se va a crear una nueva institución
+        if ($request->NombreInstitucion) {
+            \Log::info('🏥 Creando nueva institución');
+            
+            $nuevaInstitucion = Institucion::create([
+                'INSTITUCION_NOMBRE' => $request->NombreInstitucion,
+                'INSTITUCION_CORREO' => $request->CorreoInstitucion ?: 'sin_correo_' . time() . '@temp.com',
+                'INSTITUCION_TELEFONO' => $request->TelefonoInstitucion ?: '',
+                'INSTITUCION_RFC' => '',
+                'INSTITUCION_RAZON_SOCIAL' => $request->NombreInstitucion,
+                'INSTITUCION_DIRECCION' => '',
+                'INSTITUCION_NUMERO_EXT' => '',
+                'INSTITUCION_NUMERO_INT' => '',
+                'INSTITUCION_COLONIA' => '',
+                'INSTITUCION_MUNICIPIO' => '',
+                'INSTITUCION_CIUDAD' => '',
+                'INSTITUCION_ESTADO' => '',
+                'INSTITUCION_CODIGO_POSTAL' => '',
+                'INSTITUCION_PIN' => strtoupper(\Str::random(6)),
+                'FECHA_REGISTRO' => now(),
+                'FECHA_ACTUALIZACION' => now(),
+            ]);
+
+            \Log::info('✅ Institución creada con ID: ' . $nuevaInstitucion->ID_INSTITUCION);
+            return $nuevaInstitucion->ID_INSTITUCION;
+        }
+
+        \Log::warning('⚠️ No se pudo obtener ID de institución');
+        return null;
     }
 }

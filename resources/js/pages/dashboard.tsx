@@ -1,6 +1,10 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type DashboardProps, type DashboardNotification } from '@/types';
-import { Head, usePage } from '@inertiajs/react';
+import { Head, usePage, Link } from '@inertiajs/react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { TrendingUp, Clock, Users, Building2, Package, AlertTriangle, CheckCircle, XCircle, Calendar } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -44,12 +48,55 @@ interface ExtendedStats {
     muestras_procesando: number;
 }
 
+interface MainCounter {
+    count: number;
+    label: string;
+    color: string;
+    url: string;
+}
+
+interface ChartData {
+    estudios_diarios: Array<{
+        fecha: string;
+        total: number;
+        fecha_completa: string;
+    }>;
+    estudios_por_tipo: Array<{
+        name: string;
+        value: number;
+    }>;
+    estudios_por_estado: Array<{
+        name: string;
+        value: number;
+        estado_codigo: string;
+    }>;
+    tiempo_procesamiento_semanal: Array<{
+        semana: string;
+        promedio_dias: number;
+        fecha_inicio: string;
+    }>;
+    instituciones_activas: Array<{
+        name: string;
+        value: number;
+        nombre_completo: string;
+    }>;
+    metricas_rendimiento: {
+        total_estudios: number;
+        estudios_completados: number;
+        eficiencia_porcentaje: number;
+        tiempo_promedio_dias: number;
+        estudios_urgentes: number;
+    };
+}
+
 export default function Dashboard() {
-    const { auth, stats, recentStudies, notifications } = usePage<{ 
+    const { auth, stats, recentStudies, notifications, chartData, mainCounters } = usePage<{ 
         auth: { user: User }; 
         stats: ExtendedStats;
         recentStudies: any[];
         notifications: DashboardNotification[];
+        chartData: ChartData;
+        mainCounters: Record<string, MainCounter>;
     }>().props;
 
     const getStatusColor = (estado: string) => {
@@ -72,14 +119,72 @@ export default function Dashboard() {
         }
     };
 
-    const getClaveLabel = (clave: string) => {
-        const labels: Record<string, string> = {
-            'KRS': 'KRAS',
-            'NRS': 'NRAS', 
-            'BRF': 'BRAF',
-            'PAN': 'PANEL'
-        };
-        return labels[clave] || clave;
+    const getCounterIcon = (label: string) => {
+        switch (label) {
+            case 'Solicitud Recolección':
+                return <Calendar className="h-6 w-6" />;
+            case 'Recepción Laboratorio':
+                return <Package className="h-6 w-6" />;
+            case 'Resultados Completos':
+                return <CheckCircle className="h-6 w-6" />;
+            case 'Resultados Enviados':
+                return <TrendingUp className="h-6 w-6" />;
+            default:
+                return <Package className="h-6 w-6" />;
+        }
+    };
+
+    const getCounterColorClasses = (color: string) => {
+        switch (color) {
+            case 'blue':
+                return {
+                    text: 'text-blue-600',
+                    bg: 'bg-blue-100',
+                    border: 'border-blue-200'
+                };
+            case 'yellow':
+                return {
+                    text: 'text-[#D68B41]',
+                    bg: 'bg-[#D68B41]/10',
+                    border: 'border-[#D68B41]/20'
+                };
+            case 'green':
+                return {
+                    text: 'text-green-600',
+                    bg: 'bg-green-100',
+                    border: 'border-green-200'
+                };
+            case 'purple':
+                return {
+                    text: 'text-purple-600',
+                    bg: 'bg-purple-100',
+                    border: 'border-purple-200'
+                };
+            default:
+                return {
+                    text: 'text-gray-600',
+                    bg: 'bg-gray-100',
+                    border: 'border-gray-200'
+                };
+        }
+    };
+
+    const pieColors = ['#3B82F6', '#F59E0B', '#10B981', '#8B5CF6', '#EF4444', '#6B7280', '#EC4899'];
+
+    const CustomTooltip = ({ active, payload, label }: any) => {
+        if (active && payload && payload.length) {
+            return (
+                <div className="bg-white p-3 border rounded-lg shadow-lg">
+                    <p className="font-semibold">{label}</p>
+                    {payload.map((entry: any, index: number) => (
+                        <p key={index} className="text-sm" style={{ color: entry.color }}>
+                            {`${entry.dataKey}: ${entry.value}`}
+                        </p>
+                    ))}
+                </div>
+            );
+        }
+        return null;
     };
 
     return (
@@ -108,144 +213,323 @@ export default function Dashboard() {
                     </div>
                 </div>
 
-                {/* Tarjetas de estadísticas principales */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600">Total Estudios</p>
-                                <p className="text-3xl font-bold text-gray-800">{stats.total_estudios}</p>
-                            </div>
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-                                <svg className="h-6 w-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="mt-4">
-                            <span className="text-sm text-gray-500">Registrados en el sistema</span>
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600">Estudios Completados</p>
-                                <p className="text-3xl font-bold text-[#189BAF]">{stats.estudios_completados}</p>
-                            </div>
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#189BAF]/10">
-                                <svg className="h-6 w-6 text-[#189BAF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600">En Proceso</p>
-                                <p className="text-3xl font-bold text-[#D68B41]">{stats.muestras_procesando}</p>
-                            </div>
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#D68B41]/10">
-                                <svg className="h-6 w-6 text-[#D68B41]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="mt-4">
-                            <span className="text-sm text-gray-500">En laboratorio</span>
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600">Estudios Urgentes</p>
-                                <p className="text-3xl font-bold text-red-600">{stats.estudios_urgentes}</p>
-                            </div>
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-                                <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="mt-4">
-                            <span className="text-sm text-gray-500">Más de 7 días</span>
-                        </div>
-                    </div>
+                {/* Fila principal - Estados de estudios con enlaces */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    {Object.values(mainCounters).map((counter) => {
+                        const colorClasses = getCounterColorClasses(counter.color);
+                        return (
+                            <Link key={counter.label} href={counter.url}>
+                                <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer transform hover:scale-105">
+                                    <CardContent className="p-6">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-sm font-medium text-gray-600">{counter.label}</p>
+                                                <p className={`text-3xl font-bold ${colorClasses.text}`}>
+                                                    {counter.count}
+                                                </p>
+                                            </div>
+                                            <div className={`flex h-12 w-12 items-center justify-center rounded-full ${colorClasses.bg}`}>
+                                                <div className={colorClasses.text}>
+                                                    {getCounterIcon(counter.label)}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="mt-4">
+                                            <span className="text-xs text-gray-500 flex items-center">
+                                                Ver todos 
+                                                <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </span>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </Link>
+                        );
+                    })}
                 </div>
 
-                {/* Cuarta fila - Datos de Sistema en Cartas */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600">Médicos</p>
-                                <p className="text-3xl font-bold text-[#189BAF]">{stats.usuarios_medicos}</p>
+                {/* Métricas de rendimiento (últimos 30 días) */}
+                {chartData?.metricas_rendimiento && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <TrendingUp className="h-5 w-5" />
+                                Métricas de Rendimiento (Últimos 30 días)
+                            </CardTitle>
+                            <CardDescription>
+                                Análisis de eficiencia y tiempos de procesamiento
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                                <div className="bg-blue-50 p-4 rounded-lg">
+                                    <p className="text-sm text-gray-600">Total Estudios</p>
+                                    <p className="text-2xl font-bold text-blue-600">
+                                        {chartData.metricas_rendimiento.total_estudios}
+                                    </p>
+                                </div>
+                                <div className="bg-green-50 p-4 rounded-lg">
+                                    <p className="text-sm text-gray-600">Completados</p>
+                                    <p className="text-2xl font-bold text-green-600">
+                                        {chartData.metricas_rendimiento.estudios_completados}
+                                    </p>
+                                </div>
+                                <div className="bg-purple-50 p-4 rounded-lg">
+                                    <p className="text-sm text-gray-600">Eficiencia</p>
+                                    <p className="text-2xl font-bold text-purple-600">
+                                        {chartData.metricas_rendimiento.eficiencia_porcentaje}%
+                                    </p>
+                                </div>
+                                <div className="bg-orange-50 p-4 rounded-lg">
+                                    <p className="text-sm text-gray-600">Tiempo Promedio</p>
+                                    <p className="text-2xl font-bold text-orange-600">
+                                        {chartData.metricas_rendimiento.tiempo_promedio_dias} días
+                                    </p>
+                                </div>
+                                <div className="bg-red-50 p-4 rounded-lg">
+                                    <p className="text-sm text-gray-600">Urgentes</p>
+                                    <p className="text-2xl font-bold text-red-600">
+                                        {chartData.metricas_rendimiento.estudios_urgentes}
+                                    </p>
+                                </div>
                             </div>
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#189BAF]/10">
-                                <svg className="h-6 w-6 text-[#189BAF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="mt-4">
-                            <span className="text-sm text-gray-500">Profesionales registrados</span>
-                        </div>
-                    </div>
+                        </CardContent>
+                    </Card>
+                )}
 
-                    <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600">Pacientes</p>
-                                <p className="text-3xl font-bold text-[#D68B41]">{stats.usuarios_pacientes}</p>
-                            </div>
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#D68B41]/10">
-                                <svg className="h-6 w-6 text-[#D68B41]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="mt-4">
-                            <span className="text-sm text-gray-500">En el sistema</span>
-                        </div>
-                    </div>
+                {/* Gráficas principales */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Gráfica de estudios diarios */}
+                    {chartData?.estudios_diarios && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Estudios por Día (Últimos 30 días)</CardTitle>
+                                <CardDescription>
+                                    Tendencia de estudios solicitados diariamente
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="h-80">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <AreaChart data={chartData.estudios_diarios}>
+                                            <defs>
+                                                <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
+                                                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="fecha" />
+                                            <YAxis />
+                                            <Tooltip content={<CustomTooltip />} />
+                                            <Area 
+                                                type="monotone" 
+                                                dataKey="total" 
+                                                stroke="#3B82F6" 
+                                                fillOpacity={1} 
+                                                fill="url(#colorTotal)" 
+                                            />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
 
-                    <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600">Instituciones</p>
-                                <p className="text-3xl font-bold text-gray-800">{stats.instituciones}</p>
-                            </div>
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-                                <svg className="h-6 w-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="mt-4">
-                            <span className="text-sm text-gray-500">{stats.instituciones_activas} activas</span>
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600">Mensajerías</p>
-                                <p className="text-3xl font-bold text-purple-600">{stats.mensajerias}</p>
-                            </div>
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
-                                <svg className="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="mt-4">
-                            <span className="text-sm text-gray-500">Servicios de envío</span>
-                        </div>
-                    </div>
+                    {/* Gráfica de distribución por estado */}
+                    {chartData?.estudios_por_estado && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Distribución por Estado</CardTitle>
+                                <CardDescription>
+                                    Estados actuales de todos los estudios
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="h-80">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={chartData.estudios_por_estado}
+                                                cx="50%"
+                                                cy="50%"
+                                                labelLine={false}
+                                                label={(props: any) => `${props.name} ${(props.percent * 100).toFixed(0)}%`}
+                                                outerRadius={80}
+                                                fill="#8884d8"
+                                                dataKey="value"
+                                            >
+                                                {chartData.estudios_por_estado.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
+
+                {/* Segunda fila de gráficas */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Gráfica de tipos de estudio */}
+                    {chartData?.estudios_por_tipo && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Tipos de Estudio Más Frecuentes</CardTitle>
+                                <CardDescription>
+                                    Top 10 de tipos de estudios (últimos 30 días)
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="h-80">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={chartData.estudios_por_tipo}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis 
+                                                dataKey="name" 
+                                                angle={-45} 
+                                                textAnchor="end" 
+                                                height={80}
+                                                interval={0}
+                                            />
+                                            <YAxis />
+                                            <Tooltip content={<CustomTooltip />} />
+                                            <Bar dataKey="value" fill="#10B981" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Gráfica de tiempo de procesamiento */}
+                    {chartData?.tiempo_procesamiento_semanal && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Tiempo de Procesamiento Semanal</CardTitle>
+                                <CardDescription>
+                                    Promedio de días por semana (últimos 30 días)
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="h-80">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={chartData.tiempo_procesamiento_semanal}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="semana" />
+                                            <YAxis />
+                                            <Tooltip content={<CustomTooltip />} />
+                                            <Line 
+                                                type="monotone" 
+                                                dataKey="promedio_dias" 
+                                                stroke="#8B5CF6" 
+                                                strokeWidth={3}
+                                                dot={{ fill: '#8B5CF6' }}
+                                            />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
+
+                {/* Instituciones más activas */}
+                {chartData?.instituciones_activas && chartData.instituciones_activas.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Instituciones Más Activas</CardTitle>
+                            <CardDescription>
+                                Instituciones con mayor número de estudios (últimos 30 días)
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="h-80">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={chartData.instituciones_activas} layout="horizontal">
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis type="number" />
+                                        <YAxis dataKey="name" type="category" width={150} />
+                                        <Tooltip content={<CustomTooltip />} />
+                                        <Bar dataKey="value" fill="#F59E0B" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Notificaciones */}
+                {notifications && notifications.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                                Notificaciones Importantes
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                {notifications.map((notification, index) => (
+                                    <div key={index} className={`p-4 rounded-lg border-l-4 ${
+                                        notification.type === 'warning' 
+                                            ? 'bg-orange-50 border-orange-500' 
+                                            : 'bg-blue-50 border-blue-500'
+                                    }`}>
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h4 className="font-semibold">{notification.title}</h4>
+                                                <p className="text-sm text-gray-600">{notification.message}</p>
+                                            </div>
+                                            <Badge variant="outline" className="ml-2">
+                                                {notification.count}
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Estudios recientes */}
+                {recentStudies && recentStudies.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Estudios Recientes</CardTitle>
+                            <CardDescription>
+                                Últimos 5 estudios registrados en el sistema
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                {recentStudies.map((estudio, index) => (
+                                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-4">
+                                                <span className="font-semibold">{estudio.id}</span>
+                                                <span className="text-sm text-gray-600">{estudio.paciente}</span>
+                                                <span className="text-sm text-gray-500">{estudio.tipo}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className="text-xs text-gray-400">{estudio.institucion}</span>
+                                                <span className="text-xs text-gray-400">•</span>
+                                                <span className="text-xs text-gray-400">{estudio.fecha}</span>
+                                            </div>
+                                        </div>
+                                        <Badge variant="outline" className={getStatusColor(estudio.estado)}>
+                                            {estudio.estado}
+                                        </Badge>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </AppLayout>
     );

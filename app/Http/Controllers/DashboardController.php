@@ -25,17 +25,263 @@ class DashboardController extends Controller
         // Obtener notificaciones urgentes
         $notifications = $this->getNotifications();
         
+        // Obtener datos para gráficas de últimos 30 días
+        $chartData = $this->getChartData();
+        
+        // Obtener contadores por estado para la fila principal
+        $mainCounters = $this->getMainCounters();
+        
         return Inertia::render('dashboard', [
             'stats' => $stats,
             'recentStudies' => $recentStudies,
-            'notifications' => $notifications
+            'notifications' => $notifications,
+            'chartData' => $chartData,
+            'mainCounters' => $mainCounters
         ]);
+    }
+    
+    /**
+     * Obtiene los contadores principales por estado para la fila de cuatro columnas
+     */
+    private function getMainCounters()
+    {
+        return [
+            'solicitud_recoleccion' => [
+                'count' => Estudio::where('ESTUDIO_ESTADO', Estudio::ESTADO_PENDIENTE)->count(),
+                'label' => 'Solicitud Recolección',
+                'color' => 'blue',
+                'url' => route('estudios.index', ['filtro_estado' => Estudio::ESTADO_PENDIENTE])
+            ],
+            'recepcion_laboratorio' => [
+                'count' => Estudio::where('ESTUDIO_ESTADO', Estudio::ESTADO_LABORATORIO_RECEPCION)->count(),
+                'label' => 'Recepción Laboratorio',
+                'color' => 'yellow',
+                'url' => route('estudios.index', ['filtro_estado' => Estudio::ESTADO_LABORATORIO_RECEPCION])
+            ],
+            'resultados_completos' => [
+                'count' => Estudio::where('ESTUDIO_ESTADO', Estudio::ESTADO_LABORATORIO_COMPLETO)->count(),
+                'label' => 'Resultados Completos',
+                'color' => 'green',
+                'url' => route('estudios.index', ['filtro_estado' => Estudio::ESTADO_LABORATORIO_COMPLETO])
+            ],
+            'resultados_enviados' => [
+                'count' => Estudio::where('ESTUDIO_ESTADO', Estudio::ESTADO_COMPLETADO)->count(),
+                'label' => 'Resultados Enviados',
+                'color' => 'purple',
+                'url' => route('estudios.index', ['filtro_estado' => Estudio::ESTADO_COMPLETADO])
+            ]
+        ];
+    }
+    
+    /**
+     * Obtiene datos para las gráficas de los últimos 30 días
+     */
+    private function getChartData()
+    {
+        $fechaInicio = Carbon::now()->subDays(30);
+        $fechaFin = Carbon::now();
+        
+        return [
+            // Gráfica de estudios por día (últimos 30 días)
+            'estudios_diarios' => $this->getEstudiosDiarios($fechaInicio, $fechaFin),
+            
+            // Gráfica de distribución por tipo de estudio
+            'estudios_por_tipo' => $this->getEstudiosPorTipo($fechaInicio, $fechaFin),
+            
+            // Gráfica de estados en los últimos 30 días
+            'estudios_por_estado' => $this->getEstudiosPorEstado($fechaInicio, $fechaFin),
+            
+            // Gráfica de tiempo promedio de procesamiento por semana
+            'tiempo_procesamiento_semanal' => $this->getTiempoProcesamiento($fechaInicio, $fechaFin),
+            
+            // Gráfica de instituciones más activas
+            'instituciones_activas' => $this->getInstitucionesActivas($fechaInicio, $fechaFin),
+            
+            // Métricas de rendimiento
+            'metricas_rendimiento' => $this->getMetricasRendimiento($fechaInicio, $fechaFin)
+        ];
+    }
+    
+    private function getEstudiosDiarios($fechaInicio, $fechaFin)
+    {
+        $estudios = DB::table('estudios')
+            ->select(
+                DB::raw('DATE(FECHA_SOLICITUD_RECOLECCION) as fecha'),
+                DB::raw('COUNT(*) as total')
+            )
+            ->whereBetween('FECHA_SOLICITUD_RECOLECCION', [$fechaInicio, $fechaFin])
+            ->where('FECHA_SOLICITUD_RECOLECCION', '!=', '0000-00-00 00:00:00')
+            ->groupBy(DB::raw('DATE(FECHA_SOLICITUD_RECOLECCION)'))
+            ->orderBy('fecha')
+            ->get();
+        
+        // Rellenar días faltantes con 0
+        $datos = [];
+        $fechaActual = $fechaInicio->copy();
+        
+        while ($fechaActual->lte($fechaFin)) {
+            $fechaString = $fechaActual->format('Y-m-d');
+            $estudioDelDia = $estudios->firstWhere('fecha', $fechaString);
+            
+            $datos[] = [
+                'fecha' => $fechaActual->format('d/m'),
+                'total' => $estudioDelDia ? $estudioDelDia->total : 0,
+                'fecha_completa' => $fechaString
+            ];
+            
+            $fechaActual->addDay();
+        }
+        
+        return $datos;
+    }
+    
+    private function getEstudiosPorTipo($fechaInicio, $fechaFin)
+    {
+        return DB::table('estudios')
+            ->select(
+                'MUESTRA_TIPO_ESTUDIO as tipo',
+                DB::raw('COUNT(*) as total')
+            )
+            ->whereBetween('FECHA_SOLICITUD_RECOLECCION', [$fechaInicio, $fechaFin])
+            ->where('FECHA_SOLICITUD_RECOLECCION', '!=', '0000-00-00 00:00:00')
+            ->whereNotNull('MUESTRA_TIPO_ESTUDIO')
+            ->groupBy('MUESTRA_TIPO_ESTUDIO')
+            ->orderByDesc('total')
+            ->limit(10)
+            ->get()
+            ->map(function($item) {
+                return [
+                    'name' => $item->tipo ?: 'Sin especificar',
+                    'value' => $item->total
+                ];
+            });
+    }
+    
+    private function getEstudiosPorEstado($fechaInicio, $fechaFin)
+    {
+        $estados = DB::table('estudios')
+            ->select(
+                'ESTUDIO_ESTADO as estado',
+                DB::raw('COUNT(*) as total')
+            )
+            ->whereBetween('FECHA_SOLICITUD_RECOLECCION', [$fechaInicio, $fechaFin])
+            ->where('FECHA_SOLICITUD_RECOLECCION', '!=', '0000-00-00 00:00:00')
+            ->groupBy('ESTUDIO_ESTADO')
+            ->get();
+        
+        $estadosFormateados = [];
+        foreach ($estados as $estado) {
+            $nombreEstado = $this->formatearNombreEstado($estado->estado);
+            $estadosFormateados[] = [
+                'name' => $nombreEstado,
+                'value' => $estado->total,
+                'estado_codigo' => $estado->estado
+            ];
+        }
+        
+        return $estadosFormateados;
+    }
+    
+    private function getTiempoProcesamiento($fechaInicio, $fechaFin)
+    {
+        return DB::table('estudios')
+            ->select(
+                DB::raw('YEARWEEK(FECHA_SOLICITUD_RECOLECCION) as semana'),
+                DB::raw('AVG(DATEDIFF(
+                    CASE 
+                        WHEN FECHA_RESULTADOS_CORREO != "0000-00-00 00:00:00" THEN FECHA_RESULTADOS_CORREO
+                        WHEN FECHA_INFORME != "0000-00-00 00:00:00" THEN FECHA_INFORME
+                        ELSE NOW()
+                    END,
+                    FECHA_SOLICITUD_RECOLECCION
+                )) as promedio_dias'),
+                DB::raw('MIN(DATE(FECHA_SOLICITUD_RECOLECCION)) as fecha_inicio_semana')
+            )
+            ->whereBetween('FECHA_SOLICITUD_RECOLECCION', [$fechaInicio, $fechaFin])
+            ->where('FECHA_SOLICITUD_RECOLECCION', '!=', '0000-00-00 00:00:00')
+            ->groupBy(DB::raw('YEARWEEK(FECHA_SOLICITUD_RECOLECCION)'))
+            ->orderBy('semana')
+            ->get()
+            ->map(function($item) {
+                return [
+                    'semana' => 'Sem ' . substr($item->semana, -2),
+                    'promedio_dias' => round($item->promedio_dias, 1),
+                    'fecha_inicio' => Carbon::parse($item->fecha_inicio_semana)->format('d/m')
+                ];
+            });
+    }
+    
+    private function getInstitucionesActivas($fechaInicio, $fechaFin)
+    {
+        return DB::table('estudios')
+            ->join('instituciones', 'estudios.ID_INSTITUCION', '=', 'instituciones.ID_INSTITUCION')
+            ->select(
+                'instituciones.INSTITUCION_NOMBRE as nombre',
+                DB::raw('COUNT(*) as total')
+            )
+            ->whereBetween('estudios.FECHA_SOLICITUD_RECOLECCION', [$fechaInicio, $fechaFin])
+            ->where('estudios.FECHA_SOLICITUD_RECOLECCION', '!=', '0000-00-00 00:00:00')
+            ->groupBy('instituciones.ID_INSTITUCION', 'instituciones.INSTITUCION_NOMBRE')
+            ->orderByDesc('total')
+            ->limit(8)
+            ->get()
+            ->map(function($item) {
+                return [
+                    'name' => substr($item->nombre, 0, 30) . (strlen($item->nombre) > 30 ? '...' : ''),
+                    'value' => $item->total,
+                    'nombre_completo' => $item->nombre
+                ];
+            });
+    }
+    
+    private function getMetricasRendimiento($fechaInicio, $fechaFin)
+    {
+        $totalEstudios = Estudio::whereBetween('FECHA_SOLICITUD_RECOLECCION', [$fechaInicio, $fechaFin])
+            ->where('FECHA_SOLICITUD_RECOLECCION', '!=', '0000-00-00 00:00:00')
+            ->count();
+        
+        $estudiosCompletados = Estudio::whereBetween('FECHA_SOLICITUD_RECOLECCION', [$fechaInicio, $fechaFin])
+            ->where('FECHA_SOLICITUD_RECOLECCION', '!=', '0000-00-00 00:00:00')
+            ->where('ESTUDIO_ESTADO', Estudio::ESTADO_COMPLETADO)
+            ->count();
+        
+        $tiempoPromedioTotal = DB::table('estudios')
+            ->whereBetween('FECHA_SOLICITUD_RECOLECCION', [$fechaInicio, $fechaFin])
+            ->where('FECHA_SOLICITUD_RECOLECCION', '!=', '0000-00-00 00:00:00')
+            ->where('FECHA_RESULTADOS_CORREO', '!=', '0000-00-00 00:00:00')
+            ->avg(DB::raw('DATEDIFF(FECHA_RESULTADOS_CORREO, FECHA_SOLICITUD_RECOLECCION)'));
+        
+        $eficiencia = $totalEstudios > 0 ? round(($estudiosCompletados / $totalEstudios) * 100, 1) : 0;
+        
+        return [
+            'total_estudios' => $totalEstudios,
+            'estudios_completados' => $estudiosCompletados,
+            'eficiencia_porcentaje' => $eficiencia,
+            'tiempo_promedio_dias' => round($tiempoPromedioTotal ?? 0, 1),
+            'estudios_urgentes' => Estudio::where('ESTUDIO_ESTADO', '!=', Estudio::ESTADO_COMPLETADO)
+                ->where('ESTUDIO_ESTADO', '!=', Estudio::ESTADO_CANCELADO)
+                ->where('FECHA_SOLICITUD_RECOLECCION', '<=', Carbon::now()->subDays(7))
+                ->count()
+        ];
+    }
+    
+    private function formatearNombreEstado($estado)
+    {
+        $estados = [
+            Estudio::ESTADO_PENDIENTE => 'Pendiente',
+            Estudio::ESTADO_LABORATORIO_RECEPCION => 'En Laboratorio',
+            Estudio::ESTADO_LABORATORIO_COMPLETO => 'Resultados Completos',
+            Estudio::ESTADO_COMPLETADO => 'Completado',
+            Estudio::ESTADO_CANCELADO => 'Cancelado',
+            Estudio::ESTADO_TERMINADO => 'Terminado'
+        ];
+        
+        return $estados[$estado] ?? ucfirst($estado);
     }
     
     private function getStats()
     {
         $now = Carbon::now();
-        $thirtyDaysAgo = $now->copy()->subDays(30);
         
         // Estados de estudios
         $estudios_pendientes = Estudio::where('ESTUDIO_ESTADO', Estudio::ESTADO_PENDIENTE)->count();
@@ -76,10 +322,10 @@ class DashboardController extends Controller
         
         // Estudios urgentes (en laboratorio más de 24 horas)
         $estudios_urgentes = Estudio::where('ESTUDIO_ESTADO', Estudio::ESTADO_LABORATORIO_RECEPCION)
-        ->whereNotNull('FECHA_ENVIO_LABORATORIO')
-        ->where('FECHA_ENVIO_LABORATORIO', '!=', '0000-00-00 00:00:00')
-        ->where('FECHA_ENVIO_LABORATORIO', '<=', $now->subHours(24))
-        ->count();
+            ->whereNotNull('FECHA_ENVIO_LABORATORIO')
+            ->where('FECHA_ENVIO_LABORATORIO', '!=', '0000-00-00 00:00:00')
+            ->where('FECHA_ENVIO_LABORATORIO', '<=', $now->subHours(24))
+            ->count();
         
         // Instituciones activas (con estudios en últimos 90 días)
         $instituciones_activas = Institucion::whereHas('estudios', function($query) use ($now) {
@@ -202,6 +448,20 @@ class DashboardController extends Controller
         }
         
         return $notifications;
+    }
+    
+    /**
+     * API endpoint para obtener datos de gráficas en tiempo real
+     */
+    public function getChartDataApi(Request $request)
+    {
+        $dias = $request->get('dias', 30);
+        $fechaInicio = Carbon::now()->subDays($dias);
+        $fechaFin = Carbon::now();
+        
+        return response()->json([
+            'chartData' => $this->getChartData()
+        ]);
     }
     
     /**

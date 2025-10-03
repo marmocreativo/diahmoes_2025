@@ -72,6 +72,13 @@ export default function EditRecepcionOptimized() {
         { title: 'Recepción', href: `/estudios/${estudio.ID}/edit/recepcion` },
     ];
 
+    useEffect(() => {
+        console.log('=== DEBUG CORREOS FRONTEND ===');
+        console.log('correosExistentes recibidos:', correosExistentes);
+        console.log('Cantidad:', correosExistentes?.length || 0);
+        console.log('listaCorreos inicial:', listaCorreos);
+    }, []);
+
     // Función para generar automáticamente MUESTRA_CLAVE para Biopsia Líquida
 const generarMuestraClaveAutomatica = useCallback(() => {
     console.log('=== GENERANDO MUESTRA_CLAVE AUTOMÁTICA ===');
