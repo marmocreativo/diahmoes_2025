@@ -8,6 +8,9 @@ use App\Http\Controllers\MensajeriaController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\EnviosCorreosController;
+use App\Http\Controllers\InsumoController;
+use App\Http\Controllers\InsumoLoteController;
+use App\Http\Controllers\EstudioInsumoController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -159,6 +162,167 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('clientes-estadisticas', [ClienteController::class, 'estadisticas'])
         ->name('clientes.estadisticas');
     
+
+    /*
+    |--------------------------------------------------------------------------
+    | CRUD de Insumos
+    |--------------------------------------------------------------------------
+    */
+
+    // CRUD básico de insumos
+    Route::resource('insumos', InsumoController::class)
+        ->parameters(['insumos' => 'insumo:ID']);
+
+    // Obtener insumos disponibles (para formularios)
+    Route::get('api/insumos/disponibles', [InsumoController::class, 'getDisponibles'])
+        ->name('api.insumos.disponibles');
+
+    /*
+    |--------------------------------------------------------------------------
+    | CRUD de Lotes de Insumos
+    |--------------------------------------------------------------------------
+    */
+
+    // Rutas para lotes de un insumo específico
+    Route::prefix('insumos/{insumo:ID}')->group(function () {
+        
+        // Listar lotes del insumo
+        Route::get('/lotes', [InsumoLoteController::class, 'index'])
+            ->name('insumos.lotes.index');
+        
+        // Crear nuevo lote
+        Route::get('/lotes/create', [InsumoLoteController::class, 'create'])
+            ->name('insumos.lotes.create');
+        
+        Route::post('/lotes', [InsumoLoteController::class, 'store'])
+            ->name('insumos.lotes.store');
+        
+        // Ver, editar, actualizar y eliminar lotes
+        Route::get('/lotes/{lote:ID}', [InsumoLoteController::class, 'show'])
+            ->name('insumos.lotes.show');
+        
+        Route::get('/lotes/{lote:ID}/edit', [InsumoLoteController::class, 'edit'])
+            ->name('insumos.lotes.edit');
+        
+        Route::patch('/lotes/{lote:ID}', [InsumoLoteController::class, 'update'])
+            ->name('insumos.lotes.update');
+        
+        Route::delete('/lotes/{lote:ID}', [InsumoLoteController::class, 'destroy'])
+            ->name('insumos.lotes.destroy');
+        
+        // Ajustar cantidad manualmente (corrección de inventario)
+        Route::patch('/lotes/{lote:ID}/ajustar-cantidad', [InsumoLoteController::class, 'ajustarCantidad'])
+            ->name('insumos.lotes.ajustar-cantidad');
+        
+        // Obtener lotes disponibles del insumo
+        Route::get('/lotes-disponibles', [InsumoLoteController::class, 'getLotesDisponibles'])
+            ->name('insumos.lotes.disponibles');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | API Endpoints para Lotes
+    |--------------------------------------------------------------------------
+    */
+
+    // Obtener alertas de inventario
+    Route::get('api/insumos/alertas', [InsumoLoteController::class, 'getAlertas'])
+        ->name('api.insumos.alertas');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Gestión de Insumos en Estudios
+    |--------------------------------------------------------------------------
+    */
+
+    // Rutas para insumos de un estudio específico
+    Route::prefix('estudios/{estudio:ID}')->group(function () {
+        
+        // Listar insumos del estudio
+        Route::get('/insumos', [EstudioInsumoController::class, 'index'])
+            ->name('estudios.insumos.index');
+        
+        // Agregar insumo al estudio
+        Route::post('/insumos', [EstudioInsumoController::class, 'store'])
+            ->name('estudios.insumos.store');
+        
+        // Actualizar insumo del estudio
+        Route::patch('/insumos/{estudioInsumo:ID}', [EstudioInsumoController::class, 'update'])
+            ->name('estudios.insumos.update');
+        
+        // Eliminar insumo del estudio
+        Route::delete('/insumos/{estudioInsumo:ID}', [EstudioInsumoController::class, 'destroy'])
+            ->name('estudios.insumos.destroy');
+        
+        // Obtener costo de insumos del estudio
+        Route::get('/insumos/costo', [EstudioInsumoController::class, 'getCostoEstudio'])
+            ->name('estudios.insumos.costo');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | API Endpoints para Insumos en Estudios
+    |--------------------------------------------------------------------------
+    */
+
+    // Obtener insumos disponibles para agregar a estudios
+    Route::get('api/estudios/insumos-disponibles', [EstudioInsumoController::class, 'getInsumosDisponibles'])
+        ->name('api.estudios.insumos-disponibles');
+
+    // Validar disponibilidad de insumo
+    Route::post('api/estudios/validar-disponibilidad', [EstudioInsumoController::class, 'validarDisponibilidad'])
+        ->name('api.estudios.validar-disponibilidad');
+
+    // Reporte de uso de insumos
+    Route::get('api/insumos/reporte-uso', [EstudioInsumoController::class, 'getReporteUso'])
+        ->name('api.insumos.reporte-uso');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Rutas de conveniencia para filtros rápidos - Insumos
+    |--------------------------------------------------------------------------
+    */
+
+    // Insumos con stock bajo
+    Route::get('insumos/stock-bajo', function() {
+        return redirect()->route('insumos.index', ['stock_bajo' => 'true']);
+    })->name('insumos.stock-bajo');
+
+    // Insumos activos
+    Route::get('insumos/activos', function() {
+        return redirect()->route('insumos.index', ['estado' => 'activo']);
+    })->name('insumos.activos');
+
+    // Insumos inactivos
+    Route::get('insumos/inactivos', function() {
+        return redirect()->route('insumos.index', ['estado' => 'inactivo']);
+    })->name('insumos.inactivos');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Rutas de reportes - Insumos
+    |--------------------------------------------------------------------------
+    */
+
+    // Dashboard de inventario
+    Route::get('insumos/dashboard', function() {
+        $alertas = app(InsumoLoteController::class)->getAlertas();
+        return Inertia::render('Insumos/Dashboard', [
+            'alertas' => $alertas->getData()
+        ]);
+    })->name('insumos.dashboard');
+
+    // Reporte de movimientos de inventario
+    Route::get('insumos/reporte/movimientos', function() {
+        return Inertia::render('Insumos/Reportes/Movimientos');
+    })->name('insumos.reporte.movimientos');
+
+    // Reporte de costos por estudio
+    Route::get('insumos/reporte/costos', function() {
+        return Inertia::render('Insumos/Reportes/Costos');
+    })->name('insumos.reporte.costos');
+
+
     /*
     |--------------------------------------------------------------------------
     | CRUD de Estudios

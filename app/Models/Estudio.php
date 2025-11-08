@@ -539,4 +539,30 @@ class Estudio extends Model
     {
         return $this->belongsTo(\App\Models\Usuario::class, 'ID_USUARIO_ENVIO', 'ID_USUARIO');
     }
+
+    /**
+     * Relación con insumos utilizados
+     */
+    public function insumos(): HasMany
+    {
+        return $this->hasMany(EstudioInsumo::class, 'ID_ESTUDIO', 'ID');
+    }
+
+    /**
+     * Alias para route model binding
+     * Laravel busca este método cuando usas Route::delete('/estudios/{estudio}/insumos/{estudioInsumo}')
+     */
+    public function estudioInsumos()
+    {
+        return $this->hasMany(EstudioInsumo::class, 'ID_ESTUDIO', 'ID');
+    }
+
+
+    /**
+     * Obtener el costo total de insumos del estudio
+     */
+    public function getCostoInsumosAttribute(): float
+    {
+        return $this->insumos->sum('costo_total');
+    }
 }

@@ -50,25 +50,25 @@ class DashboardController extends Controller
                 'count' => Estudio::where('ESTUDIO_ESTADO', Estudio::ESTADO_PENDIENTE)->count(),
                 'label' => 'Solicitud Recolección',
                 'color' => 'blue',
-                'url' => route('estudios.index', ['filtro_estado' => Estudio::ESTADO_PENDIENTE])
+                'url' => route('estudios.index', ['estado' => Estudio::ESTADO_PENDIENTE])
             ],
             'recepcion_laboratorio' => [
                 'count' => Estudio::where('ESTUDIO_ESTADO', Estudio::ESTADO_LABORATORIO_RECEPCION)->count(),
                 'label' => 'Recepción Laboratorio',
                 'color' => 'yellow',
-                'url' => route('estudios.index', ['filtro_estado' => Estudio::ESTADO_LABORATORIO_RECEPCION])
+                'url' => route('estudios.index', ['estado' => Estudio::ESTADO_LABORATORIO_RECEPCION])
             ],
             'resultados_completos' => [
                 'count' => Estudio::where('ESTUDIO_ESTADO', Estudio::ESTADO_LABORATORIO_COMPLETO)->count(),
                 'label' => 'Resultados Completos',
                 'color' => 'green',
-                'url' => route('estudios.index', ['filtro_estado' => Estudio::ESTADO_LABORATORIO_COMPLETO])
+                'url' => route('estudios.index', ['estado' => Estudio::ESTADO_LABORATORIO_COMPLETO])
             ],
             'resultados_enviados' => [
                 'count' => Estudio::where('ESTUDIO_ESTADO', Estudio::ESTADO_COMPLETADO)->count(),
                 'label' => 'Resultados Enviados',
                 'color' => 'purple',
-                'url' => route('estudios.index', ['filtro_estado' => Estudio::ESTADO_COMPLETADO])
+                'url' => route('estudios.index', ['estado' => Estudio::ESTADO_COMPLETADO])
             ]
         ];
     }

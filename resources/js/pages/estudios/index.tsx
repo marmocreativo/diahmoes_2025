@@ -790,7 +790,7 @@ export default function EstudiosIndex() {
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => handleSearchInputChange(e.target.value)} // CAMBIADO
-                                placeholder={showMobileView ? "Buscar estudios..." : "Buscar por clave, folio Merck, médico, paciente o institución..."}
+                                placeholder={showMobileView ? "Buscar estudios..." : "Buscar por clave, folio Merck, Folio de Kit, médico, paciente o institución..."}
                                 className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
                                 disabled={isSearching} // NUEVO: Deshabilitar durante búsqueda
                             />
@@ -971,6 +971,9 @@ export default function EstudiosIndex() {
                                                 </div>
                                                 {estudio.FOLIO_MERCK && (
                                                     <div className="text-sm text-gray-500">Merck: {estudio.FOLIO_MERCK}</div>
+                                                )}
+                                                {estudio.MUESTRA_FOLIO_KIT_BL && (
+                                                    <div className="text-sm text-gray-500">Folio de Kit: {estudio.MUESTRA_FOLIO_KIT_BL}</div>
                                                 )}
                                             </td>
 

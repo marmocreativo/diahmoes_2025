@@ -29,6 +29,7 @@ class EstudioController extends Controller
             $query->where(function($q) use ($search) {
                 $q->where('CLAVE_INTERNA', 'like', "%{$search}%")
                 ->orWhere('FOLIO_MERCK', 'like', "%{$search}%")
+                ->orWhere('MUESTRA_FOLIO_KIT_BL', 'like', "%{$search}%")
                 ->orWhere('MUESTRA_INICIALES', 'like', "%{$search}%")
                 // Búsqueda por nombre completo del médico
                 ->orWhereHas('medico', function($subQ) use ($search) {
@@ -1721,37 +1722,37 @@ private function asignarCorreosCopia($estudio)
             [
                 'ID_USUARIO' => $estudio->ID_MEDICO,
                 'ID_ESTUDIO' => $estudio->ID,
-                'NOMBRE' => 'Dr. Alejandro Limón Rodríguez',
-                'CORREO' => 'alimon@diahmoes.com',
+                'NOMBRE' => '',
+                'CORREO' => 'lmaciel@geneticlab.mx',
                 'ENVIAR' => 'si'
             ],
             [
                 'ID_USUARIO' => $estudio->ID_MEDICO,
                 'ID_ESTUDIO' => $estudio->ID,
-                'NOMBRE' => 'Dra. Ivonne Aguirre González',
-                'CORREO' => 'iaguirre@diahmoes.com',
-                'ENVIAR' => 'no'
+                'NOMBRE' => '',
+                'CORREO' => 'soluciones@geneticlab.mx',
+                'ENVIAR' => 'si'
             ],
             [
                 'ID_USUARIO' => $estudio->ID_MEDICO,
                 'ID_ESTUDIO' => $estudio->ID,
-                'NOMBRE' => 'Dra. Claudia Contreras Limón',
-                'CORREO' => 'ccontreras@diahmoes.com',
-                'ENVIAR' => 'no'
+                'NOMBRE' => '',
+                'CORREO' => 'alicia.lopez@geneticlab.mx',
+                'ENVIAR' => 'si'
             ],
             [
                 'ID_USUARIO' => $estudio->ID_MEDICO,
                 'ID_ESTUDIO' => $estudio->ID,
-                'NOMBRE' => 'Dr. Guillermo Castillo Castillo',
-                'CORREO' => 'gcastillo@diahmoes.com',
-                'ENVIAR' => 'no'
+                'NOMBRE' => '',
+                'CORREO' => 'arzhaus@yahoo.com',
+                'ENVIAR' => 'si'
             ],
             [
                 'ID_USUARIO' => $estudio->ID_MEDICO,
                 'ID_ESTUDIO' => $estudio->ID,
-                'NOMBRE' => 'Secretaria',
-                'CORREO' => 'secretaria@diahmoes.com',
-                'ENVIAR' => 'no'
+                'NOMBRE' => '',
+                'CORREO' => 'laboratorio@geneticlab.mx',
+                'ENVIAR' => 'si'
             ]
         ];
         
