@@ -209,6 +209,7 @@ export interface EstudioIndexProps extends SharedData {
         CLIENTE_NOMBRE: string;
     }>;
     estados: Record<string, string>;
+    prefijo: string;
     tiposEstudio: Record<string, string>;
 }
 

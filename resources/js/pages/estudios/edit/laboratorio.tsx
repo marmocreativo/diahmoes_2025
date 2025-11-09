@@ -12,6 +12,7 @@ interface EditLaboratorioProps {
     estudio: {
         ID: number;
         CLAVE_INTERNA: string;
+        CLAVE: string;
         MUESTRA_TIPO: string;
         R_ESTUDIO_SOLICITADO: string;
         R_ADECUADO_PROCESAMIENTO: string;
@@ -107,7 +108,7 @@ export default function EditLaboratorioConCondicionales() {
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
-        { title: 'Estudios', href: '/estudios' },
+        { title: 'Estudios', href: `/estudios?prefijo=${estudio.CLAVE || 'PRM'}` }, // ← CAMBIO AQUÍ
         { title: `${estudio.CLAVE_INTERNA}`, href: `/estudios/${estudio.ID}` },
         { title: 'Laboratorio', href: `/estudios/${estudio.ID}/edit/laboratorio` },
     ];
@@ -1092,10 +1093,16 @@ const getFormData = useCallback((): Record<string, any> => {
                                     variant="outline" 
                                     className="bg-red-600 text-white hover:bg-red-700"
                                     onClick={() => {
-                                        const formData = getFormData();
+                                        const formData = {
+                                            ...getFormData(),
+                                            _action: 'save_and_exit' // ← AGREGAR ESTO
+                                        };
                                         setProcessing(true);
                                         router.patch(`/estudios/${estudio.ID}/laboratorio`, formData, {
-                                            onSuccess: () => router.visit('/estudios'),
+                                            onSuccess: () => {
+                                                // El backend se encargará de redirigir con el prefijo correcto
+                                                console.log('Datos guardados y regresando a lista');
+                                            },
                                             onFinish: () => setProcessing(false)
                                         });
                                     }}
@@ -1111,7 +1118,10 @@ const getFormData = useCallback((): Record<string, any> => {
                                     type="button"
                                     disabled={processing}
                                     onClick={() => {
-                                        const formData = getFormData();
+                                        const formData = {
+                                            ...getFormData(),
+                                            _action: 'save' // ← AGREGAR ESTO
+                                        };
                                         setProcessing(true);
                                         router.patch(`/estudios/${estudio.ID}/laboratorio`, formData, {
                                             onSuccess: () => console.log('Datos guardados exitosamente'),
@@ -1128,7 +1138,11 @@ const getFormData = useCallback((): Record<string, any> => {
                                     type="button"
                                     className="bg-yellow-600 hover:bg-yellow-700 text-white"
                                     onClick={() => {
-                                        const formData = getFormData();
+                                        const formData = {
+                                            ...getFormData(),
+                                            _next: 'informe',
+                                            _action: 'save_and_next' // ← AGREGAR ESTO
+                                        };
                                         setProcessing(true);
                                         router.patch(`/estudios/${estudio.ID}/laboratorio`, formData, {
                                             onSuccess: () => router.visit(`/estudios/${estudio.ID}/edit/informe`),

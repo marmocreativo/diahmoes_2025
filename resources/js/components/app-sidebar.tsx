@@ -38,82 +38,17 @@ import {
 
 const navGroups: NavGroup[] = [
     {
-        title: 'Gestión de Usuarios',
+        title: 'Estudios',
         items: [
             {
-                title: 'Todos los Usuarios',
-                href: '/usuarios',
-                icon: Users,
-            },
-            {
-                title: 'Administradores',
-                href: '/usuarios?tipo=admin',
-                icon: Shield,
-            },
-            {
-                title: 'Médicos',
-                href: '/usuarios?tipo=medico',
-                icon: Stethoscope,
-            },
-            {
-                title: 'Clientes',
-                href: '/usuarios?tipo=clientes',
-                icon: UserCheck,
-            },
-            {
-                title: 'Pacientes',
-                href: '/usuarios?tipo=paciente',
-                icon: User,
-            },
-        ]
-    },
-    {
-        title: 'Gestión de Clientes',
-        items: [
-            {
-                title: 'Todos los Clientes',
-                href: '/clientes',
-                icon: Briefcase,
-            }
-        ]
-    },
-    {
-        title: 'Gestión de Instituciones',
-        items: [
-            {
-                title: 'Todas las Instituciones',
-                href: '/instituciones',
-                icon: Building2,
-            },
-        ]
-    },
-    {
-        title: 'Gestión de Mensajerías',
-        items: [
-            {
-                title: 'Todas las Mensajerías',
-                href: '/mensajerias',
-                icon: Truck,
-            }
-        ]
-    },
-    {
-        title: 'Estudios Médicos',
-        items: [
-            {
-                title: 'Todos los Estudios',
-                href: '/estudios',
+                title: 'Estudios PRM',
+                href: '/estudios?prefijo=PRM',
                 icon: TestTube,
             },
             {
-                title: 'Nuevo Estudio PRM',
-                href: '/estudios/create?prefijo=PRM',
-                icon: Plus,
-            },
-            {
-                title: 'Nuevo Estudio PRV',
-                href: '/estudios/create?prefijo=PRV',
-                icon: Plus,
+                title: 'Estudios PRV', 
+                href: '/estudios?prefijo=PRV',
+                icon: TestTube,
             }
         ]
     },
@@ -166,30 +101,131 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent className="bg-white">
-                {/* Dashboard - Elemento simple */}
-                <SidebarGroup>
-                    <SidebarMenu>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton 
-                                asChild
-                                className={`hover:bg-[#189BAF]/5 hover:text-[#189BAF] transition-colors ${
-                                    url === '/dashboard' 
-                                        ? 'bg-[#189BAF]/10 text-[#189BAF] font-medium border-r-2 border-[#189BAF]' 
-                                        : 'text-gray-700'
-                                }`}
-                            >
-                                <Link href="/dashboard" prefetch className="flex items-center gap-3">
-                                    <LayoutGrid className="!size-4" />
-                                    <span className="font-medium">Dashboard</span>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                    </SidebarMenu>
-                </SidebarGroup>
+            {/* Dashboard - Elemento simple */}
+            <SidebarGroup>
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton 
+                            asChild
+                            className={`hover:bg-[#189BAF]/5 hover:text-[#189BAF] transition-colors ${
+                                url === '/dashboard' 
+                                    ? 'bg-[#189BAF]/10 text-[#189BAF] font-medium border-r-2 border-[#189BAF]' 
+                                    : 'text-gray-700'
+                            }`}
+                        >
+                            <Link href="/dashboard" prefetch className="flex items-center gap-3">
+                                <LayoutGrid className="!size-4" />
+                                <span className="font-medium">Dashboard</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </SidebarGroup>
 
-                {/* Grupos desplegables */}
-                <NavMain groups={navGroups} />
-            </SidebarContent>
+            {/* Estudios - Desplegable */}
+            <NavMain groups={navGroups} />
+
+            {/* Enlaces individuales */}
+            <SidebarGroup>
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton 
+                            asChild
+                            className={`hover:bg-[#189BAF]/5 hover:text-[#189BAF] transition-colors ${
+                                url === '/instituciones' 
+                                    ? 'bg-[#189BAF]/10 text-[#189BAF] font-medium border-r-2 border-[#189BAF]' 
+                                    : 'text-gray-700'
+                            }`}
+                        >
+                            <Link href="/instituciones" prefetch className="flex items-center gap-3">
+                                <Building2 className="!size-4" />
+                                <span className="font-medium">Instituciones</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    
+                    <SidebarMenuItem>
+                        <SidebarMenuButton 
+                            asChild
+                            className={`hover:bg-[#189BAF]/5 hover:text-[#189BAF] transition-colors ${
+                                url === '/usuarios?tipo=medico' || (url.includes('/usuarios') && url.includes('tipo=medico'))
+                                    ? 'bg-[#189BAF]/10 text-[#189BAF] font-medium border-r-2 border-[#189BAF]' 
+                                    : 'text-gray-700'
+                            }`}
+                        >
+                            <Link href="/usuarios?tipo=medico" prefetch className="flex items-center gap-3">
+                                <Stethoscope className="!size-4" />
+                                <span className="font-medium">Médicos</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+
+                    <SidebarMenuItem>
+                        <SidebarMenuButton 
+                            asChild
+                            className={`hover:bg-[#189BAF]/5 hover:text-[#189BAF] transition-colors ${
+                                url === '/usuarios?tipo=paciente' || (url.includes('/usuarios') && url.includes('tipo=paciente'))
+                                    ? 'bg-[#189BAF]/10 text-[#189BAF] font-medium border-r-2 border-[#189BAF]' 
+                                    : 'text-gray-700'
+                            }`}
+                        >
+                            <Link href="/usuarios?tipo=paciente" prefetch className="flex items-center gap-3">
+                                <User className="!size-4" />
+                                <span className="font-medium">Pacientes</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+
+                    <SidebarMenuItem>
+                        <SidebarMenuButton 
+                            asChild
+                            className={`hover:bg-[#189BAF]/5 hover:text-[#189BAF] transition-colors ${
+                                url === '/clientes' 
+                                    ? 'bg-[#189BAF]/10 text-[#189BAF] font-medium border-r-2 border-[#189BAF]' 
+                                    : 'text-gray-700'
+                            }`}
+                        >
+                            <Link href="/clientes" prefetch className="flex items-center gap-3">
+                                <Briefcase className="!size-4" />
+                                <span className="font-medium">Clientes</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+
+                    <SidebarMenuItem>
+                        <SidebarMenuButton 
+                            asChild
+                            className={`hover:bg-[#189BAF]/5 hover:text-[#189BAF] transition-colors ${
+                                url === '/insumos' 
+                                    ? 'bg-[#189BAF]/10 text-[#189BAF] font-medium border-r-2 border-[#189BAF]' 
+                                    : 'text-gray-700'
+                            }`}
+                        >
+                            <Link href="/insumos" prefetch className="flex items-center gap-3">
+                                <Package className="!size-4" />
+                                <span className="font-medium">Insumos</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+
+                    <SidebarMenuItem>
+                        <SidebarMenuButton 
+                            asChild
+                            className={`hover:bg-[#189BAF]/5 hover:text-[#189BAF] transition-colors ${
+                                url === '/mensajerias' 
+                                    ? 'bg-[#189BAF]/10 text-[#189BAF] font-medium border-r-2 border-[#189BAF]' 
+                                    : 'text-gray-700'
+                            }`}
+                        >
+                            <Link href="/mensajerias" prefetch className="flex items-center gap-3">
+                                <Truck className="!size-4" />
+                                <span className="font-medium">Mensajerías</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </SidebarGroup>
+        </SidebarContent>
 
             <SidebarFooter className="bg-gray-50 border-t border-gray-200">
                 <NavFooter items={footerNavItems} className="mt-auto" />

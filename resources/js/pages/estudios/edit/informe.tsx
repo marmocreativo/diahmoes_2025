@@ -162,7 +162,7 @@ export default function EditInformeComplete() {
 
     const breadcrumbs: BreadcrumbItem[] = useMemo(() => [
         { title: 'Dashboard', href: '/dashboard' },
-        { title: 'Estudios', href: '/estudios' },
+        { title: 'Estudios', href: `/estudios?prefijo=${estudio.CLAVE || 'PRM'}` }, // ← CAMBIO AQUÍ
         { title: `${estudio.CLAVE_INTERNA}`, href: `/estudios/${estudio.ID}` },
         { title: 'Informe', href: `/estudios/${estudio.ID}/edit/informe` },
     ], [estudio]);
@@ -189,7 +189,8 @@ export default function EditInformeComplete() {
             ...formData,
             FECHA_INFORME: `${formData.FECHA_INFORME} ${formData.HORA_INFORME}:00`,
             FECHA_RESULTADOS_CORREO: `${formData.FECHA_RESULTADOS_CORREO} ${formData.HORA_RESULTADOS_CORREO}:00`,
-            correos_copias: serializeCorreos(listaCorreos)
+            correos_copias: serializeCorreos(listaCorreos),
+            _action: 'save'
         };
         
         console.log('💾 Guardando datos:', dataToSend);
@@ -371,12 +372,14 @@ export default function EditInformeComplete() {
             ...formData,
             FECHA_INFORME: `${formData.FECHA_INFORME} ${formData.HORA_INFORME}:00`,
             FECHA_RESULTADOS_CORREO: `${formData.FECHA_RESULTADOS_CORREO} ${formData.HORA_RESULTADOS_CORREO}:00`,
-            correos_copias: serializeCorreos(listaCorreos)
+            correos_copias: serializeCorreos(listaCorreos),
+            _action: 'save_and_exit' // ← AGREGAR ESTO
         };
         
         router.patch(`/estudios/${estudio.ID}/informe`, dataToSend, {
             onSuccess: () => {
-                router.visit('/estudios');
+                // El backend se encargará de redirigir con el prefijo correcto
+                console.log('Datos guardados y regresando a lista');
             },
             onError: (errors) => {
                 console.error('❌ Error al guardar:', errors);
@@ -959,7 +962,7 @@ export default function EditInformeComplete() {
                                     
                                     <div className="flex gap-3">
                                         <button
-                                            onClick={() => router.visit('/estudios')}
+                                            onClick={() => router.visit(`/estudios?prefijo=${estudio.CLAVE || 'PRM'}`)}
                                             className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 transition-colors"
                                         >
                                             <ChevronLeft className="h-4 w-4" />
@@ -985,7 +988,7 @@ export default function EditInformeComplete() {
                             ) : (
                                 // NUEVO: Botón para salir cuando el envío ha terminado
                                 <button
-                                    onClick={() => router.visit('/estudios')}
+                                    onClick={() => router.visit(`/estudios?prefijo=${estudio.CLAVE || 'PRM'}`)}
                                     className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 transition-colors"
                                 >
                                     <ChevronLeft className="h-4 w-4" />

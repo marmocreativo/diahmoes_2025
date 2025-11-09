@@ -6,11 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Save, X } from 'lucide-react';
 import { type BreadcrumbItem, type EstudioCreateProps, type EstudioFormData } from '@/types';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
-    { title: 'Estudios', href: '/estudios' },
-    { title: 'Crear Estudio', href: '/estudios/create' },
-];
+
 
 interface InstitucionDataState {
     loading: boolean;
@@ -50,6 +46,15 @@ interface ApiResponse {
 export default function CrearEstudio() {
     const { medicos, pacientes, instituciones, clientes, mensajerias, tiposMuestra, tiposEstudio, generos, tiposEnvio, datosAutomaticos } = 
         usePage<EstudioCreateProps>().props;
+
+    //Obtener prefijo de los datos automáticos
+    const prefijo = datosAutomaticos.Prefijo || 'PRM';
+
+    const breadcrumbs: BreadcrumbItem[] = [
+        { title: 'Dashboard', href: '/dashboard' },
+        { title: 'Estudios', href: `/estudios?prefijo=${prefijo}` }, // ← CAMBIO AQUÍ
+        { title: `Crear Estudio ${prefijo}`, href: `/estudios/create?prefijo=${prefijo}` }, // ← CAMBIO AQUÍ
+    ];
 
     // Referencias para inputs simples - no causan re-renders
     const formRef = useRef<HTMLFormElement>(null);
@@ -264,18 +269,20 @@ export default function CrearEstudio() {
     };
 
     const handleCancel = () => {
-        router.visit('/estudios');
+        router.visit(`/estudios?prefijo=${prefijo}`);
     };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Nuevo Expediente - DIAHMOES" />
+            <Head title={`Nuevo Estudio ${prefijo} - DIAHMOES`} />
             
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800">Nuevo Expediente</h1>
+                        <h1 className="text-3xl font-bold text-gray-800">
+                            Nuevo Estudio {prefijo} {/* ← AGREGAR PREFIJO */}
+                        </h1>
                         <p className="text-gray-600">Complete la información del estudio</p>
                     </div>
                     <Button variant="outline" onClick={handleCancel}>

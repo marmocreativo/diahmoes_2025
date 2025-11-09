@@ -67,7 +67,7 @@ export default function EditRecepcionOptimized() {
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
-        { title: 'Estudios', href: '/estudios' },
+        { title: 'Estudios', href: `/estudios?prefijo=${estudio.CLAVE || 'PRM'}` }, // ← CAMBIO AQUÍ
         { title: `${estudio.CLAVE_INTERNA}`, href: `/estudios/${estudio.ID}` },
         { title: 'Recepción', href: `/estudios/${estudio.ID}/edit/recepcion` },
     ];
@@ -407,7 +407,10 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (dependentFields.processing) return;
         
         setDependentFields(prev => ({ ...prev, processing: true }));
-        const formData = getFormData();
+        const formData = {
+            ...getFormData(),
+            _action: 'save' // ← AGREGAR ESTO
+        };
         
         router.patch(`/estudios/${estudio.ID}/recepcion`, formData, {
             onSuccess: () => {
@@ -428,7 +431,11 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (dependentFields.processing) return;
         
         setDependentFields(prev => ({ ...prev, processing: true }));
-        const formData = { ...getFormData(), _next: 'laboratorio' };
+            const formData = { 
+            ...getFormData(), 
+            _next: 'laboratorio',
+            _action: 'save_and_next' // ← AGREGAR ESTO
+        };
         
         router.patch(`/estudios/${estudio.ID}/recepcion`, formData, {
             onSuccess: () => {
@@ -453,11 +460,15 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (dependentFields.processing) return;
         
         setDependentFields(prev => ({ ...prev, processing: true }));
-        const formData = getFormData();
+        const formData = {
+            ...getFormData(),
+            _action: 'save_and_exit' // ← AGREGAR ESTO
+        };
         
         router.patch(`/estudios/${estudio.ID}/recepcion`, formData, {
             onSuccess: () => {
-                router.visit('/estudios');
+                // El backend se encargará de redirigir con el prefijo correcto
+                console.log('Datos guardados y regresando a lista');
             },
             onError: (errors) => {
                 console.error('Error al guardar:', errors);
@@ -569,7 +580,7 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                     container.innerHTML = `
                         <div class="space-y-2">
                             <h5 class="font-medium">Insumos utilizados:</h5>
-                            ${data.insumos.map((uso) => {
+                            ${data.insumos.map((uso: any) => {
                                 console.log('Procesando insumo:', uso);
                                 
                                 // Obtener el nombre del insumo

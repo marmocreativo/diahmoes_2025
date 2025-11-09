@@ -7,7 +7,7 @@ import WhatsAppDialog from '@/components/WhatsAppDialog';
 
 export default function EstudiosIndex() {
     // Tipar correctamente las props
-    const { estudios, filters, estados } = usePage<EstudioIndexProps>().props;
+    const { estudios, filters, estados, prefijo } = usePage<EstudioIndexProps>().props;
     
     // Estados para el buscador
     // Estados para el buscador
@@ -365,6 +365,7 @@ export default function EstudiosIndex() {
             estado: selectedEstado,
             fecha_desde: fechaDesde,
             fecha_hasta: fechaHasta,
+            prefijo: prefijo || 'PRM',
             // Solo resetear página en búsqueda automática
             ...(isAutoSearch ? {} : { page: estudios?.meta?.current_page || 1 })
         };
@@ -388,12 +389,13 @@ export default function EstudiosIndex() {
         setFechaHasta('');
         setShouldAutoSearch(false); // Desactivar auto-búsqueda temporalmente
         
-        router.get('/estudios', {}, {
+        router.get('/estudios', { 
+            prefijo: prefijo || 'PRM'  // MANTENER EL PREFIJO AL LIMPIAR
+        }, {
             preserveState: true,
             preserveScroll: true,
             replace: false,
             onFinish: () => {
-                // Reactivar auto-búsqueda después de limpiar
                 setTimeout(() => setShouldAutoSearch(true), 100);
             }
         });
@@ -688,7 +690,9 @@ export default function EstudiosIndex() {
                 <div className="bg-gradient-to-r from-[#189BAF] to-[#157a8c] rounded-2xl p-6 text-white">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-3xl font-bold mb-2">Gestión de Estudios</h1>
+                            <h1 className="text-3xl font-bold mb-2">
+                                Gestión de Estudios {prefijo && `[${prefijo}]`}
+                            </h1>
                             <p className="text-white/80 opacity-90">
                                 Administra estudios médicos y diagnósticos del sistema DIAHMOES
                             </p>
@@ -768,7 +772,7 @@ export default function EstudiosIndex() {
                             </div>
                             
                             <Link 
-                                href="/estudios/create"
+                                href={`/estudios/create?prefijo=${prefijo || 'PRM'}`}
                                 className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-white font-medium transition-colors flex items-center space-x-2"
                             >
                                 <Plus className="h-5 w-5" />
@@ -932,28 +936,22 @@ export default function EstudiosIndex() {
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Clave / Folio
+                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Clave / Paciente
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Paciente / Institución
+                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Médico / Institución
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Tipo
+                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Tipo / Estudio
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Estudio Solicitado
+                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Fecha / Estado
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Fecha Solicitud
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Estado
-                                        </th>
-                                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Envíos
                                         </th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Acciones
                                         </th>
                                     </tr>
@@ -961,228 +959,239 @@ export default function EstudiosIndex() {
                                 <tbody className="bg-white divide-y divide-gray-200">
                                     {estudios?.data?.map((estudio) => (
                                         <tr key={estudio.ID} className="hover:bg-gray-50">
-                                            {/* Aquí va toda tu tabla original sin cambios */}
-                                            {/* [Mantener exactamente el mismo código de la tabla original] */}
-                                            
-                                            {/* Clave / Folio */}
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm font-medium text-gray-900 font-mono">
-                                                    {estudio.CLAVE_INTERNA || `${estudio.CLAVE}-${estudio.ANIO}-${String(estudio.SERIADO).padStart(3, '0')}`}
+                                            {/* Clave / Paciente */}
+                                            <td className="px-3 py-3">
+                                                <div className="space-y-1">
+                                                    <div className="text-lg font-bold text-gray-900 font-mono">
+                                                        {estudio.CLAVE_INTERNA || `${estudio.CLAVE}-${estudio.ANIO}-${String(estudio.SERIADO).padStart(3, '0')}`}
+                                                    </div>
+                                                    <div className="text-sm font-medium text-gray-900">
+                                                        {estudio.paciente?.USUARIO_NOMBRE || 'N/A'} {estudio.paciente?.USUARIO_APELLIDOS || ''} 
+                                                        <span className="font-bold ml-1">{estudio.MUESTRA_INICIALES || 'N/A'}</span>
+                                                    </div>
+                                                    {estudio.FOLIO_MERCK && (
+                                                        <div className="text-xs text-gray-500">Merck: {estudio.FOLIO_MERCK}</div>
+                                                    )}
+                                                    {estudio.MUESTRA_FOLIO_KIT_BL && (
+                                                        <div className="text-sm text-gray-500">Folio de Kit: {estudio.MUESTRA_FOLIO_KIT_BL}</div>
+                                                    )}
                                                 </div>
-                                                {estudio.FOLIO_MERCK && (
-                                                    <div className="text-sm text-gray-500">Merck: {estudio.FOLIO_MERCK}</div>
-                                                )}
-                                                {estudio.MUESTRA_FOLIO_KIT_BL && (
-                                                    <div className="text-sm text-gray-500">Folio de Kit: {estudio.MUESTRA_FOLIO_KIT_BL}</div>
-                                                )}
                                             </td>
 
-                                            {/* Paciente / Institución */}
-                                            <td className="px-6 py-4">
+                                            {/* Médico / Institución */}
+                                            <td className="px-3 py-3">
                                                 <div className="space-y-1">
-                                                    <div className="text-sm font-medium text-gray-900">
-                                                        {estudio.paciente?.USUARIO_NOMBRE || 'N/A'} {estudio.paciente?.USUARIO_APELLIDOS || ''} <b>{estudio.MUESTRA_INICIALES || 'N/A'}</b>
-                                                    </div>
-                                                    
                                                     {estudio.medico && (
-                                                        <div className="text-xs text-gray-600">
+                                                        <div className="text-sm text-gray-900">
                                                             {estudio.medico.USUARIO_NOMBRE} {estudio.medico.USUARIO_APELLIDOS}
                                                         </div>
                                                     )}
-                                                    
                                                     {estudio.institucion && (
                                                         <div className="text-xs text-gray-500">
-                                                            {estudio.institucion.INSTITUCION_NOMBRE}
+                                                            {estudio.institucion.INSTITUCION_NOMBRE.length > 25 ? 
+                                                                estudio.institucion.INSTITUCION_NOMBRE.substring(0, 25) + '...' : 
+                                                                estudio.institucion.INSTITUCION_NOMBRE
+                                                            }
                                                         </div>
                                                     )}
                                                 </div>
                                             </td>
 
-                                            {/* Tipo */}
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="px-3 py-1 rounded-full text-xs font-medium border bg-blue-50 text-blue-800 border-blue-200">
-                                                    {estudio.MUESTRA_TIPO_ESTUDIO || 'N/A'}
-                                                </span>
-                                            </td>
-
-                                            {/* Estudio Solicitado */}
-                                            <td className="px-6 py-4">
-                                                <div className="text-sm text-gray-900">
-                                                    {estudio.R_ESTUDIO_SOLICITADO ? 
-                                                        (estudio.R_ESTUDIO_SOLICITADO.length > 40 ? 
-                                                            estudio.R_ESTUDIO_SOLICITADO.substring(0, 40) + '...' : 
-                                                            estudio.R_ESTUDIO_SOLICITADO
-                                                        ) : 'No especificado'
-                                                    }
-                                                </div>
-                                            </td>
-
-                                            {/* Fecha Solicitud */}
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 relative">
-                                                <div 
-                                                    className="cursor-pointer hover:text-gray-700 hover:bg-gray-50 px-2 py-1 rounded transition-colors"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setExpandedDateDropdown(
-                                                            expandedDateDropdown === estudio.ID ? null : estudio.ID
-                                                        );
-                                                    }}
-                                                    title="Ver historial de fechas"
-                                                >
-                                                    <div className="flex items-center space-x-1">
-                                                        <Calendar className="h-4 w-4" />
-                                                        <span>
-                                                            {estudio.FECHA_SOLICITUD_RECOLECCION && estudio.FECHA_SOLICITUD_RECOLECCION !== '0000-00-00 00:00:00' 
-                                                                ? (() => {
-                                                                    const { fecha, hora } = formatearFechaHora(estudio.FECHA_SOLICITUD_RECOLECCION);
-                                                                    return `${fecha} ${hora}`;
-                                                                })()
-                                                                : 'N/A'
-                                                            }
-                                                        </span>
-                                                        <ChevronDown className={`h-3 w-3 transition-transform ${
-                                                            expandedDateDropdown === estudio.ID ? 'rotate-180' : ''
-                                                        }`} />
+                                            {/* Tipo / Estudio */}
+                                            <td className="px-3 py-3">
+                                                <div className="space-y-1">
+                                                    <span className="inline-block px-2 py-1 rounded-full text-xs font-medium border bg-blue-50 text-blue-800 border-blue-200">
+                                                        {estudio.MUESTRA_TIPO_ESTUDIO || 'N/A'}
+                                                    </span>
+                                                    <div className="text-xs text-gray-900">
+                                                        {estudio.R_ESTUDIO_SOLICITADO ? 
+                                                            (estudio.R_ESTUDIO_SOLICITADO.length > 25 ? 
+                                                                estudio.R_ESTUDIO_SOLICITADO.substring(0, 25) + '...' : 
+                                                                estudio.R_ESTUDIO_SOLICITADO
+                                                            ) : 'No especificado'
+                                                        }
                                                     </div>
                                                 </div>
-
-                                                {/* Dropdown de fechas */}
-                                                {expandedDateDropdown === estudio.ID && (
-                                                    <>
-                                                        {/* Overlay para cerrar */}
-                                                        <div 
-                                                            className="fixed inset-0 z-10" 
-                                                            onClick={() => setExpandedDateDropdown(null)}
-                                                        />
-                                                        <FechasDropdown estudio={estudio} />
-                                                    </>
-                                                )}
                                             </td>
 
-                                            {/* Estado */}
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getEstadoClasses(estudio.ESTUDIO_ESTADO)}`}>
-                                                    {estudio.ESTUDIO_ESTADO || 'Sin estado'}
-                                                </span>
+                                            {/* Fecha / Estado */}
+                                            <td className="px-3 py-3">
+                                                <div className="space-y-2">
+                                                    {/* Fecha con dropdown */}
+                                                    <div className="relative">
+                                                        <div 
+                                                            className="cursor-pointer hover:text-gray-700 hover:bg-gray-50 px-1 py-1 rounded transition-colors"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setExpandedDateDropdown(
+                                                                    expandedDateDropdown === estudio.ID ? null : estudio.ID
+                                                                );
+                                                            }}
+                                                            title="Ver historial de fechas"
+                                                        >
+                                                            <div className="flex items-center space-x-1">
+                                                                <Calendar className="h-3 w-3" />
+                                                                <span className="text-xs text-gray-500">
+                                                                    {estudio.FECHA_SOLICITUD_RECOLECCION && estudio.FECHA_SOLICITUD_RECOLECCION !== '0000-00-00 00:00:00' 
+                                                                        ? (() => {
+                                                                            const { fecha } = formatearFechaHora(estudio.FECHA_SOLICITUD_RECOLECCION);
+                                                                            return fecha;
+                                                                        })()
+                                                                        : 'N/A'
+                                                                    }
+                                                                </span>
+                                                                <ChevronDown className={`h-3 w-3 transition-transform ${
+                                                                    expandedDateDropdown === estudio.ID ? 'rotate-180' : ''
+                                                                }`} />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Dropdown de fechas */}
+                                                        {expandedDateDropdown === estudio.ID && (
+                                                            <>
+                                                                <div 
+                                                                    className="fixed inset-0 z-10" 
+                                                                    onClick={() => setExpandedDateDropdown(null)}
+                                                                />
+                                                                <FechasDropdown estudio={estudio} />
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                    
+                                                    {/* Estado */}
+                                                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${getEstadoClasses(estudio.ESTUDIO_ESTADO)}`}>
+                                                        {estudio.ESTUDIO_ESTADO || 'Sin estado'}
+                                                    </span>
+                                                </div>
                                             </td>
 
                                             {/* Estado de Envíos */}
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-3 py-3 text-center">
                                                 {renderEstadoEnvios(estudio.estadisticas_envios)}
                                             </td>
 
-                                            {/* Acciones */}
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <div className="flex items-center justify-end space-x-2">
-                                                    <Link
-                                                        href={`/estudios/${estudio.ID}`}
-                                                        className="text-[#189BAF] hover:text-[#157a8c] transition-colors"
-                                                        title="Ver estudio"
-                                                    >
-                                                        <Eye className="h-5 w-5" />
-                                                    </Link>
-                                                    
-                                                    <button 
-                                                        onClick={() => window.open(`/publicos/estudio?id=${estudio.ID}&aleatorio=${estudio.ID_ALEATORIO}`, '_blank')}
-                                                        className="text-green-600 hover:text-green-700 transition-colors"
-                                                        title="Descargar PDF"
-                                                    >
-                                                        <Download className="h-5 w-5" />
-                                                    </button>
-                                                    
-                                                    <button 
-                                                        onClick={() => window.open(`/publicos/estudio?id=${estudio.ID}&aleatorio=${estudio.ID_ALEATORIO}&imprimir=si`, '_blank')}
-                                                        className="text-gray-600 hover:text-gray-700 transition-colors"
-                                                        title="PDF para impresión"
-                                                    >
-                                                        <Printer className="h-4 w-4" />
-                                                    </button>
+                                            {/* Acciones - EN DOS FILAS */}
+                                            <td className="px-3 py-3">
+                                                <div className="space-y-2">
+                                                    {/* PRIMERA FILA DE ACCIONES */}
+                                                    <div className="flex items-center justify-center space-x-1">
+                                                        <Link
+                                                            href={`/estudios/${estudio.ID}`}
+                                                            className="text-[#189BAF] hover:text-[#157a8c] transition-colors p-1"
+                                                            title="Ver estudio"
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </Link>
+                                                        
+                                                        <button 
+                                                            onClick={() => window.open(`/publicos/estudio?id=${estudio.ID}&aleatorio=${estudio.ID_ALEATORIO}`, '_blank')}
+                                                            className="text-green-600 hover:text-green-700 transition-colors p-1"
+                                                            title="Descargar PDF"
+                                                        >
+                                                            <Download className="h-4 w-4" />
+                                                        </button>
+                                                        
+                                                        <button 
+                                                            onClick={() => window.open(`/publicos/estudio?id=${estudio.ID}&aleatorio=${estudio.ID_ALEATORIO}&imprimir=si`, '_blank')}
+                                                            className="text-gray-600 hover:text-gray-700 transition-colors p-1"
+                                                            title="PDF para impresión"
+                                                        >
+                                                            <Printer className="h-4 w-4" />
+                                                        </button>
 
-                                                    <button 
-                                                        onClick={() => openWhatsAppDialog(estudio)}
-                                                        className="text-green-600 hover:text-green-700 transition-colors"
-                                                        title="Enviar por WhatsApp"
-                                                    >
-                                                        <MessageCircle className="h-5 w-5" />
-                                                    </button>
+                                                        <button 
+                                                            onClick={() => openWhatsAppDialog(estudio)}
+                                                            className="text-green-600 hover:text-green-700 transition-colors p-1"
+                                                            title="Enviar por WhatsApp"
+                                                        >
+                                                            <MessageCircle className="h-4 w-4" />
+                                                        </button>
+                                                        
+                                                        <Link
+                                                            href={`/estudios/${estudio.ID}/envios-correos`}
+                                                            className="text-blue-600 hover:text-blue-700 transition-colors p-1"
+                                                            title="Ver envíos de correos"
+                                                        >
+                                                            <Mail className="h-4 w-4" />
+                                                        </Link>
+                                                    </div>
                                                     
-                                                    <Link
-                                                        href={`/estudios/${estudio.ID}/envios-correos`}
-                                                        className="text-blue-600 hover:text-blue-700 transition-colors"
-                                                        title="Ver envíos de correos"
-                                                    >
-                                                        <Mail className="h-5 w-5" />
-                                                    </Link>
-                                                    
-                                                    {/* BOTÓN DE SIGUIENTE PASO */}
-                                                    {(() => {
-                                                        const siguientePaso = getSiguientePaso(estudio.ESTUDIO_ESTADO);
-                                                        return siguientePaso ? (
-                                                            <Link
-                                                                href={`/estudios/${estudio.ID}/edit/${siguientePaso.href}`}
-                                                                className="inline-flex items-center space-x-1 px-3 py-1.5 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
-                                                                title={`Ir a ${siguientePaso.texto}`}
-                                                            >
-                                                                {siguientePaso.icono}
-                                                                <span>{siguientePaso.texto}</span>
-                                                            </Link>
-                                                        ) : null;
-                                                    })()}
-                                                    
-                                                    {/* BOTONES DE EDICIÓN Y BORRAR (solo si no es "Resultados Enviados") */}
-                                                    {mostrarBotonesEdicion(estudio.ESTUDIO_ESTADO) && (
-                                                        <>
-                                                            <div className="relative group">
-                                                                <button className="text-[#D68B41] hover:text-[#b8763a] transition-colors">
-                                                                    <Edit className="h-5 w-5" />
-                                                                </button>
-                                                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-                                                                    <Link
-                                                                        href={`/estudios/${estudio.ID}/edit/recoleccion`}
-                                                                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                                                                    >
-                                                                        <Calendar className="h-4 w-4 mr-2" />
-                                                                        1. Recolección
-                                                                    </Link>
-                                                                    <Link
-                                                                        href={`/estudios/${estudio.ID}/edit/recepcion`}
-                                                                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                                                                    >
-                                                                        <FileText className="h-4 w-4 mr-2" />
-                                                                        2. Recepción
-                                                                    </Link>
-                                                                    <Link
-                                                                        href={`/estudios/${estudio.ID}/edit/laboratorio`}
-                                                                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                                                                    >
-                                                                        <TestTube className="h-4 w-4 mr-2" />
-                                                                        3. Laboratorio
-                                                                    </Link>
-                                                                    <Link
-                                                                        href={`/estudios/${estudio.ID}/edit/informe`}
-                                                                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                                                                    >
-                                                                        <Microscope className="h-4 w-4 mr-2" />
-                                                                        4. Informe
-                                                                    </Link>
+                                                    {/* SEGUNDA FILA DE ACCIONES */}
+                                                    <div className="flex items-center justify-center space-x-1">
+                                                        {/* BOTÓN DE SIGUIENTE PASO */}
+                                                        {(() => {
+                                                            const siguientePaso = getSiguientePaso(estudio.ESTUDIO_ESTADO);
+                                                            return siguientePaso ? (
+                                                                <Link
+                                                                    href={`/estudios/${estudio.ID}/edit/${siguientePaso.href}`}
+                                                                    className="inline-flex items-center space-x-1 px-2 py-1 bg-white border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
+                                                                    title={`Ir a ${siguientePaso.texto}`}
+                                                                >
+                                                                    {siguientePaso.icono}
+                                                                    <span>{siguientePaso.texto}</span>
+                                                                </Link>
+                                                            ) : (
+                                                                <div className="px-2 py-1 text-xs text-gray-400">
+                                                                    Completado
                                                                 </div>
-                                                            </div>
+                                                            );
+                                                        })()}
+                                                        
+                                                        {/* BOTONES DE EDICIÓN Y BORRAR (solo si no es "Resultados Enviados") */}
+                                                        {mostrarBotonesEdicion(estudio.ESTUDIO_ESTADO) && (
+                                                            <div className="flex items-center space-x-1">
+                                                                <div className="relative group">
+                                                                    <button className="text-[#D68B41] hover:text-[#b8763a] transition-colors p-1">
+                                                                        <Edit className="h-4 w-4" />
+                                                                    </button>
+                                                                    <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                                                                        <Link
+                                                                            href={`/estudios/${estudio.ID}/edit/recoleccion`}
+                                                                            className="flex items-center px-3 py-2 text-xs text-gray-700 hover:bg-gray-50"
+                                                                        >
+                                                                            <Calendar className="h-3 w-3 mr-2" />
+                                                                            1. Recolección
+                                                                        </Link>
+                                                                        <Link
+                                                                            href={`/estudios/${estudio.ID}/edit/recepcion`}
+                                                                            className="flex items-center px-3 py-2 text-xs text-gray-700 hover:bg-gray-50"
+                                                                        >
+                                                                            <FileText className="h-3 w-3 mr-2" />
+                                                                            2. Recepción
+                                                                        </Link>
+                                                                        <Link
+                                                                            href={`/estudios/${estudio.ID}/edit/laboratorio`}
+                                                                            className="flex items-center px-3 py-2 text-xs text-gray-700 hover:bg-gray-50"
+                                                                        >
+                                                                            <TestTube className="h-3 w-3 mr-2" />
+                                                                            3. Laboratorio
+                                                                        </Link>
+                                                                        <Link
+                                                                            href={`/estudios/${estudio.ID}/edit/informe`}
+                                                                            className="flex items-center px-3 py-2 text-xs text-gray-700 hover:bg-gray-50"
+                                                                        >
+                                                                            <Microscope className="h-3 w-3 mr-2" />
+                                                                            4. Informe
+                                                                        </Link>
+                                                                    </div>
+                                                                </div>
 
-                                                            {/* BOTÓN DE ELIMINAR */}
-                                                            <button
-                                                                onClick={() => handleDeleteEstudio(estudio)}
-                                                                disabled={deletingId === estudio.ID}
-                                                                className="text-red-600 hover:text-red-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                                                title="Eliminar estudio"
-                                                            >
-                                                                {deletingId === estudio.ID ? (
-                                                                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-red-600 border-t-transparent"></div>
-                                                                ) : (
-                                                                    <Trash2 className="h-5 w-5" />
-                                                                )}
-                                                            </button>
-                                                        </>
-                                                    )}
+                                                                {/* BOTÓN DE ELIMINAR */}
+                                                                <button
+                                                                    onClick={() => handleDeleteEstudio(estudio)}
+                                                                    disabled={deletingId === estudio.ID}
+                                                                    className="text-red-600 hover:text-red-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed p-1"
+                                                                    title="Eliminar estudio"
+                                                                >
+                                                                    {deletingId === estudio.ID ? (
+                                                                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent"></div>
+                                                                    ) : (
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    )}
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </td>
                                         </tr>

@@ -96,7 +96,7 @@ export default function EditRecoleccionOptimized() {
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
-        { title: 'Estudios', href: '/estudios' },
+        { title: 'Estudios', href: `/estudios?prefijo=${estudio.CLAVE || 'PRM'}` },
         { title: `${estudio.CLAVE_INTERNA}`, href: `/estudios/${estudio.ID}` },
         { title: 'Recolección', href: `/estudios/${estudio.ID}/edit/recoleccion` },
     ];
@@ -240,7 +240,10 @@ export default function EditRecoleccionOptimized() {
         if (dependentFields.processing) return;
         
         setDependentFields(prev => ({ ...prev, processing: true }));
-        const formData = getFormData();
+        const formData = {
+            ...getFormData(),
+            _action: 'save' 
+        };
         
         router.patch(`/estudios/${estudio.ID}/recoleccion`, formData, {
             onSuccess: () => {
@@ -261,7 +264,11 @@ export default function EditRecoleccionOptimized() {
         if (dependentFields.processing) return;
         
         setDependentFields(prev => ({ ...prev, processing: true }));
-        const formData = { ...getFormData(), _next: 'recepcion' };
+        const formData = { 
+            ...getFormData(), 
+            _next: 'recepcion',
+            _action: 'save_and_next' // ← AGREGAR PARA CONSISTENCIA
+        };
         
         router.patch(`/estudios/${estudio.ID}/recoleccion`, formData, {
             onSuccess: () => {
@@ -282,11 +289,15 @@ export default function EditRecoleccionOptimized() {
         if (dependentFields.processing) return;
         
         setDependentFields(prev => ({ ...prev, processing: true }));
-        const formData = getFormData();
+        const formData = {
+            ...getFormData(),
+            _action: 'save_and_exit' // ← AGREGAR ESTO
+        };
         
         router.patch(`/estudios/${estudio.ID}/recoleccion`, formData, {
             onSuccess: () => {
-                router.visit('/estudios');
+                // El backend se encargará de redirigir con el prefijo correcto
+                console.log('Datos guardados y regresando a lista');
             },
             onError: (errors) => {
                 console.error('Error al guardar:', errors);

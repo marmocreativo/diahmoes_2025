@@ -21,9 +21,15 @@ class EstudioController extends Controller
      */
     public function index(Request $request)
     {
+        // NUEVO: Obtener prefijo de la URL, por defecto PRM
+        $prefijo = $request->get('prefijo', 'PRM');
+        
         $query = Estudio::with(['medico', 'paciente', 'institucion', 'cliente', 'enviosCorreos']);
         
-        // Búsqueda global simplificada
+        // NUEVO: Filtro obligatorio por prefijo/CLAVE
+        $query->where('CLAVE', $prefijo);
+        
+        // Búsqueda global simplificada (resto del código igual)
         if ($request->filled('search')) {
             $search = $request->get('search');
             $query->where(function($q) use ($search) {
@@ -86,8 +92,9 @@ class EstudioController extends Controller
         
         return Inertia::render('estudios/index', [
             'estudios' => $estudios,
-            'filters' => $request->only(['search', 'estado', 'fecha_desde', 'fecha_hasta']),
+            'filters' => $request->only(['search', 'estado', 'fecha_desde', 'fecha_hasta', 'prefijo']), // NUEVO: Incluir prefijo
             'estados' => $estados,
+            'prefijo' => $prefijo, // NUEVO: Enviar prefijo al frontend
         ]);
     }
 
@@ -129,9 +136,10 @@ class EstudioController extends Controller
             ->orderBy('ANIO', 'desc')
             ->orderBy('SERIADO', 'desc')
             ->first();
+
         $anioActual = date('y');
-        $nuevoClave = $ultimoEstudio->SERIADO+1;
-        $siguienteConteo = $ultimoEstudio->SERIADO+2;
+        $nuevoClave = 1; // Valor por defecto si no hay estudios
+        $siguienteConteo = 2;
         
         if ($ultimoEstudio) {
             // Si el último estudio es del mismo año, incrementar
@@ -139,6 +147,10 @@ class EstudioController extends Controller
                 $nuevoClave = $ultimoEstudio->SERIADO + 1;
                 $siguienteConteo = $nuevoClave + 1;
             }
+        } else {
+            // Si no hay estudios anteriores, empezar desde 1
+            $nuevoClave = 1;
+            $siguienteConteo = 2;
         }
         
         $seriado = str_pad($nuevoClave, 4, "0", STR_PAD_LEFT);
@@ -312,7 +324,8 @@ class EstudioController extends Controller
         }
 
         return redirect()->route('estudios.edit.recepcion', ['estudio' => $estudio->ID])
-        ->with('success', 'Estudio creado exitosamente. Complete la información de recolección.');
+        ->with('success', 'Estudio creado exitosamente. Complete la información de recolección.')
+        ->with('prefijo', $estudio->CLAVE);
     }
     
     private function manejarNuevoCliente(Request $request)
@@ -705,6 +718,13 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
         \Log::info('💾 Resultado de update: ' . ($updated ? 'éxito' : 'falló'));
         \Log::info('📋 Estudio después de actualizar:', ['estudio_actualizado' => $estudio->fresh()->toArray()]);
 
+        // Manejar navegación con prefijo
+        if ($request->_action === 'save_and_exit') {
+            $prefijo = $estudio->CLAVE ?? 'PRM';
+            return redirect()->route('estudios.index', ['prefijo' => $prefijo])
+                ->with('success', 'Información de recolección actualizada.');
+        }
+
         return back()->with('success', 'Información de recolección actualizada.');
     }
 
@@ -857,7 +877,13 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
                 $mensaje .= ' Estado avanzado a "Recepción Laboratorio".';
             }
 
-            // Manejar navegación
+            // Manejar navegación con prefijo
+            if ($request->_action === 'save_and_exit') {
+                $prefijo = $estudio->CLAVE ?? 'PRM';
+                return redirect()->route('estudios.index', ['prefijo' => $prefijo])
+                    ->with('success', $mensaje);
+            }
+            
             if ($request->_next === 'laboratorio') {
                 \Log::info('🔄 Navegando a laboratorio');
                 return redirect()->route('estudios.edit.laboratorio', $estudio->ID)->with('success', $mensaje . ' Continuando con laboratorio.');
@@ -1063,7 +1089,13 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
             // Mensaje de éxito dinámico
             $mensaje = 'Información de laboratorio actualizada.' . $mensajeEstado;
 
-            // Manejar navegación
+            // Manejar navegación con prefijo  
+            if ($request->_action === 'save_and_exit') {
+                $prefijo = $estudio->CLAVE ?? 'PRM';
+                return redirect()->route('estudios.index', ['prefijo' => $prefijo])
+                    ->with('success', $mensaje);
+            }
+
             if ($request->_next === 'informe') {
                 \Log::info('🔄 Navegando a informe');
                 return redirect()->route('estudios.edit.informe', $estudio->ID)->with('success', $mensaje . ' Continuando con informe.');
@@ -1326,6 +1358,13 @@ public function updateInforme(Request $request, Estudio $estudio)
             'estudio_id' => $estudio->ID
         ]);
 
+        // Manejar navegación con prefijo
+        if ($request->_action === 'save_and_exit') {
+            $prefijo = $estudio->CLAVE ?? 'PRM';
+            return redirect()->route('estudios.index', ['prefijo' => $prefijo])
+                ->with('success', 'Información de informe actualizada.');
+        }
+
         return back()->with('success', 'Información de informe actualizada.');
 
     } catch (\Illuminate\Validation\ValidationException $e) {
@@ -1577,9 +1616,12 @@ public function enviarCorreoIndividual(Request $request, Estudio $estudio)
      */
     public function destroy(Estudio $estudio)
     {
+        // Obtener el prefijo del estudio que se está eliminando
+        $prefijo = $estudio->CLAVE ?? 'PRM';
+        
         $estudio->delete();
         
-        return redirect()->route('estudios.index')
+        return redirect()->route('estudios.index', ['prefijo' => $prefijo])
             ->with('success', 'Estudio eliminado exitosamente.');
     }
 

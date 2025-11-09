@@ -35,6 +35,8 @@ interface ShowInsumoProps {
     [key: string]: any;
 }
 
+
+
 export default function ShowInsumo() {
     const { insumo, unidadesMedida } = usePage<ShowInsumoProps>().props;
 
@@ -43,6 +45,11 @@ export default function ShowInsumo() {
         { title: 'Insumos', href: '/insumos' },
         { title: insumo.NOMBRE, href: `/insumos/${insumo.ID}` },
     ];
+
+    // Función helper para obtener la unidad de medida
+    const getUnidadMedida = (unidad: string) => {
+        return unidadesMedida?.[unidad] || unidad || 'N/A';
+    };
 
     const formatearFecha = (fecha: string) => {
         if (!fecha) return 'N/A';
@@ -127,7 +134,7 @@ export default function ShowInsumo() {
                         <div className={`text-3xl font-bold ${insumo.stock_bajo ? 'text-red-600' : 'text-green-600'}`}>
                             {insumo.stock_total}
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">{unidadesMedida[insumo.UNIDAD_MEDIDA]}</p>
+                        <p className="text-xs text-gray-500 mt-1">{getUnidadMedida(insumo.UNIDAD_MEDIDA)}</p>
                         {insumo.stock_bajo && (
                             <div className="mt-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded">
                                 ⚠️ Stock bajo
@@ -144,7 +151,7 @@ export default function ShowInsumo() {
                         <div className="text-3xl font-bold text-gray-900">
                             {insumo.STOCK_MINIMO}
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">{unidadesMedida[insumo.UNIDAD_MEDIDA]}</p>
+                        <p className="text-xs text-gray-500 mt-1">{getUnidadMedida(insumo.UNIDAD_MEDIDA)}</p>
                     </div>
 
                     {/* Lotes Activos */}
@@ -180,7 +187,7 @@ export default function ShowInsumo() {
                         <div>
                             <label className="text-sm font-medium text-gray-500">Unidad de Medida</label>
                             <p className="text-base text-gray-900 mt-1">
-                                {unidadesMedida[insumo.UNIDAD_MEDIDA]}
+                                {getUnidadMedida(insumo.UNIDAD_MEDIDA)}
                             </p>
                         </div>
 
