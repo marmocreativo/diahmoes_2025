@@ -371,6 +371,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('estudios/reparar', [EstudioController::class, 'repararEstudios'])
     ->name('estudios.reparar');
+
+    Route::post('estudios/finalizar-antiguos', [EstudioController::class, 'finalizarEstudiosAntiguos'])
+    ->name('estudios.finalizar-antiguos');
     
     // Rutas para obtener datos de estudios
     Route::get('estudios/ultimo-por-institucion', [EstudioController::class, 'getUltimoEstudioInstitucion']);

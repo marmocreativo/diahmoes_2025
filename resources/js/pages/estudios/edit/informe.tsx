@@ -23,6 +23,7 @@ interface EditInformeProps {
     estudio: any;
     medico: any;
     correos_copias: any[];
+    mensajerias: any[];
     [key: string]: any;
 }
 
@@ -36,7 +37,7 @@ interface CorreoCopia {
 }
 
 export default function EditInformeComplete() {
-    const { estudio, medico, correos_copias = [] } = usePage<EditInformeProps>().props;
+    const { estudio, medico, correos_copias = [], mensajerias = []  } = usePage<EditInformeProps>().props;
 
     // Estado para el modal de Envio
     const [modalEnvio, setModalEnvio] = useState<ModalEnvioState>({
@@ -57,12 +58,38 @@ export default function EditInformeComplete() {
             estudio.FECHA_INFORME.split('T')[1].substring(0, 5) : 
             new Date().toTimeString().slice(0, 5),
         ESTUDIO_FACTURADO: estudio.ESTUDIO_FACTURADO || '',
-        ESTUDIO_ESTADO: estudio.ESTUDIO_ESTADO || '',
+        // ELIMINAR ESTA LÍNEA:
+        // ESTUDIO_ESTADO: estudio.ESTUDIO_ESTADO || '',
         ESTUDIO_COMENTARIOS: estudio.ESTUDIO_COMENTARIOS || '',
         BENEFICIARIO: estudio.BENEFICIARIO || '',
         ENVIAR_ADJUNTO: true,
         FECHA_RESULTADOS_CORREO: new Date().toISOString().split('T')[0],
-        HORA_RESULTADOS_CORREO: new Date().toTimeString().slice(0, 5)
+        HORA_RESULTADOS_CORREO: new Date().toTimeString().slice(0, 5),
+        // NUEVOS CAMPOS DE RETORNO DE MATERIAL:
+        MUESTRA_GUIA_RETORNO_MENSAJERIA: estudio.MUESTRA_GUIA_RETORNO_MENSAJERIA || '',
+        MUESTRA_GUIA_RETORNO: estudio.MUESTRA_GUIA_RETORNO || '',
+        FECHA_RETORNO_MATERIAL: (() => {
+            // Si la fecha existe y no es inválida, usarla
+            if (estudio.FECHA_RETORNO_MATERIAL && 
+                estudio.FECHA_RETORNO_MATERIAL !== '0000-00-00 00:00:00' && 
+                estudio.FECHA_RETORNO_MATERIAL !== '1970-01-01 00:00:00' &&
+                estudio.FECHA_RETORNO_MATERIAL !== null) {
+                return estudio.FECHA_RETORNO_MATERIAL.split('T')[0];
+            }
+            // Si no, usar fecha actual
+            return new Date().toISOString().split('T')[0];
+        })(),
+        HORA_RETORNO_MATERIAL: (() => {
+            // Si la fecha existe y no es inválida, extraer la hora
+            if (estudio.FECHA_RETORNO_MATERIAL && 
+                estudio.FECHA_RETORNO_MATERIAL !== '0000-00-00 00:00:00' && 
+                estudio.FECHA_RETORNO_MATERIAL !== '1970-01-01 00:00:00' &&
+                estudio.FECHA_RETORNO_MATERIAL !== null) {
+                return estudio.FECHA_RETORNO_MATERIAL.split('T')[1]?.substring(0, 5) || new Date().toTimeString().slice(0, 5);
+            }
+            // Si no, usar hora actual
+            return new Date().toTimeString().slice(0, 5);
+        })()
     });
 
     const [listaCorreos, setListaCorreos] = useState<CorreoCopia[]>([]);
@@ -189,6 +216,7 @@ export default function EditInformeComplete() {
             ...formData,
             FECHA_INFORME: `${formData.FECHA_INFORME} ${formData.HORA_INFORME}:00`,
             FECHA_RESULTADOS_CORREO: `${formData.FECHA_RESULTADOS_CORREO} ${formData.HORA_RESULTADOS_CORREO}:00`,
+            FECHA_RETORNO_MATERIAL: `${formData.FECHA_RETORNO_MATERIAL} ${formData.HORA_RETORNO_MATERIAL}:00`,
             correos_copias: serializeCorreos(listaCorreos),
             _action: 'save'
         };
@@ -215,6 +243,7 @@ export default function EditInformeComplete() {
             ...formData,
             FECHA_INFORME: `${formData.FECHA_INFORME} ${formData.HORA_INFORME}:00`,
             FECHA_RESULTADOS_CORREO: `${formData.FECHA_RESULTADOS_CORREO} ${formData.HORA_RESULTADOS_CORREO}:00`,
+            FECHA_RETORNO_MATERIAL: `${formData.FECHA_RETORNO_MATERIAL} ${formData.HORA_RETORNO_MATERIAL}:00`,
             correos_copias: serializeCorreos(listaCorreos)
         };
         
@@ -372,6 +401,7 @@ export default function EditInformeComplete() {
             ...formData,
             FECHA_INFORME: `${formData.FECHA_INFORME} ${formData.HORA_INFORME}:00`,
             FECHA_RESULTADOS_CORREO: `${formData.FECHA_RESULTADOS_CORREO} ${formData.HORA_RESULTADOS_CORREO}:00`,
+            FECHA_RETORNO_MATERIAL: `${formData.FECHA_RETORNO_MATERIAL} ${formData.HORA_RETORNO_MATERIAL}:00`,
             correos_copias: serializeCorreos(listaCorreos),
             _action: 'save_and_exit' // ← AGREGAR ESTO
         };
@@ -683,71 +713,121 @@ export default function EditInformeComplete() {
                     </div>
 
                     {/* COLUMNA DERECHA - Configuración del estudio */}
-                    <div className="bg-white rounded-lg p-6 shadow-sm">
-                        <h3 className="text-lg font-semibold mb-4">Configuración del Estudio</h3>
-                        
-                        <div className="space-y-4">
-                            <div>
-                                <label className={labelClass}>Facturado</label>
-                                <select
-                                    className={selectClass}
-                                    value={formData.ESTUDIO_FACTURADO}
-                                    onChange={(e) => updateFormData('ESTUDIO_FACTURADO', e.target.value)}
-                                >
-                                    <option value="">Selecciona</option>
-                                    <option value="Si">Si</option>
-                                    <option value="No">No</option>
-                                </select>
-                            </div>
+                        <div className="bg-white rounded-lg p-6 shadow-sm">
+                            <h3 className="text-lg font-semibold mb-4">Configuración del Estudio</h3>
+                            
+                            <div className="space-y-6">
+                                {/* Sección: Configuración General */}
+                                <div>
+                                    <h4 className="text-md font-medium mb-3 text-gray-700 border-b border-gray-200 pb-2">
+                                        Configuración General
+                                    </h4>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className={labelClass}>Facturado</label>
+                                            <select
+                                                className={selectClass}
+                                                value={formData.ESTUDIO_FACTURADO}
+                                                onChange={(e) => updateFormData('ESTUDIO_FACTURADO', e.target.value)}
+                                            >
+                                                <option value="">Selecciona</option>
+                                                <option value="Si">Si</option>
+                                                <option value="No">No</option>
+                                            </select>
+                                        </div>
 
-                            <div>
-                                <label className={labelClass}>Estado del Estudio</label>
-                                <select
-                                    className={selectClass}
-                                    value={formData.ESTUDIO_ESTADO}
-                                    onChange={(e) => updateFormData('ESTUDIO_ESTADO', e.target.value)}
-                                >
-                                    <option value="">Selecciona</option>
-                                    <option value="Pendiente">Pendiente</option>
-                                    <option value="En Proceso">En Proceso</option>
-                                    <option value="Completado">Completado</option>
-                                    <option value="Cancelado">Cancelado</option>
-                                </select>
-                            </div>
+                                        <div>
+                                            <label className={labelClass}>Beneficiario</label>
+                                            <input
+                                                type="text"
+                                                className={inputClass}
+                                                value={formData.BENEFICIARIO}
+                                                onChange={(e) => updateFormData('BENEFICIARIO', e.target.value)}
+                                                placeholder="Nombre del beneficiario"
+                                            />
+                                        </div>
 
-                            <div>
-                                <label className={labelClass}>Beneficiario</label>
-                                <input
-                                    type="text"
-                                    className={inputClass}
-                                    value={formData.BENEFICIARIO}
-                                    onChange={(e) => updateFormData('BENEFICIARIO', e.target.value)}
-                                    placeholder="Nombre del beneficiario"
-                                />
-                            </div>
+                                        <div>
+                                            <label className={labelClass}>Comentarios</label>
+                                            <textarea
+                                                className={textareaClass}
+                                                rows={4}
+                                                value={formData.ESTUDIO_COMENTARIOS}
+                                                onChange={(e) => updateFormData('ESTUDIO_COMENTARIOS', e.target.value)}
+                                                placeholder="Comentarios adicionales sobre el estudio..."
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
 
-                            <div>
-                                <label className={labelClass}>Comentarios</label>
-                                <textarea
-                                    className={textareaClass}
-                                    rows={8}
-                                    value={formData.ESTUDIO_COMENTARIOS}
-                                    onChange={(e) => updateFormData('ESTUDIO_COMENTARIOS', e.target.value)}
-                                    placeholder="Comentarios adicionales sobre el estudio..."
-                                />
+                                {/* NUEVA SECCIÓN: Retorno de Material */}
+                                <div>
+                                    <h4 className="text-md font-medium mb-3 text-gray-700 border-b border-gray-200 pb-2">
+                                        Retorno de Material
+                                    </h4>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className={labelClass}>Mensajería</label>
+                                            <select
+                                                className={selectClass}
+                                                value={formData.MUESTRA_GUIA_RETORNO_MENSAJERIA}
+                                                onChange={(e) => updateFormData('MUESTRA_GUIA_RETORNO_MENSAJERIA', e.target.value)}
+                                            >
+                                                <option value="">Seleccionar mensajería</option>
+                                                {mensajerias.map((mensajeria: any) => (
+                                                    <option key={mensajeria.ID} value={mensajeria.NOMBRE}>
+                                                        {mensajeria.NOMBRE}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className={labelClass}>Número de Guía</label>
+                                            <input
+                                                type="text"
+                                                className={inputClass}
+                                                value={formData.MUESTRA_GUIA_RETORNO}
+                                                onChange={(e) => updateFormData('MUESTRA_GUIA_RETORNO', e.target.value)}
+                                                placeholder="Número de guía de retorno"
+                                            />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className={labelClass}>Fecha Retorno</label>
+                                                <input
+                                                    type="date"
+                                                    className={inputClass}
+                                                    value={formData.FECHA_RETORNO_MATERIAL}
+                                                    onChange={(e) => updateFormData('FECHA_RETORNO_MATERIAL', e.target.value)}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className={labelClass}>Hora Retorno</label>
+                                                <input
+                                                    type="time"
+                                                    className={inputClass}
+                                                    value={formData.HORA_RETORNO_MATERIAL}
+                                                    onChange={(e) => updateFormData('HORA_RETORNO_MATERIAL', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Información adicional - ACTUALIZAR PARA MOSTRAR ESTADO ACTUAL */}
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <h4 className="font-medium text-blue-800 mb-2">Información del Estudio</h4>
+                                    <div className="space-y-1 text-sm text-blue-700">
+                                        <p><strong>Fecha:</strong> {new Date().toLocaleDateString('es-ES')}</p>
+                                        <p><strong>Hora:</strong> {new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</p>
+                                        <p><strong>Estado:</strong> {estudio.ESTUDIO_ESTADO || 'Sin estado'}</p>
+                                        <p><strong>Correos activos:</strong> {listaCorreos.filter(c => c.ENVIAR === 'si').length} de {listaCorreos.length}</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-
-                        {/* Información adicional */}
-                        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                            <h4 className="font-medium text-blue-800 mb-2">Información del Envío</h4>
-                            <div className="space-y-1 text-sm text-blue-700">
-                                <p><strong>Fecha:</strong> {new Date().toLocaleDateString('es-ES')}</p>
-                                <p><strong>Hora:</strong> {new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</p>
-                                <p><strong>Correos activos:</strong> {listaCorreos.filter(c => c.ENVIAR === 'si').length} de {listaCorreos.length}</p>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 {/* Botones de navegación */}

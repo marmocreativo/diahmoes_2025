@@ -189,6 +189,18 @@ export interface EstudioFilters extends BaseFilters {
     fecha_desde?: string;
     fecha_hasta?: string;
     clave?: string;
+    // Nuevos filtros de búsqueda avanzada
+    paciente_iniciales?: string;
+    paciente_nombre?: string;
+    paciente_apellidos?: string;
+    medico_nombre?: string;
+    medico_apellidos?: string;
+    institucion_id?: string;
+    clave_interna?: string;
+    folio_merck?: string;
+    muestra_clave?: string;
+    muestra_folio_sobre?: string;
+    muestra_folio_kit_bl?: string;
 }
 
 // Props para componentes de estudios

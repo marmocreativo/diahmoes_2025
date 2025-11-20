@@ -29,7 +29,7 @@ class EstudioController extends Controller
         // NUEVO: Filtro obligatorio por prefijo/CLAVE
         $query->where('CLAVE', $prefijo);
         
-        // Búsqueda global simplificada (resto del código igual)
+        // BÚSQUEDA RÁPIDA (búsqueda global simplificada)
         if ($request->filled('search')) {
             $search = $request->get('search');
             $query->where(function($q) use ($search) {
@@ -56,7 +56,65 @@ class EstudioController extends Controller
             });
         }
         
-        // Filtros adicionales opcionales (mantener solo los esenciales)
+        // BÚSQUEDA AVANZADA - Campos específicos
+        
+        // Filtros de paciente
+        if ($request->filled('paciente_iniciales')) {
+            $query->where('MUESTRA_INICIALES', 'like', "%{$request->get('paciente_iniciales')}%");
+        }
+        
+        if ($request->filled('paciente_nombre')) {
+            $query->whereHas('paciente', function($q) use ($request) {
+                $q->where('USUARIO_NOMBRE', 'like', "%{$request->get('paciente_nombre')}%");
+            });
+        }
+        
+        if ($request->filled('paciente_apellidos')) {
+            $query->whereHas('paciente', function($q) use ($request) {
+                $q->where('USUARIO_APELLIDOS', 'like', "%{$request->get('paciente_apellidos')}%");
+            });
+        }
+        
+        // Filtros de médico
+        if ($request->filled('medico_nombre')) {
+            $query->whereHas('medico', function($q) use ($request) {
+                $q->where('USUARIO_NOMBRE', 'like', "%{$request->get('medico_nombre')}%");
+            });
+        }
+        
+        if ($request->filled('medico_apellidos')) {
+            $query->whereHas('medico', function($q) use ($request) {
+                $q->where('USUARIO_APELLIDOS', 'like', "%{$request->get('medico_apellidos')}%");
+            });
+        }
+        
+        // Filtro de institución
+        if ($request->filled('institucion_id')) {
+            $query->where('ID_INSTITUCION', $request->get('institucion_id'));
+        }
+        
+        // Filtros de estudio
+        if ($request->filled('clave_interna')) {
+            $query->where('CLAVE_INTERNA', 'like', "%{$request->get('clave_interna')}%");
+        }
+        
+        if ($request->filled('folio_merck')) {
+            $query->where('FOLIO_MERCK', 'like', "%{$request->get('folio_merck')}%");
+        }
+        
+        if ($request->filled('muestra_clave')) {
+            $query->where('MUESTRA_CLAVE', 'like', "%{$request->get('muestra_clave')}%");
+        }
+        
+        if ($request->filled('muestra_folio_sobre')) {
+            $query->where('MUESTRA_FOLIO_SOBRE', 'like', "%{$request->get('muestra_folio_sobre')}%");
+        }
+        
+        if ($request->filled('muestra_folio_kit_bl')) {
+            $query->where('MUESTRA_FOLIO_KIT_BL', 'like', "%{$request->get('muestra_folio_kit_bl')}%");
+        }
+        
+        // Filtros adicionales opcionales (mantener los existentes)
         if ($request->filled('estado')) {
             $query->where('ESTUDIO_ESTADO', $request->get('estado'));
         }
@@ -87,14 +145,28 @@ class EstudioController extends Controller
             return $estudio;
         });
         
-        // Datos mínimos para filtros opcionales
+        // Datos para filtros
         $estados = Estudio::getEstados() ?? [];
+        
+        // NUEVO: Obtener instituciones para el select
+        $instituciones = \App\Models\Institucion::select('ID_INSTITUCION', 'INSTITUCION_NOMBRE')
+            ->orderBy('INSTITUCION_NOMBRE')
+            ->get();
         
         return Inertia::render('estudios/index', [
             'estudios' => $estudios,
-            'filters' => $request->only(['search', 'estado', 'fecha_desde', 'fecha_hasta', 'prefijo']), // NUEVO: Incluir prefijo
+            'filters' => $request->only([
+                'search', 'estado', 'fecha_desde', 'fecha_hasta', 'prefijo',
+                // NUEVO: Filtros avanzados
+                'paciente_iniciales', 'paciente_nombre', 'paciente_apellidos',
+                'medico_nombre', 'medico_apellidos',
+                'institucion_id',
+                'clave_interna', 'folio_merck', 'muestra_clave', 
+                'muestra_folio_sobre', 'muestra_folio_kit_bl'
+            ]),
             'estados' => $estados,
-            'prefijo' => $prefijo, // NUEVO: Enviar prefijo al frontend
+            'instituciones' => $instituciones, // NUEVO: Lista de instituciones
+            'prefijo' => $prefijo,
         ]);
     }
 
@@ -614,10 +686,16 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
             ->orderBy('USUARIO_NOMBRE')
             ->get();
 
+        $mensajerias = \App\Models\Mensajeria::activas()
+            ->select('ID', 'NOMBRE')
+            ->orderBy('NOMBRE')
+            ->get();
+
         return Inertia::render('estudios/edit/informe', [
             'estudio' => $estudio,
             'medicos' => $medicos,
-            'correos_copias' => $estudio->correosCopia
+            'correos_copias' => $estudio->correosCopia,
+            'mensajerias' => $mensajerias,
         ]);
     }
 
@@ -1118,274 +1196,318 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
         }
     }
 
-/**
- * Update the specified resource in storage - Paso Informe
- */
-public function updateInforme(Request $request, Estudio $estudio)
-{
-    \Log::info('🚀 Iniciando updateInforme', [
-        'estudio_id' => $estudio->ID,
-        'request_data' => $request->all()
-    ]);
-
-    try {
-        // Log de validación
-        \Log::info('📋 Iniciando validación de datos');
-        
-        $request->validate([
-            // Fechas del informe
-            'FECHA_INFORME' => 'nullable|string',
-            'HORA_INFORME' => 'nullable|string',
-            'FECHA_RESULTADOS_CORREO' => 'nullable|string', 
-            'HORA_RESULTADOS_CORREO' => 'nullable|string',
-            // Configuración del estudio
-            'ESTUDIO_FACTURADO' => 'nullable|string',
-            'ESTUDIO_ESTADO' => 'nullable|string',
-            'ESTUDIO_COMENTARIOS' => 'nullable|string',
-            'BENEFICIARIO' => 'nullable|string',
-            // Array de correos de copia
-            'correos_copias' => 'nullable|array',
-            'correos_copias.*.ID' => 'nullable|integer',
-            'correos_copias.*.NOMBRE' => 'nullable|string|max:255',
-            'correos_copias.*.CORREO' => 'required|email|max:255',
-            'correos_copias.*.ENVIAR' => 'nullable|string',
-            'correos_copias.*.ID_ESTUDIO' => 'nullable|integer'
+    /**
+     * Update the specified resource in storage - Paso Informe
+     */
+    public function updateInforme(Request $request, Estudio $estudio)
+    {
+        \Log::info('🚀 Iniciando updateInforme', [
+            'estudio_id' => $estudio->ID,
+            'request_data' => $request->all()
         ]);
 
-        \Log::info('✅ Validación completada exitosamente');
+        try {
+            // Log de validación
+            \Log::info('📋 Iniciando validación de datos');
+            
+            $request->validate([
+                // Fechas del informe
+                'FECHA_INFORME' => 'nullable|string',
+                'HORA_INFORME' => 'nullable|string',
+                'FECHA_RESULTADOS_CORREO' => 'nullable|string', 
+                'HORA_RESULTADOS_CORREO' => 'nullable|string',
+                // NUEVOS CAMPOS DE RETORNO:
+                'FECHA_RETORNO_MATERIAL' => 'nullable|string',
+                'HORA_RETORNO_MATERIAL' => 'nullable|string',
+                'MUESTRA_GUIA_RETORNO_MENSAJERIA' => 'nullable|string|max:255',
+                'MUESTRA_GUIA_RETORNO' => 'nullable|string|max:255',
+                // Configuración del estudio (SIN ESTUDIO_ESTADO)
+                'ESTUDIO_FACTURADO' => 'nullable|string',
+                'ESTUDIO_COMENTARIOS' => 'nullable|string',
+                'BENEFICIARIO' => 'nullable|string',
+                // Array de correos de copia
+                'correos_copias' => 'nullable|array',
+                'correos_copias.*.ID' => 'nullable|integer',
+                'correos_copias.*.NOMBRE' => 'nullable|string|max:255',
+                'correos_copias.*.CORREO' => 'required|email|max:255',
+                'correos_copias.*.ENVIAR' => 'nullable|string',
+                'correos_copias.*.ID_ESTUDIO' => 'nullable|integer'
+            ]);
 
-        // Validar estado actual del estudio
-        $estadoActual = $estudio->ESTUDIO_ESTADO;
-        
-        // Verificar si el estudio está cancelado
-        if ($estadoActual === 'Cancelado') {
-            \Log::warning('⚠️ No se puede actualizar un estudio cancelado');
-            return back()->withErrors(['estado' => 'No se puede actualizar un estudio cancelado.']);
-        }
+            \Log::info('✅ Validación completada exitosamente');
 
-        // Combinar fecha y hora de informe
-        \Log::info('📅 Procesando fecha de informe', [
-            'FECHA_INFORME' => $request->FECHA_INFORME,
-            'HORA_INFORME' => $request->HORA_INFORME
-        ]);
-
-        $fechaInforme = null;
-
-        if ($request->FECHA_INFORME) {
-            // Si ya tiene hora (formato completo), usarla tal como viene
-            if (strlen($request->FECHA_INFORME) > 10) {
-                $fechaInforme = $request->FECHA_INFORME;
-                \Log::info('🕐 Fecha de informe ya incluye hora', ['fecha_completa' => $fechaInforme]);
-            } 
-            // Si solo es fecha, agregar la hora
-            elseif ($request->HORA_INFORME) {
-                $fechaInforme = $request->FECHA_INFORME . ' ' . $request->HORA_INFORME . ':00';
-                \Log::info('🕐 Combinando fecha y hora de informe', ['fecha_combinada' => $fechaInforme]);
+            // Validar estado actual del estudio
+            $estadoActual = $estudio->ESTUDIO_ESTADO;
+            
+            // Verificar si el estudio está cancelado
+            if ($estadoActual === 'Cancelado') {
+                \Log::warning('⚠️ No se puede actualizar un estudio cancelado');
+                return back()->withErrors(['estado' => 'No se puede actualizar un estudio cancelado.']);
             }
-            else {
-                $fechaInforme = $request->FECHA_INFORME . ' 00:00:00';
-                \Log::info('📅 Solo fecha de informe proporcionada', ['fecha_solo' => $fechaInforme]);
-            }
 
-            // Validación mejorada de fechas
-            try {
-                $carbonDate = \Carbon\Carbon::parse($fechaInforme);
-                
-                // Verificar que la fecha esté en un rango razonable (1900 - 2100)
-                if ($carbonDate->year < 1900 || $carbonDate->year > 2100) {
-                    throw new \Exception('Fecha fuera del rango válido');
+            // Combinar fecha y hora de informe
+            \Log::info('📅 Procesando fecha de informe', [
+                'FECHA_INFORME' => $request->FECHA_INFORME,
+                'HORA_INFORME' => $request->HORA_INFORME
+            ]);
+
+            $fechaInforme = null;
+
+            if ($request->FECHA_INFORME) {
+                // Si ya tiene hora (formato completo), usarla tal como viene
+                if (strlen($request->FECHA_INFORME) > 10) {
+                    $fechaInforme = $request->FECHA_INFORME;
+                    \Log::info('🕐 Fecha de informe ya incluye hora', ['fecha_completa' => $fechaInforme]);
+                } 
+                // Si solo es fecha, agregar la hora
+                elseif ($request->HORA_INFORME) {
+                    $fechaInforme = $request->FECHA_INFORME . ' ' . $request->HORA_INFORME . ':00';
+                    \Log::info('🕐 Combinando fecha y hora de informe', ['fecha_combinada' => $fechaInforme]);
                 }
-                
-                $fechaInforme = $carbonDate->format('Y-m-d H:i:s');
-                \Log::info('✅ Fecha de informe validada', ['fecha_final' => $fechaInforme]);
-                
-            } catch (\Exception $e) {
-                // Fecha inválida, usar fecha actual
-                \Log::warning('⚠️ Fecha de informe inválida detectada', [
-                    'fecha_original' => $fechaInforme,
-                    'error' => $e->getMessage()
-                ]);
-                $fechaInforme = now()->format('Y-m-d H:i:s');
-                \Log::info('🔄 Usando fecha actual para informe', ['fecha_nueva' => $fechaInforme]);
-            }
-        } else {
-            // Si no hay fecha, usar la fecha actual
-            $fechaInforme = now()->format('Y-m-d H:i:s');
-            \Log::info('🔄 No se proporcionó fecha de informe, usando actual', ['fecha_actual' => $fechaInforme]);
-        }
+                else {
+                    $fechaInforme = $request->FECHA_INFORME . ' 00:00:00';
+                    \Log::info('📅 Solo fecha de informe proporcionada', ['fecha_solo' => $fechaInforme]);
+                }
 
-        // Combinar fecha y hora de resultados por correo
-        \Log::info('📧 Procesando fecha de resultados por correo', [
-            'FECHA_RESULTADOS_CORREO' => $request->FECHA_RESULTADOS_CORREO,
-            'HORA_RESULTADOS_CORREO' => $request->HORA_RESULTADOS_CORREO
-        ]);
-        
-        $fechaResultadosCorreo = null;
-
-        if ($request->FECHA_RESULTADOS_CORREO) {
-            // Si ya tiene hora (formato completo), usarla tal como viene
-            if (strlen($request->FECHA_RESULTADOS_CORREO) > 10) {
-                $fechaResultadosCorreo = $request->FECHA_RESULTADOS_CORREO;
-                \Log::info('🕐 Fecha de resultados ya incluye hora', ['fecha_completa' => $fechaResultadosCorreo]);
-            } 
-            // Si solo es fecha, agregar la hora
-            elseif ($request->HORA_RESULTADOS_CORREO) {
-                $fechaResultadosCorreo = $request->FECHA_RESULTADOS_CORREO . ' ' . $request->HORA_RESULTADOS_CORREO . ':00';
-                \Log::info('🕐 Combinando fecha y hora de resultados', ['fecha_combinada' => $fechaResultadosCorreo]);
-            }
-            else {
-                $fechaResultadosCorreo = $request->FECHA_RESULTADOS_CORREO;
-                \Log::info('📅 Solo fecha de resultados proporcionada', ['fecha_solo' => $fechaResultadosCorreo]);
-            }
-
-            // Validar que sea una fecha válida
-            $timestamp = strtotime($fechaResultadosCorreo);
-            if ($timestamp === false || $timestamp < 0) {
-                // Fecha inválida, usar fecha actual
-                \Log::warning('⚠️ Fecha de resultados inválida detectada', [
-                    'fecha_original' => $fechaResultadosCorreo,
-                    'timestamp' => $timestamp
-                ]);
-                $fechaResultadosCorreo = date('Y-m-d H:i:s');
-                \Log::info('🔄 Usando fecha actual para resultados', ['fecha_nueva' => $fechaResultadosCorreo]);
+                // Validación mejorada de fechas
+                try {
+                    $carbonDate = \Carbon\Carbon::parse($fechaInforme);
+                    
+                    // Verificar que la fecha esté en un rango razonable (1900 - 2100)
+                    if ($carbonDate->year < 1900 || $carbonDate->year > 2100) {
+                        throw new \Exception('Fecha fuera del rango válido');
+                    }
+                    
+                    $fechaInforme = $carbonDate->format('Y-m-d H:i:s');
+                    \Log::info('✅ Fecha de informe validada', ['fecha_final' => $fechaInforme]);
+                    
+                } catch (\Exception $e) {
+                    // Fecha inválida, usar fecha actual
+                    \Log::warning('⚠️ Fecha de informe inválida detectada', [
+                        'fecha_original' => $fechaInforme,
+                        'error' => $e->getMessage()
+                    ]);
+                    $fechaInforme = now()->format('Y-m-d H:i:s');
+                    \Log::info('🔄 Usando fecha actual para informe', ['fecha_nueva' => $fechaInforme]);
+                }
             } else {
-                // Convertir a formato estándar
-                $fechaResultadosCorreo = date('Y-m-d H:i:s', $timestamp);
-                \Log::info('✅ Fecha de resultados validada', ['fecha_final' => $fechaResultadosCorreo]);
+                // Si no hay fecha, usar la fecha actual
+                $fechaInforme = now()->format('Y-m-d H:i:s');
+                \Log::info('🔄 No se proporcionó fecha de informe, usando actual', ['fecha_actual' => $fechaInforme]);
             }
-        }
 
-        // Usar el estado proporcionado en el request o mantener el actual
-        \Log::info('🔄 Determinando estado del estudio', [
-            'estado_request' => $request->ESTUDIO_ESTADO,
-            'estado_actual' => $estudio->ESTUDIO_ESTADO
-        ]);
-        
-        $estadoEstudio = $request->ESTUDIO_ESTADO ?: $estudio->ESTUDIO_ESTADO;
-
-        // Preparar datos para actualizar el estudio
-        \Log::info('📝 Preparando datos para actualización del estudio');
-        
-        $datosEstudio = array_filter([
-            'FECHA_INFORME' => $fechaInforme,
-            'FECHA_RESULTADOS_CORREO' => $fechaResultadosCorreo,
-            'ESTUDIO_FACTURADO' => $request->ESTUDIO_FACTURADO,
-            'ESTUDIO_ESTADO' => $estadoEstudio,
-            'ESTUDIO_COMENTARIOS' => $request->ESTUDIO_COMENTARIOS,
-            'BENEFICIARIO' => $request->BENEFICIARIO,
-        ], function($value) {
-            return $value !== null && $value !== '';
-        });
-
-        \Log::info('📝 Datos filtrados para actualización', ['datos_estudio' => $datosEstudio]);
-
-        // Actualizar el estudio
-        \Log::info('💾 Actualizando estudio en la base de datos');
-        $estudio->update($datosEstudio);
-        \Log::info('✅ Estudio actualizado exitosamente');
-
-        // Manejar correos de copia
-        if ($request->has('correos_copias') && is_array($request->correos_copias)) {
-            \Log::info('📧 Procesando correos de copia', [
-                'cantidad_correos' => count($request->correos_copias),
-                'correos_data' => $request->correos_copias
+            // Combinar fecha y hora de resultados por correo
+            \Log::info('📧 Procesando fecha de resultados por correo', [
+                'FECHA_RESULTADOS_CORREO' => $request->FECHA_RESULTADOS_CORREO,
+                'HORA_RESULTADOS_CORREO' => $request->HORA_RESULTADOS_CORREO
             ]);
             
-            // Obtener IDs de correos existentes para este estudio
-            $correosExistentes = CorreoCopia::where('ID_ESTUDIO', $estudio->ID)
-                ->pluck('ID')
-                ->toArray();
+            $fechaResultadosCorreo = null;
 
-            \Log::info('📧 Correos existentes encontrados', [
-                'correos_existentes' => $correosExistentes
-            ]);
+            if ($request->FECHA_RESULTADOS_CORREO) {
+                // Si ya tiene hora (formato completo), usarla tal como viene
+                if (strlen($request->FECHA_RESULTADOS_CORREO) > 10) {
+                    $fechaResultadosCorreo = $request->FECHA_RESULTADOS_CORREO;
+                    \Log::info('🕐 Fecha de resultados ya incluye hora', ['fecha_completa' => $fechaResultadosCorreo]);
+                } 
+                // Si solo es fecha, agregar la hora
+                elseif ($request->HORA_RESULTADOS_CORREO) {
+                    $fechaResultadosCorreo = $request->FECHA_RESULTADOS_CORREO . ' ' . $request->HORA_RESULTADOS_CORREO . ':00';
+                    \Log::info('🕐 Combinando fecha y hora de resultados', ['fecha_combinada' => $fechaResultadosCorreo]);
+                }
+                else {
+                    $fechaResultadosCorreo = $request->FECHA_RESULTADOS_CORREO;
+                    \Log::info('📅 Solo fecha de resultados proporcionada', ['fecha_solo' => $fechaResultadosCorreo]);
+                }
 
-            $correosEnviados = collect($request->correos_copias)
-                ->pluck('ID')
-                ->filter()
-                ->toArray();
-
-            \Log::info('📧 Correos en el request', [
-                'correos_enviados' => $correosEnviados
-            ]);
-
-            // Eliminar correos que ya no están en la lista
-            $correosAEliminar = array_diff($correosExistentes, $correosEnviados);
-            if (!empty($correosAEliminar)) {
-                \Log::info('🗑️ Eliminando correos que ya no están en la lista', [
-                    'correos_a_eliminar' => $correosAEliminar
-                ]);
-                CorreoCopia::whereIn('ID', $correosAEliminar)->delete();
-                \Log::info('✅ Correos eliminados exitosamente');
+                // Validar que sea una fecha válida
+                $timestamp = strtotime($fechaResultadosCorreo);
+                if ($timestamp === false || $timestamp < 0) {
+                    // Fecha inválida, usar fecha actual
+                    \Log::warning('⚠️ Fecha de resultados inválida detectada', [
+                        'fecha_original' => $fechaResultadosCorreo,
+                        'timestamp' => $timestamp
+                    ]);
+                    $fechaResultadosCorreo = date('Y-m-d H:i:s');
+                    \Log::info('🔄 Usando fecha actual para resultados', ['fecha_nueva' => $fechaResultadosCorreo]);
+                } else {
+                    // Convertir a formato estándar
+                    $fechaResultadosCorreo = date('Y-m-d H:i:s', $timestamp);
+                    \Log::info('✅ Fecha de resultados validada', ['fecha_final' => $fechaResultadosCorreo]);
+                }
             }
 
-            // Actualizar o crear correos de copia
-            foreach ($request->correos_copias as $index => $correoData) {
-                \Log::info("📧 Procesando correo #{$index}", ['correo_data' => $correoData]);
+            // NUEVO: Combinar fecha y hora de retorno de material
+            \Log::info('📦 Procesando fecha de retorno de material', [
+                'FECHA_RETORNO_MATERIAL' => $request->FECHA_RETORNO_MATERIAL,
+                'HORA_RETORNO_MATERIAL' => $request->HORA_RETORNO_MATERIAL
+            ]);
+            
+            $fechaRetornoMaterial = null;
+
+            if ($request->FECHA_RETORNO_MATERIAL) {
+                // Si ya tiene hora (formato completo), usarla tal como viene
+                if (strlen($request->FECHA_RETORNO_MATERIAL) > 10) {
+                    $fechaRetornoMaterial = $request->FECHA_RETORNO_MATERIAL;
+                    \Log::info('🕐 Fecha de retorno ya incluye hora', ['fecha_completa' => $fechaRetornoMaterial]);
+                } 
+                // Si solo es fecha, agregar la hora
+                elseif ($request->HORA_RETORNO_MATERIAL) {
+                    $fechaRetornoMaterial = $request->FECHA_RETORNO_MATERIAL . ' ' . $request->HORA_RETORNO_MATERIAL . ':00';
+                    \Log::info('🕐 Combinando fecha y hora de retorno', ['fecha_combinada' => $fechaRetornoMaterial]);
+                }
+                else {
+                    $fechaRetornoMaterial = $request->FECHA_RETORNO_MATERIAL . ' 00:00:00';
+                    \Log::info('📅 Solo fecha de retorno proporcionada', ['fecha_solo' => $fechaRetornoMaterial]);
+                }
+
+                // Validar que sea una fecha válida
+                $timestamp = strtotime($fechaRetornoMaterial);
+                if ($timestamp === false || $timestamp < 0) {
+                    // Fecha inválida, usar fecha actual
+                    \Log::warning('⚠️ Fecha de retorno inválida detectada', [
+                        'fecha_original' => $fechaRetornoMaterial,
+                        'timestamp' => $timestamp
+                    ]);
+                    $fechaRetornoMaterial = date('Y-m-d H:i:s');
+                    \Log::info('🔄 Usando fecha actual para retorno', ['fecha_nueva' => $fechaRetornoMaterial]);
+                } else {
+                    // Convertir a formato estándar
+                    $fechaRetornoMaterial = date('Y-m-d H:i:s', $timestamp);
+                    \Log::info('✅ Fecha de retorno validada', ['fecha_final' => $fechaRetornoMaterial]);
+                }
+            }
+
+            // NO CAMBIAR EL ESTADO DEL ESTUDIO - se maneja automáticamente por otros procesos
+            \Log::info('📋 Manteniendo estado actual del estudio', [
+                'estado_actual' => $estudio->ESTUDIO_ESTADO
+            ]);
+
+            // Preparar datos para actualizar el estudio
+            \Log::info('📝 Preparando datos para actualización del estudio');
+            
+            $datosEstudio = array_filter([
+                'FECHA_INFORME' => $fechaInforme,
+                'FECHA_RESULTADOS_CORREO' => $fechaResultadosCorreo,
+                'FECHA_RETORNO_MATERIAL' => $fechaRetornoMaterial, // NUEVO
+                'MUESTRA_GUIA_RETORNO_MENSAJERIA' => $request->MUESTRA_GUIA_RETORNO_MENSAJERIA, // NUEVO
+                'MUESTRA_GUIA_RETORNO' => $request->MUESTRA_GUIA_RETORNO, // NUEVO
+                'ESTUDIO_FACTURADO' => $request->ESTUDIO_FACTURADO,
+                'ESTUDIO_COMENTARIOS' => $request->ESTUDIO_COMENTARIOS,
+                'BENEFICIARIO' => $request->BENEFICIARIO,
+            ], function($value) {
+                return $value !== null && $value !== '';
+            });
+
+            \Log::info('📝 Datos filtrados para actualización', ['datos_estudio' => $datosEstudio]);
+
+            // Actualizar el estudio
+            \Log::info('💾 Actualizando estudio en la base de datos');
+            $estudio->update($datosEstudio);
+            \Log::info('✅ Estudio actualizado exitosamente');
+
+            // Manejar correos de copia (código existente sin cambios)
+            if ($request->has('correos_copias') && is_array($request->correos_copias)) {
+                \Log::info('📧 Procesando correos de copia', [
+                    'cantidad_correos' => count($request->correos_copias),
+                    'correos_data' => $request->correos_copias
+                ]);
                 
-                if (isset($correoData['ID']) && $correoData['ID']) {
-                    // Actualizar correo existente
-                    \Log::info("🔄 Actualizando correo existente ID: {$correoData['ID']}");
-                    $correo = CorreoCopia::find($correoData['ID']);
-                    if ($correo) {
-                        $correo->update([
+                // Obtener IDs de correos existentes para este estudio
+                $correosExistentes = CorreoCopia::where('ID_ESTUDIO', $estudio->ID)
+                    ->pluck('ID')
+                    ->toArray();
+
+                \Log::info('📧 Correos existentes encontrados', [
+                    'correos_existentes' => $correosExistentes
+                ]);
+
+                $correosEnviados = collect($request->correos_copias)
+                    ->pluck('ID')
+                    ->filter()
+                    ->toArray();
+
+                \Log::info('📧 Correos en el request', [
+                    'correos_enviados' => $correosEnviados
+                ]);
+
+                // Eliminar correos que ya no están en la lista
+                $correosAEliminar = array_diff($correosExistentes, $correosEnviados);
+                if (!empty($correosAEliminar)) {
+                    \Log::info('🗑️ Eliminando correos que ya no están en la lista', [
+                        'correos_a_eliminar' => $correosAEliminar
+                    ]);
+                    CorreoCopia::whereIn('ID', $correosAEliminar)->delete();
+                    \Log::info('✅ Correos eliminados exitosamente');
+                }
+
+                // Actualizar o crear correos de copia
+                foreach ($request->correos_copias as $index => $correoData) {
+                    \Log::info("📧 Procesando correo #{$index}", ['correo_data' => $correoData]);
+                    
+                    if (isset($correoData['ID']) && $correoData['ID']) {
+                        // Actualizar correo existente
+                        \Log::info("🔄 Actualizando correo existente ID: {$correoData['ID']}");
+                        $correo = CorreoCopia::find($correoData['ID']);
+                        if ($correo) {
+                            $correo->update([
+                                'NOMBRE' => $correoData['NOMBRE'],
+                                'CORREO' => $correoData['CORREO'],
+                                'ENVIAR' => $correoData['ENVIAR'] ?? 'si',
+                            ]);
+                            \Log::info("✅ Correo actualizado exitosamente ID: {$correoData['ID']}");
+                        } else {
+                            \Log::warning("⚠️ No se encontró el correo con ID: {$correoData['ID']}");
+                        }
+                    } else {
+                        // Crear nuevo correo
+                        \Log::info('➕ Creando nuevo correo de copia');
+                        $nuevoCorreo = CorreoCopia::create([
+                            'ID_ESTUDIO' => $estudio->ID,
+                            'ID_USUARIO' => $estudio->ID_MEDICO ?? 0,
                             'NOMBRE' => $correoData['NOMBRE'],
                             'CORREO' => $correoData['CORREO'],
                             'ENVIAR' => $correoData['ENVIAR'] ?? 'si',
                         ]);
-                        \Log::info("✅ Correo actualizado exitosamente ID: {$correoData['ID']}");
-                    } else {
-                        \Log::warning("⚠️ No se encontró el correo con ID: {$correoData['ID']}");
+                        \Log::info('✅ Nuevo correo creado exitosamente', ['nuevo_id' => $nuevoCorreo->ID]);
                     }
-                } else {
-                    // Crear nuevo correo
-                    \Log::info('➕ Creando nuevo correo de copia');
-                    $nuevoCorreo = CorreoCopia::create([
-                        'ID_ESTUDIO' => $estudio->ID,
-                        'ID_USUARIO' => $estudio->ID_MEDICO ?? 0,
-                        'NOMBRE' => $correoData['NOMBRE'],
-                        'CORREO' => $correoData['CORREO'],
-                        'ENVIAR' => $correoData['ENVIAR'] ?? 'si',
-                    ]);
-                    \Log::info('✅ Nuevo correo creado exitosamente', ['nuevo_id' => $nuevoCorreo->ID]);
                 }
+            } else {
+                \Log::info('📧 No se proporcionaron correos de copia o no es un array válido');
             }
-        } else {
-            \Log::info('📧 No se proporcionaron correos de copia o no es un array válido');
+
+            \Log::info('🎉 updateInforme completado exitosamente', [
+                'estudio_id' => $estudio->ID
+            ]);
+
+            // Manejar navegación con prefijo
+            if ($request->_action === 'save_and_exit') {
+                $prefijo = $estudio->CLAVE ?? 'PRM';
+                return redirect()->route('estudios.index', ['prefijo' => $prefijo])
+                    ->with('success', 'Información de informe actualizada.');
+            }
+
+            return back()->with('success', 'Información de informe actualizada.');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('❌ Error de validación en updateInforme', [
+                'errors' => $e->errors(),
+                'estudio_id' => $estudio->ID,
+                'request_data' => $request->all()
+            ]);
+            throw $e;
+        } catch (\Exception $e) {
+            \Log::error('❌ Error general en updateInforme', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'estudio_id' => $estudio->ID,
+                'request_data' => $request->all()
+            ]);
+            throw $e;
         }
-
-        \Log::info('🎉 updateInforme completado exitosamente', [
-            'estudio_id' => $estudio->ID
-        ]);
-
-        // Manejar navegación con prefijo
-        if ($request->_action === 'save_and_exit') {
-            $prefijo = $estudio->CLAVE ?? 'PRM';
-            return redirect()->route('estudios.index', ['prefijo' => $prefijo])
-                ->with('success', 'Información de informe actualizada.');
-        }
-
-        return back()->with('success', 'Información de informe actualizada.');
-
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        \Log::error('❌ Error de validación en updateInforme', [
-            'errors' => $e->errors(),
-            'estudio_id' => $estudio->ID,
-            'request_data' => $request->all()
-        ]);
-        throw $e;
-    } catch (\Exception $e) {
-        \Log::error('❌ Error general en updateInforme', [
-            'message' => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
-            'trace' => $e->getTraceAsString(),
-            'estudio_id' => $estudio->ID,
-            'request_data' => $request->all()
-        ]);
-        throw $e;
     }
-}
     /**
      * Enviar correo individual y registrar el envío
      */
@@ -2332,6 +2454,227 @@ private function enviarCorreosReporte(Estudio $estudio, bool $enviarAdjunto = tr
                 'reporte' => $reporte ?? []
             ], 500);
         }
+    }
+
+    /**
+     * Finalizar estudios antiguos por año
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function finalizarEstudiosAntiguos(Request $request)
+    {
+        \Log::info('🔧 Iniciando finalización de estudios antiguos');
+        
+        try {
+            // Aumentar límite de tiempo de ejecución
+            set_time_limit(300); // 5 minutos
+            ini_set('memory_limit', '512M');
+            
+            $request->validate([
+                'anio' => 'required|integer|min:2020|max:' . (date('Y') - 1)
+            ]);
+            
+            $anio = $request->anio;
+            
+            \Log::info("📅 Procesando estudios del año {$anio} y anteriores");
+            
+            $reporte = [
+                'anio_procesado' => $anio,
+                'estudios_encontrados' => 0,
+                'estudios_actualizados' => 0,
+                'fechas_rellenadas' => 0,
+                'errores' => []
+            ];
+
+            // ===== CONFIGURAR MYSQL PARA MANEJAR FECHAS INVÁLIDAS =====
+            try {
+                \DB::statement("SET SESSION sql_mode = 'ALLOW_INVALID_DATES'");
+                \Log::info('✅ Modo SQL configurado');
+            } catch (\Exception $e) {
+                \Log::warning('⚠️ No se pudo cambiar sql_mode: ' . $e->getMessage());
+            }
+
+            // ===== BUSCAR ESTUDIOS DEL AÑO ESPECIFICADO Y ANTERIORES =====
+            $estudios = Estudio::whereYear('FECHA_SOLICITUD_RECOLECCION', '<=', $anio)
+                ->where('ESTUDIO_ESTADO', '!=', 'Resultados Enviados')
+                ->where('ESTUDIO_ESTADO', '!=', 'Cancelado')
+                ->get();
+
+            $reporte['estudios_encontrados'] = $estudios->count();
+            
+            \Log::info("📊 Encontrados {$reporte['estudios_encontrados']} estudios para procesar");
+
+            foreach ($estudios as $estudio) {
+                try {
+                    $fechasActualizadas = 0;
+                    $fechaBase = $estudio->FECHA_SOLICITUD_RECOLECCION;
+                    
+                    // Si la fecha base es inválida, usar 1 de enero del año procesado
+                    if (!$fechaBase || $fechaBase === '0000-00-00 00:00:00' || $fechaBase === '1970-01-01 00:00:00') {
+                        $fechaBase = "{$anio}-01-01 08:00:00";
+                    }
+                    
+                    $fechaBaseCarbon = \Carbon\Carbon::parse($fechaBase);
+                    $datosActualizar = [];
+
+                    // ===== RELLENAR FECHAS SEGÚN LA TABLA ESPECIFICADA =====
+                    
+                    // FECHA_RECOLECCION -> igual a FECHA_SOLICITUD_RECOLECCION
+                    if ($this->esFechaInvalida($estudio->FECHA_RECOLECCION)) {
+                        $datosActualizar['FECHA_RECOLECCION'] = $fechaBaseCarbon->format('Y-m-d H:i:s');
+                        $fechasActualizadas++;
+                    }
+
+                    // FECHA_RECEPCION -> FECHA_SOLICITUD_RECOLECCION + 24 Hrs
+                    if ($this->esFechaInvalida($estudio->FECHA_RECEPCION)) {
+                        $datosActualizar['FECHA_RECEPCION'] = $fechaBaseCarbon->copy()->addHours(24)->format('Y-m-d H:i:s');
+                        $fechasActualizadas++;
+                    }
+
+                    // FECHA_ENVIO_LABORATORIO -> igual que FECHA_RECEPCION
+                    if ($this->esFechaInvalida($estudio->FECHA_ENVIO_LABORATORIO)) {
+                        $fechaRecepcion = isset($datosActualizar['FECHA_RECEPCION']) ? 
+                            $datosActualizar['FECHA_RECEPCION'] : 
+                            $fechaBaseCarbon->copy()->addHours(24)->format('Y-m-d H:i:s');
+                        $datosActualizar['FECHA_ENVIO_LABORATORIO'] = $fechaRecepcion;
+                        $fechasActualizadas++;
+                    }
+
+                    // FECHA_RECEPCION_LABORATORIO -> igual que FECHA_ENVIO_LABORATORIO
+                    if ($this->esFechaInvalida($estudio->FECHA_RECEPCION_LABORATORIO)) {
+                        $fechaEnvioLab = isset($datosActualizar['FECHA_ENVIO_LABORATORIO']) ? 
+                            $datosActualizar['FECHA_ENVIO_LABORATORIO'] : 
+                            $fechaBaseCarbon->copy()->addHours(24)->format('Y-m-d H:i:s');
+                        $datosActualizar['FECHA_RECEPCION_LABORATORIO'] = $fechaEnvioLab;
+                        $fechasActualizadas++;
+                    }
+
+                    // FECHA_ENTREGA_PROCESAMIENTO -> igual que FECHA_RECEPCION_LABORATORIO
+                    if ($this->esFechaInvalida($estudio->FECHA_ENTREGA_PROCESAMIENTO)) {
+                        $fechaRecepcionLab = isset($datosActualizar['FECHA_RECEPCION_LABORATORIO']) ? 
+                            $datosActualizar['FECHA_RECEPCION_LABORATORIO'] : 
+                            $fechaBaseCarbon->copy()->addHours(24)->format('Y-m-d H:i:s');
+                        $datosActualizar['FECHA_ENTREGA_PROCESAMIENTO'] = $fechaRecepcionLab;
+                        $fechasActualizadas++;
+                    }
+
+                    // FECHA_OBTENCION_RESULTADOS -> FECHA_ENTREGA_PROCESAMIENTO + 24 Hrs
+                    if ($this->esFechaInvalida($estudio->FECHA_OBTENCION_RESULTADOS)) {
+                        $fechaEntrega = isset($datosActualizar['FECHA_ENTREGA_PROCESAMIENTO']) ? 
+                            \Carbon\Carbon::parse($datosActualizar['FECHA_ENTREGA_PROCESAMIENTO'])->addHours(24) : 
+                            $fechaBaseCarbon->copy()->addHours(48);
+                        $datosActualizar['FECHA_OBTENCION_RESULTADOS'] = $fechaEntrega->format('Y-m-d H:i:s');
+                        $fechasActualizadas++;
+                    }
+
+                    // FECHA_INFORME -> FECHA_OBTENCION_RESULTADOS + 12 Hrs
+                    if ($this->esFechaInvalida($estudio->FECHA_INFORME)) {
+                        $fechaResultados = isset($datosActualizar['FECHA_OBTENCION_RESULTADOS']) ? 
+                            \Carbon\Carbon::parse($datosActualizar['FECHA_OBTENCION_RESULTADOS'])->addHours(12) : 
+                            $fechaBaseCarbon->copy()->addHours(60);
+                        $datosActualizar['FECHA_INFORME'] = $fechaResultados->format('Y-m-d H:i:s');
+                        $fechasActualizadas++;
+                    }
+
+                    // FECHA_RESULTADOS_CORREO -> igual que FECHA_INFORME
+                    if ($this->esFechaInvalida($estudio->FECHA_RESULTADOS_CORREO)) {
+                        $fechaInforme = isset($datosActualizar['FECHA_INFORME']) ? 
+                            $datosActualizar['FECHA_INFORME'] : 
+                            $fechaBaseCarbon->copy()->addHours(60)->format('Y-m-d H:i:s');
+                        $datosActualizar['FECHA_RESULTADOS_CORREO'] = $fechaInforme;
+                        $fechasActualizadas++;
+                    }
+
+                    // FECHA_RETORNO_MATERIAL -> igual que FECHA_RESULTADOS_CORREO
+                    if ($this->esFechaInvalida($estudio->FECHA_RETORNO_MATERIAL)) {
+                        $fechaCorreo = isset($datosActualizar['FECHA_RESULTADOS_CORREO']) ? 
+                            $datosActualizar['FECHA_RESULTADOS_CORREO'] : 
+                            $fechaBaseCarbon->copy()->addHours(60)->format('Y-m-d H:i:s');
+                        $datosActualizar['FECHA_RETORNO_MATERIAL'] = $fechaCorreo;
+                        $fechasActualizadas++;
+                    }
+
+                    // FECHA_RECEPCION_RESULTADOS_FISICOS -> igual que FECHA_RETORNO_MATERIAL
+                    if ($this->esFechaInvalida($estudio->FECHA_RECEPCION_RESULTADOS_FISICOS)) {
+                        $fechaRetorno = isset($datosActualizar['FECHA_RETORNO_MATERIAL']) ? 
+                            $datosActualizar['FECHA_RETORNO_MATERIAL'] : 
+                            $fechaBaseCarbon->copy()->addHours(60)->format('Y-m-d H:i:s');
+                        $datosActualizar['FECHA_RECEPCION_RESULTADOS_FISICOS'] = $fechaRetorno;
+                        $fechasActualizadas++;
+                    }
+
+                    // FECHA_FIN_PROCESO -> igual que FECHA_RECEPCION_RESULTADOS_FISICOS
+                    if ($this->esFechaInvalida($estudio->FECHA_FIN_PROCESO)) {
+                        $fechaRecepcionFisica = isset($datosActualizar['FECHA_RECEPCION_RESULTADOS_FISICOS']) ? 
+                            $datosActualizar['FECHA_RECEPCION_RESULTADOS_FISICOS'] : 
+                            $fechaBaseCarbon->copy()->addHours(60)->format('Y-m-d H:i:s');
+                        $datosActualizar['FECHA_FIN_PROCESO'] = $fechaRecepcionFisica;
+                        $fechasActualizadas++;
+                    }
+
+                    // ===== ACTUALIZAR ESTADO A "Resultados Enviados" =====
+                    $datosActualizar['ESTUDIO_ESTADO'] = 'Resultados Enviados';
+
+                    // ===== APLICAR ACTUALIZACIONES =====
+                    if (!empty($datosActualizar)) {
+                        $estudio->update($datosActualizar);
+                        $reporte['estudios_actualizados']++;
+                        $reporte['fechas_rellenadas'] += $fechasActualizadas;
+                        
+                        \Log::info("✅ Estudio {$estudio->CLAVE_INTERNA} actualizado: {$fechasActualizadas} fechas rellenadas");
+                    }
+
+                } catch (\Exception $e) {
+                    $error = "Error procesando estudio {$estudio->ID}: {$e->getMessage()}";
+                    $reporte['errores'][] = $error;
+                    \Log::error("❌ {$error}");
+                }
+            }
+
+            // ===== RESTAURAR CONFIGURACIÓN MYSQL =====
+            try {
+                \DB::statement("SET SESSION sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'");
+                \Log::info('✅ Modo SQL restaurado');
+            } catch (\Exception $e) {
+                \Log::warning('⚠️ No se pudo restaurar sql_mode: ' . $e->getMessage());
+            }
+
+            \Log::info('🎉 Finalización de estudios completada', $reporte);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Finalización de estudios antiguos completada exitosamente',
+                'reporte' => $reporte
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos de validación incorrectos',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('❌ Error crítico en finalización de estudios: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error durante la finalización: ' . $e->getMessage(),
+                'reporte' => $reporte ?? []
+            ], 500);
+        }
+    }
+
+    /**
+     * Verifica si una fecha es inválida o está vacía
+     */
+    private function esFechaInvalida($fecha)
+    {
+        return !$fecha || 
+            $fecha === '0000-00-00 00:00:00' || 
+            $fecha === '0000-00-00' || 
+            $fecha === '1970-01-01 00:00:00' ||
+            empty($fecha);
     }
 
     private function obtenerIdMedico($request)

@@ -7,9 +7,8 @@ import WhatsAppDialog from '@/components/WhatsAppDialog';
 
 export default function EstudiosIndex() {
     // Tipar correctamente las props
-    const { estudios, filters, estados, prefijo } = usePage<EstudioIndexProps>().props;
+    const { estudios, filters, estados, prefijo, instituciones } = usePage<EstudioIndexProps>().props;
     
-    // Estados para el buscador
     // Estados para el buscador
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
     const [showFilters, setShowFilters] = useState(false);
@@ -17,12 +16,21 @@ export default function EstudiosIndex() {
     const [fechaDesde, setFechaDesde] = useState(filters?.fecha_desde || '');
     const [fechaHasta, setFechaHasta] = useState(filters?.fecha_hasta || '');
 
-    // NUEVO: Estado para controlar cuándo hacer búsqueda automática
-    const [shouldAutoSearch, setShouldAutoSearch] = useState(false);
-    const [isSearching, setIsSearching] = useState(false);
-
     // Estado para manejar el dropdown de fechas
     const [expandedDateDropdown, setExpandedDateDropdown] = useState<number | null>(null)
+
+    const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
+    const [pacienteIniciales, setPacienteIniciales] = useState(filters?.paciente_iniciales || '');
+    const [pacienteNombre, setPacienteNombre] = useState(filters?.paciente_nombre || '');
+    const [pacienteApellidos, setPacienteApellidos] = useState(filters?.paciente_apellidos || '');
+    const [medicoNombre, setMedicoNombre] = useState(filters?.medico_nombre || '');
+    const [medicoApellidos, setMedicoApellidos] = useState(filters?.medico_apellidos || '');
+    const [institucionId, setInstitucionId] = useState(filters?.institucion_id || '');
+    const [claveInterna, setClaveInterna] = useState(filters?.clave_interna || '');
+    const [folioMerck, setFolioMerck] = useState(filters?.folio_merck || '');
+    const [muestraClave, setMuestraClave] = useState(filters?.muestra_clave || '');
+    const [muestraFolioSobre, setMuestraFolioSobre] = useState(filters?.muestra_folio_sobre || '');
+    const [muestraFolioKitBl, setMuestraFolioKitBl] = useState(filters?.muestra_folio_kit_bl || '');
 
     // Estado para manejar el dropdown
     const [showMaintenanceDropdown, setShowMaintenanceDropdown] = useState(false);
@@ -31,7 +39,12 @@ export default function EstudiosIndex() {
     // Estado para detectar móvil y alternar vistas
     const [isMobile, setIsMobile] = useState(false);
     const [forceDesktopView, setForceDesktopView] = useState(false);
+    const showMobileView = isMobile && !forceDesktopView;
     const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
+
+    // Estados para finalización por año
+    const [isFinalizing, setIsFinalizing] = useState(false);
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear() - 1); // Año anterior por defecto
 
     // Estado para el dialog de WhatsApp
     const [whatsappDialog, setWhatsappDialog] = useState<{
@@ -44,6 +57,74 @@ export default function EstudiosIndex() {
 
     // Estado para el botón de eliminar
     const [deletingId, setDeletingId] = useState<number | null>(null);
+    // Estado que indica busqueda
+    const [isSearching, setIsSearching] = useState(false);
+
+    // Función para generar años disponibles (últimos 10 años)
+    const getAvailableYears = () => {
+        const currentYear = new Date().getFullYear();
+        const years = [];
+        for (let year = currentYear - 1; year >= currentYear - 10; year--) {
+            years.push(year);
+        }
+        return years;
+    };
+
+    // Función para finalizar estudios antiguos
+    const handleFinalizarEstudiosAntiguos = async () => {
+        if (!window.confirm(`¿Estás seguro de que deseas finalizar todos los estudios del año ${selectedYear} y anteriores?\n\nEsto cambiará el estado a "Resultados Enviados" y rellenará fechas faltantes.`)) {
+            return;
+        }
+
+        setIsFinalizing(true);
+        setShowMaintenanceDropdown(false);
+
+        try {
+            const response = await fetch('/estudios/finalizar-antiguos', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                },
+                body: JSON.stringify({
+                    anio: selectedYear
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const { reporte } = data;
+                const mensaje = `Finalización completada exitosamente:
+                
+    - Año procesado: ${reporte.anio_procesado}
+    - Estudios encontrados: ${reporte.estudios_encontrados}
+    - Estudios actualizados: ${reporte.estudios_actualizados}
+    - Fechas rellenadas: ${reporte.fechas_rellenadas}
+    - Errores: ${reporte.errores.length}`;
+
+                alert(mensaje);
+                
+                // Recargar la página para mostrar los cambios
+                window.location.reload();
+            } else {
+                throw new Error(data.message || 'Error desconocido');
+            }
+        } catch (error) {
+            console.error('Error finalizando estudios:', error);
+            
+            let errorMessage = 'Error desconocido';
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            }
+            
+            alert('Error al finalizar estudios: ' + errorMessage);
+        } finally {
+            setIsFinalizing(false);
+        }
+    };
 
     // Función para formatear fecha y hora
     const formatearFechaHora = (fechaString: string | null) => {
@@ -339,45 +420,48 @@ export default function EstudiosIndex() {
         }
     };
 
-    // Búsqueda en tiempo real con debounce
-    useEffect(() => {
-        // Solo hacer búsqueda automática si el flag está activado Y ha cambiado el término
-        if (!shouldAutoSearch || searchTerm === filters?.search) {
-            return;
-        }
 
-        const timeoutId = setTimeout(() => {
-            if (searchTerm !== filters?.search) {
-                handleSearch(true); // true indica que es búsqueda automática
-            }
-        }, 500);
-
-        return () => clearTimeout(timeoutId);
-    }, [searchTerm, shouldAutoSearch]);
-
-     const handleSearch = (isAutoSearch = false) => {
+     const handleSearch = (isAdvanced = false) => {
         setIsSearching(true);
         
-        // Si es búsqueda automática (por typing), resetear a página 1
-        // Si es búsqueda manual (botón), mantener página actual
-        const searchParams = {
-            search: searchTerm,
-            estado: selectedEstado,
-            fecha_desde: fechaDesde,
-            fecha_hasta: fechaHasta,
+        const searchParams: any = {
             prefijo: prefijo || 'PRM',
-            // Solo resetear página en búsqueda automática
-            ...(isAutoSearch ? {} : { page: estudios?.meta?.current_page || 1 })
         };
+        
+        // Búsqueda rápida
+        if (!isAdvanced && searchTerm) {
+            searchParams.search = searchTerm;
+        }
+        
+        // Búsqueda avanzada
+        if (isAdvanced) {
+            if (pacienteIniciales) searchParams.paciente_iniciales = pacienteIniciales;
+            if (pacienteNombre) searchParams.paciente_nombre = pacienteNombre;
+            if (pacienteApellidos) searchParams.paciente_apellidos = pacienteApellidos;
+            if (medicoNombre) searchParams.medico_nombre = medicoNombre;
+            if (medicoApellidos) searchParams.medico_apellidos = medicoApellidos;
+            if (institucionId) searchParams.institucion_id = institucionId;
+            if (claveInterna) searchParams.clave_interna = claveInterna;
+            if (folioMerck) searchParams.folio_merck = folioMerck;
+            if (muestraClave) searchParams.muestra_clave = muestraClave;
+            if (muestraFolioSobre) searchParams.muestra_folio_sobre = muestraFolioSobre;
+            if (muestraFolioKitBl) searchParams.muestra_folio_kit_bl = muestraFolioKitBl;
+        }
+        
+        // Filtros adicionales
+        if (selectedEstado) searchParams.estado = selectedEstado;
+        if (fechaDesde) searchParams.fecha_desde = fechaDesde;
+        if (fechaHasta) searchParams.fecha_hasta = fechaHasta;
 
         router.get('/estudios', searchParams, {
             preserveState: true,
             preserveScroll: true,
-            replace: false, // CAMBIADO: No reemplazar historial
+            replace: false,
             onFinish: () => {
                 setIsSearching(false);
-                // Después de la primera búsqueda, permitir auto-búsqueda
-                setShouldAutoSearch(true);
+                if (isAdvanced) {
+                    setShowAdvancedSearch(false);
+                }
             }
         });
     };
@@ -387,28 +471,29 @@ export default function EstudiosIndex() {
         setSelectedEstado('');
         setFechaDesde('');
         setFechaHasta('');
-        setShouldAutoSearch(false); // Desactivar auto-búsqueda temporalmente
+        // Limpiar campos de búsqueda avanzada
+        setPacienteIniciales('');
+        setPacienteNombre('');
+        setPacienteApellidos('');
+        setMedicoNombre('');
+        setMedicoApellidos('');
+        setInstitucionId('');
+        setClaveInterna('');
+        setFolioMerck('');
+        setMuestraClave('');
+        setMuestraFolioSobre('');
+        setMuestraFolioKitBl('');
         
         router.get('/estudios', { 
-            prefijo: prefijo || 'PRM'  // MANTENER EL PREFIJO AL LIMPIAR
+            prefijo: prefijo || 'PRM'
         }, {
             preserveState: true,
             preserveScroll: true,
-            replace: false,
-            onFinish: () => {
-                setTimeout(() => setShouldAutoSearch(true), 100);
-            }
+            replace: false
         });
     };
 
-    // NUEVA: Función específica para manejar cambios en el input de búsqueda
-    const handleSearchInputChange = (value: string) => {
-        setSearchTerm(value);
-        // Activar auto-búsqueda solo después del primer cambio
-        if (!shouldAutoSearch) {
-            setShouldAutoSearch(true);
-        }
-    };
+
 
     // CORREGIDA: Función para manejar paginación
     const handlePaginationClick = (url: string) => {
@@ -678,8 +763,10 @@ export default function EstudiosIndex() {
         );
     };
 
-    const hasActiveFilters = searchTerm || selectedEstado || fechaDesde || fechaHasta;
-    const showMobileView = isMobile && !forceDesktopView;
+    const hasActiveFilters = searchTerm || selectedEstado || fechaDesde || fechaHasta || 
+    pacienteIniciales || pacienteNombre || pacienteApellidos || medicoNombre || 
+    medicoApellidos || institucionId || claveInterna || folioMerck || 
+    muestraClave || muestraFolioSobre || muestraFolioKitBl;
 
     return (
         <AppLayout>
@@ -758,6 +845,49 @@ export default function EstudiosIndex() {
                                                     </div>
                                                 </button>
 
+                                                {/* Separador */}
+                                                <div className="border-t border-gray-100 my-1"></div>
+                                                
+                                                {/* NUEVA OPCIÓN: Finalizar Estudios Antiguos */}
+                                                <div className="px-4 py-3">
+                                                    <div className="flex items-start space-x-3">
+                                                        {isFinalizing ? (
+                                                            <div className="h-4 w-4 mt-1 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></div>
+                                                        ) : (
+                                                            <CheckCircle className="h-4 w-4 mt-1 text-blue-500" />
+                                                        )}
+                                                        <div className="flex-1">
+                                                            <div className="font-medium text-sm text-gray-700 mb-2">
+                                                                Finalizar Estudios Antiguos
+                                                            </div>
+                                                            <div className="text-xs text-gray-500 mb-3">
+                                                                Cambiar estado a "Resultados Enviados" y rellenar fechas
+                                                            </div>
+                                                            
+                                                            <div className="flex items-center space-x-2">
+                                                                <label className="text-xs text-gray-600">Año:</label>
+                                                                <select
+                                                                    value={selectedYear}
+                                                                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                                                                    disabled={isFinalizing}
+                                                                    className="text-xs text-gray-900 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                                >
+                                                                    {getAvailableYears().map(year => (
+                                                                        <option className='text-gray-900' key={year} value={year}>{year}</option>
+                                                                    ))}
+                                                                </select>
+                                                                <button
+                                                                    onClick={handleFinalizarEstudiosAntiguos}
+                                                                    disabled={isFinalizing}
+                                                                    className="text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                >
+                                                                    {isFinalizing ? 'Procesando...' : 'Finalizar'}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
                                                 {/* Separador para futuras opciones */}
                                                 <div className="border-t border-gray-100 my-1"></div>
                                                 
@@ -793,14 +923,19 @@ export default function EstudiosIndex() {
                             <input
                                 type="text"
                                 value={searchTerm}
-                                onChange={(e) => handleSearchInputChange(e.target.value)} // CAMBIADO
-                                placeholder={showMobileView ? "Buscar estudios..." : "Buscar por clave, folio Merck, Folio de Kit, médico, paciente o institución..."}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onKeyPress={(e) => {
+                                    if (e.key === 'Enter') {
+                                        handleSearch(false);
+                                    }
+                                }}
+                                placeholder={showMobileView ? "Búsqueda rápida..." : "Búsqueda rápida en clave, folio, médico, paciente e institución..."}
                                 className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
-                                disabled={isSearching} // NUEVO: Deshabilitar durante búsqueda
+                                disabled={isSearching}
                             />
                             {searchTerm && (
                                 <button
-                                    onClick={() => handleSearchInputChange('')} // ← CAMBIAR de setSearchTerm a handleSearchInputChange
+                                    onClick={() => setSearchTerm('')}
                                     className="absolute inset-y-0 right-0 pr-3 flex items-center"
                                 >
                                     <X className="h-5 w-5 text-gray-400 hover:text-gray-600" />
@@ -810,93 +945,238 @@ export default function EstudiosIndex() {
 
                         {/* Botones de acción */}
                         <div className={`flex items-center space-x-2 ${showMobileView ? 'w-full justify-between' : ''}`}>
+                            {/* Botón de búsqueda rápida */}
                             <button
-                                onClick={() => setShowFilters(!showFilters)}
+                                onClick={() => handleSearch(false)}
+                                disabled={isSearching}
+                                className="flex items-center space-x-2 px-4 py-3 bg-[#189BAF] text-white rounded-lg transition-colors hover:bg-[#157a8c] disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Search className="h-5 w-5" />
+                                <span>{isSearching ? 'Buscando...' : 'Buscar'}</span>
+                            </button>
+                            
+                            {/* Botón de búsqueda avanzada */}
+                            <button
+                                onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
                                 className={`flex items-center space-x-2 px-4 py-3 rounded-lg border transition-colors ${
-                                    showFilters || hasActiveFilters
+                                    showAdvancedSearch
                                         ? 'border-[#189BAF] bg-[#189BAF]/5 text-[#189BAF]'
                                         : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                                 }`}
                             >
                                 <Filter className="h-5 w-5" />
-                                <span>Filtros</span>
-                                {hasActiveFilters && (
-                                    <span className="bg-[#189BAF] text-white text-xs px-2 py-1 rounded-full">
-                                        {[searchTerm, selectedEstado, fechaDesde, fechaHasta].filter(Boolean).length}
-                                    </span>
-                                )}
+                                <span>Búsqueda Avanzada</span>
                             </button>
 
-                            {hasActiveFilters && (
-                                <button
-                                    onClick={clearSearch}
-                                    className="px-4 py-3 text-gray-600 hover:text-gray-800 transition-colors"
-                                    title="Limpiar filtros"
-                                >
-                                    <X className="h-5 w-5" />
-                                </button>
-                            )}
+                            {/* Botón limpiar */}
+                            <button
+                                onClick={clearSearch}
+                                className="px-4 py-3 text-gray-600 hover:text-gray-800 transition-colors"
+                                title="Limpiar búsqueda"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
                         </div>
                     </div>
 
-                    {/* Filtros adicionales colapsables */}
-                    {showFilters && (
+                    {/* Búsqueda Avanzada */}
+                    {showAdvancedSearch && (
                         <div className="mt-6 pt-6 border-t border-gray-200">
-                            <div className={`grid grid-cols-1 ${showMobileView ? 'gap-4' : 'md:grid-cols-3 gap-4'}`}>
+                            <h3 className="text-lg font-medium text-gray-900 mb-4">Búsqueda Avanzada</h3>
+                            
+                            <div className="space-y-6">
+                                {/* Sección Paciente */}
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
-                                    <select
-                                        value={selectedEstado}
-                                        onChange={(e) => setSelectedEstado(e.target.value)}
-                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                    <h4 className="text-sm font-medium text-gray-700 mb-3">Paciente</h4>
+                                    <div className={`grid grid-cols-1 ${showMobileView ? 'gap-3' : 'md:grid-cols-3 gap-4'}`}>
+                                        <div>
+                                            <label className="block text-xs text-gray-600 mb-1">Iniciales</label>
+                                            <input
+                                                type="text"
+                                                value={pacienteIniciales}
+                                                onChange={(e) => setPacienteIniciales(e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                                placeholder="ej: ABC"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-600 mb-1">Nombre</label>
+                                            <input
+                                                type="text"
+                                                value={pacienteNombre}
+                                                onChange={(e) => setPacienteNombre(e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                                placeholder="Nombre del paciente"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-600 mb-1">Apellidos</label>
+                                            <input
+                                                type="text"
+                                                value={pacienteApellidos}
+                                                onChange={(e) => setPacienteApellidos(e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                                placeholder="Apellidos del paciente"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Sección Médico */}
+                                <div>
+                                    <h4 className="text-sm font-medium text-gray-700 mb-3">Médico</h4>
+                                    <div className={`grid grid-cols-1 ${showMobileView ? 'gap-3' : 'md:grid-cols-2 gap-4'}`}>
+                                        <div>
+                                            <label className="block text-xs text-gray-600 mb-1">Nombre</label>
+                                            <input
+                                                type="text"
+                                                value={medicoNombre}
+                                                onChange={(e) => setMedicoNombre(e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                                placeholder="Nombre del médico"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-600 mb-1">Apellidos</label>
+                                            <input
+                                                type="text"
+                                                value={medicoApellidos}
+                                                onChange={(e) => setMedicoApellidos(e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                                placeholder="Apellidos del médico"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Sección Institución */}
+                                <div>
+                                    <h4 className="text-sm font-medium text-gray-700 mb-3">Institución</h4>
+                                    <div className={`grid grid-cols-1 ${showMobileView ? 'gap-3' : 'md:grid-cols-1 gap-4'}`}>
+                                        <div>
+                                            <label className="block text-xs text-gray-600 mb-1">Institución</label>
+                                            <select
+                                                value={institucionId}
+                                                onChange={(e) => setInstitucionId(e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                            >
+                                                <option value="">Todas las instituciones</option>
+                                                {instituciones?.map((institucion) => (
+                                                    <option key={institucion.ID_INSTITUCION} value={institucion.ID_INSTITUCION}>
+                                                        {institucion.INSTITUCION_NOMBRE}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Sección Estudio */}
+                                <div>
+                                    <h4 className="text-sm font-medium text-gray-700 mb-3">Datos del Estudio</h4>
+                                    <div className={`grid grid-cols-1 ${showMobileView ? 'gap-3' : 'md:grid-cols-3 gap-4'}`}>
+                                        <div>
+                                            <label className="block text-xs text-gray-600 mb-1">Clave Interna</label>
+                                            <input
+                                                type="text"
+                                                value={claveInterna}
+                                                onChange={(e) => setClaveInterna(e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                                placeholder="Clave interna"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-600 mb-1">Folio Merck</label>
+                                            <input
+                                                type="text"
+                                                value={folioMerck}
+                                                onChange={(e) => setFolioMerck(e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                                placeholder="Folio Merck"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-600 mb-1">Clave Muestra</label>
+                                            <input
+                                                type="text"
+                                                value={muestraClave}
+                                                onChange={(e) => setMuestraClave(e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                                placeholder="Clave de muestra"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-600 mb-1">Folio Sobre</label>
+                                            <input
+                                                type="text"
+                                                value={muestraFolioSobre}
+                                                onChange={(e) => setMuestraFolioSobre(e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                                placeholder="Folio del sobre"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-600 mb-1">Folio Kit BL</label>
+                                            <input
+                                                type="text"
+                                                value={muestraFolioKitBl}
+                                                onChange={(e) => setMuestraFolioKitBl(e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                                placeholder="Folio Kit BL"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Filtros adicionales (fechas y estado) */}
+                                <div>
+                                    <h4 className="text-sm font-medium text-gray-700 mb-3">Filtros Adicionales</h4>
+                                    <div className={`grid grid-cols-1 ${showMobileView ? 'gap-3' : 'md:grid-cols-3 gap-4'}`}>
+                                        <div>
+                                            <label className="block text-xs text-gray-600 mb-1">Estado</label>
+                                            <select
+                                                value={selectedEstado}
+                                                onChange={(e) => setSelectedEstado(e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                            >
+                                                <option value="">Todos los estados</option>
+                                                {Object.entries(estados || {}).map(([key, value]) => (
+                                                    <option key={key} value={key}>{value}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-600 mb-1">Fecha Desde</label>
+                                            <input
+                                                type="date"
+                                                value={fechaDesde}
+                                                onChange={(e) => setFechaDesde(e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-600 mb-1">Fecha Hasta</label>
+                                            <input
+                                                type="date"
+                                                value={fechaHasta}
+                                                onChange={(e) => setFechaHasta(e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Botones de acción de búsqueda avanzada */}
+                                <div className="flex justify-end space-x-2 pt-4 border-t border-gray-200">
+                                    <button
+                                        onClick={() => handleSearch(true)}
+                                        disabled={isSearching}
+                                        className="bg-[#189BAF] hover:bg-[#157a8c] text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        <option value="">Todos los estados</option>
-                                        {Object.entries(estados || {}).map(([key, value]) => (
-                                            <option key={key} value={key}>{value}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Desde</label>
-                                    <input
-                                        type="date"
-                                        value={fechaDesde}
-                                        onChange={(e) => setFechaDesde(e.target.value)}
-                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Hasta</label>
-                                    <input
-                                        type="date"
-                                        value={fechaHasta}
-                                        onChange={(e) => setFechaHasta(e.target.value)}
-                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                                    />
+                                        {isSearching ? 'Buscando...' : 'Buscar con Filtros'}
+                                    </button>
                                 </div>
                             </div>
-
-                            <div className="flex justify-end space-x-2 mt-4">
-                                <button
-                                    onClick={() => handleSearch(false)} // ← AGREGAR (false)
-                                    disabled={isSearching} // ← AGREGAR disabled
-                                    className="bg-[#189BAF] hover:bg-[#157a8c] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {isSearching ? 'Buscando...' : 'Aplicar Filtros'} {/* ← CAMBIAR texto dinámico */}
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Indicadores de búsqueda activa */}
-                    {searchTerm && (
-                        <div className="mt-4 flex items-center text-sm text-gray-600">
-                            <Search className="h-4 w-4 mr-1" />
-                            <span className={showMobileView ? "text-xs" : ""}>
-                                Buscando: "{searchTerm}" {!showMobileView && "en clave, folio, médico, paciente e institución"}
-                            </span>
                         </div>
                     )}
                 </div>
