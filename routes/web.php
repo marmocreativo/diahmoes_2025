@@ -11,6 +11,7 @@ use App\Http\Controllers\EnviosCorreosController;
 use App\Http\Controllers\InsumoController;
 use App\Http\Controllers\InsumoLoteController;
 use App\Http\Controllers\EstudioInsumoController;
+use App\Http\Controllers\DashboardExportController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -59,6 +60,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::get('/dashboard/export-excel', [DashboardExportController::class, 'exportExcel'])
+    ->name('dashboard.export.excel')
+    ->middleware(['auth']);
     
     /*
     |--------------------------------------------------------------------------

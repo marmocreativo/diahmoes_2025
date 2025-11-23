@@ -16,20 +16,25 @@ class DashboardController extends Controller
         // Obtener parámetros de filtro
         $fechaDesde = $request->get('fecha_desde', Carbon::now()->startOfMonth()->format('Y-m-d'));
         $fechaHasta = $request->get('fecha_hasta', Carbon::now()->format('Y-m-d'));
-        $institucionId = $request->get('institucion_id');
         $muestraEstado = $request->get('muestra_estado');
+        $tipoEstudio = $request->get('tipo_estudio');
+        $prefijo = $request->get('prefijo');
         
         // Datos para los filtros
         $filtros = $this->getFiltros();
         
         // Datos principales del dashboard
         $datos = [
-            'graficas_pie' => $this->getGraficasPie($fechaDesde, $fechaHasta, $institucionId, $muestraEstado),
-            'top_instituciones' => $this->getTopInstituciones($fechaDesde, $fechaHasta, $muestraEstado),
-            'top_estados' => $this->getTopEstados($fechaDesde, $fechaHasta, $institucionId),
-            'tendencia_5_anios' => $this->getEstudiosUltimos5Anios($fechaDesde, $fechaHasta, $institucionId, $muestraEstado),
-            'comparacion_anual' => $this->getComparacionAnual($fechaDesde, $fechaHasta, $institucionId, $muestraEstado),
-            'predicciones' => $this->getPredicciones($fechaDesde, $fechaHasta, $institucionId, $muestraEstado)
+            'metricas_principales' => $this->getMetricasPrincipales($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
+            'graficas_pie' => $this->getGraficasPie($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
+            'top_instituciones' => $this->getTopInstituciones($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
+            'todas_instituciones' => $this->getTodasInstituciones($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
+            'top_estados' => $this->getTopEstados($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
+            'todos_estados' => $this->getTodosEstados($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
+            'tendencia_5_anios' => $this->getEstudiosUltimos5Anios($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
+            'comparativa_tipos' => $this->getComparativaTiposEstudio($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
+            'comparacion_3_periodos' => $this->getComparacion3Periodos($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
+            'predicciones' => $this->getPredicciones($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
         ];
         
         return Inertia::render('dashboard', [
@@ -38,8 +43,9 @@ class DashboardController extends Controller
             'filtrosActivos' => [
                 'fecha_desde' => $fechaDesde,
                 'fecha_hasta' => $fechaHasta,
-                'institucion_id' => $institucionId,
-                'muestra_estado' => $muestraEstado
+                'muestra_estado' => $muestraEstado,
+                'tipo_estudio' => $tipoEstudio,
+                'prefijo' => $prefijo
             ]
         ]);
     }
@@ -47,77 +53,80 @@ class DashboardController extends Controller
     private function getFiltros()
     {
         return [
-            'instituciones' => Institucion::select('ID_INSTITUCION', 'INSTITUCION_NOMBRE')
-                ->orderBy('INSTITUCION_NOMBRE')
-                ->get(),
             'muestra_estados' => DB::table('estudios')
                 ->select('MUESTRA_ESTADO')
                 ->whereNotNull('MUESTRA_ESTADO')
                 ->where('MUESTRA_ESTADO', '!=', '')
                 ->distinct()
                 ->orderBy('MUESTRA_ESTADO')
-                ->pluck('MUESTRA_ESTADO')
+                ->pluck('MUESTRA_ESTADO'),
+            'tipos_estudio' => DB::table('estudios')
+                ->select('MUESTRA_TIPO_ESTUDIO')
+                ->whereNotNull('MUESTRA_TIPO_ESTUDIO')
+                ->where('MUESTRA_TIPO_ESTUDIO', '!=', '')
+                ->distinct()
+                ->orderBy('MUESTRA_TIPO_ESTUDIO')
+                ->pluck('MUESTRA_TIPO_ESTUDIO'),
+            'prefijos' => DB::table('estudios')
+                ->select('CLAVE')
+                ->whereNotNull('CLAVE')
+                ->where('CLAVE', '!=', '')
+                ->distinct()
+                ->orderBy('CLAVE')
+                ->pluck('CLAVE')
         ];
     }
     
-    private function getQueryBase($fechaDesde, $fechaHasta, $institucionId = null, $muestraEstado = null)
+    private function getQueryBase($fechaDesde, $fechaHasta, $muestraEstado = null, $tipoEstudio = null, $prefijo = null)
     {
         $query = DB::table('estudios')
             ->whereBetween('FECHA_SOLICITUD_RECOLECCION', [$fechaDesde . ' 00:00:00', $fechaHasta . ' 23:59:59'])
             ->whereNotNull('FECHA_SOLICITUD_RECOLECCION')
             ->where('FECHA_SOLICITUD_RECOLECCION', '>', '1000-01-01 00:00:00');
             
-        if ($institucionId) {
-            $query->where('ID_INSTITUCION', $institucionId);
-        }
-        
         if ($muestraEstado) {
             $query->where('MUESTRA_ESTADO', $muestraEstado);
+        }
+        
+        if ($tipoEstudio) {
+            $query->where('MUESTRA_TIPO_ESTUDIO', $tipoEstudio);
+        }
+        
+        if ($prefijo) {
+            $query->where('CLAVE', $prefijo);
         }
         
         return $query;
     }
     
-    private function getGraficasPie($fechaDesde, $fechaHasta, $institucionId, $muestraEstado)
+    private function getMetricasPrincipales($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
     {
-        // MUESTRA_TIPO
-        $muestraTipo = $this->getQueryBase($fechaDesde, $fechaHasta, $institucionId, $muestraEstado)
-            ->select('MUESTRA_TIPO', DB::raw('COUNT(*) as total'))
-            ->whereNotNull('MUESTRA_TIPO')
-            ->where('MUESTRA_TIPO', '!=', '')
-            ->groupBy('MUESTRA_TIPO')
-            ->orderByDesc('total')
-            ->get()
-            ->map(function($item) {
-                return [
-                    'name' => $item->MUESTRA_TIPO ?: 'Sin especificar',
-                    'value' => $item->total
-                ];
-            });
+        // Total de estudios en el periodo
+        $totalEstudios = $this->getQueryBase($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
+            ->count();
         
-        // Agrupar elementos con menos del 10%
-        $muestraTipo = $this->agruparPorcentajesBajos($muestraTipo);
+        // Estudios pendientes (cualquier estado que no sea "Resultados Enviados")
+        $estudiosQuery = $this->getQueryBase($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo);
+        $pendientes = clone $estudiosQuery;
+        $pendientes = $pendientes
+            ->where(function($query) {
+                $query->where('ESTUDIO_ESTADO', '!=', 'Resultados Enviados')
+                      ->orWhereNull('ESTUDIO_ESTADO')
+                      ->orWhere('ESTUDIO_ESTADO', '');
+            })
+            ->count();
         
-        // MUESTRA_SITIO_LESION
-        $muestraSitioLesion = $this->getQueryBase($fechaDesde, $fechaHasta, $institucionId, $muestraEstado)
-            ->select('MUESTRA_SITIO_LESION', DB::raw('COUNT(*) as total'))
-            ->whereNotNull('MUESTRA_SITIO_LESION')
-            ->where('MUESTRA_SITIO_LESION', '!=', '')
-            ->groupBy('MUESTRA_SITIO_LESION')
-            ->orderByDesc('total')
-            ->get()
-            ->map(function($item) {
-                return [
-                    'name' => $item->MUESTRA_SITIO_LESION ?: 'Sin especificar',
-                    'value' => $item->total
-                ];
-            });
-        
-        // Agrupar elementos con menos del 10%
-        $muestraSitioLesion = $this->agruparPorcentajesBajos($muestraSitioLesion);
-        
-        // MUESTRA_TIPO_ESTUDIO
-        $muestraTipoEstudio = $this->getQueryBase($fechaDesde, $fechaHasta, $institucionId, $muestraEstado)
+        return [
+            'total_estudios' => $totalEstudios,
+            'pendientes' => $pendientes,
+            'completados' => $totalEstudios - $pendientes
+        ];
+    }
+    
+    private function getGraficasPie($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
+    {
+        // Solo MUESTRA_TIPO_ESTUDIO
+        $muestraTipoEstudio = $this->getQueryBase($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
             ->select('MUESTRA_TIPO_ESTUDIO', DB::raw('COUNT(*) as total'))
             ->whereNotNull('MUESTRA_TIPO_ESTUDIO')
             ->where('MUESTRA_TIPO_ESTUDIO', '!=', '')
@@ -135,15 +144,13 @@ class DashboardController extends Controller
         $muestraTipoEstudio = $this->agruparPorcentajesBajos($muestraTipoEstudio);
         
         return [
-            'muestra_tipo' => $muestraTipo,
-            'sitio_lesion' => $muestraSitioLesion,
             'tipo_estudio' => $muestraTipoEstudio
         ];
     }
     
-    private function getTopInstituciones($fechaDesde, $fechaHasta, $muestraEstado)
+    private function getTopInstituciones($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
     {
-        return $this->getQueryBase($fechaDesde, $fechaHasta, null, $muestraEstado)
+        return $this->getQueryBase($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
             ->join('instituciones', 'estudios.ID_INSTITUCION', '=', 'instituciones.ID_INSTITUCION')
             ->select('instituciones.INSTITUCION_NOMBRE as nombre', DB::raw('COUNT(*) as total'))
             ->groupBy('estudios.ID_INSTITUCION', 'instituciones.INSTITUCION_NOMBRE')
@@ -158,9 +165,25 @@ class DashboardController extends Controller
             });
     }
     
-    private function getTopEstados($fechaDesde, $fechaHasta, $institucionId)
+    private function getTodasInstituciones($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
     {
-        return $this->getQueryBase($fechaDesde, $fechaHasta, $institucionId)
+        return $this->getQueryBase($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
+            ->join('instituciones', 'estudios.ID_INSTITUCION', '=', 'instituciones.ID_INSTITUCION')
+            ->select('instituciones.INSTITUCION_NOMBRE as nombre', DB::raw('COUNT(*) as total'))
+            ->groupBy('estudios.ID_INSTITUCION', 'instituciones.INSTITUCION_NOMBRE')
+            ->orderByDesc('total')
+            ->get()
+            ->map(function($item) {
+                return [
+                    'name' => $item->nombre,
+                    'value' => $item->total
+                ];
+            });
+    }
+    
+    private function getTopEstados($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
+    {
+        return $this->getQueryBase($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
             ->select('MUESTRA_ESTADO as estado', DB::raw('COUNT(*) as total'))
             ->whereNotNull('MUESTRA_ESTADO')
             ->where('MUESTRA_ESTADO', '!=', '')
@@ -176,43 +199,137 @@ class DashboardController extends Controller
             });
     }
     
-    private function getComparacionAnual($fechaDesde, $fechaHasta, $institucionId, $muestraEstado)
+    private function getTodosEstados($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
     {
-        $fechaDesdeAnioAnterior = Carbon::parse($fechaDesde)->subYear()->format('Y-m-d');
-        $fechaHastaAnioAnterior = Carbon::parse($fechaHasta)->subYear()->format('Y-m-d');
+        return $this->getQueryBase($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
+        ->select('MUESTRA_ESTADO as estado', DB::raw('COUNT(*) as total'))
+        ->whereNotNull('MUESTRA_ESTADO')
+        ->where('MUESTRA_ESTADO', '!=', '')
+        ->groupBy('MUESTRA_ESTADO')
+        ->orderByDesc('total')
+        ->get()
+        ->map(function($item) {
+            return [
+                'name' => $item->estado,
+                'value' => $item->total
+            ];
+        });
+    }
+    
+    private function getComparativaTiposEstudio($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
+    {
+        $fechaInicioHistorico = Carbon::parse($fechaDesde)->subYears(5);
+        
+        $query = DB::table('estudios')
+            ->select(
+                DB::raw('YEAR(FECHA_SOLICITUD_RECOLECCION) as anio'),
+                DB::raw('MONTH(FECHA_SOLICITUD_RECOLECCION) as mes'),
+                'MUESTRA_TIPO_ESTUDIO',
+                DB::raw('COUNT(*) as total')
+            )
+            ->where('FECHA_SOLICITUD_RECOLECCION', '>=', $fechaInicioHistorico)
+            ->whereNotNull('FECHA_SOLICITUD_RECOLECCION')
+            ->where('FECHA_SOLICITUD_RECOLECCION', '>', '1000-01-01 00:00:00')
+            ->whereNotNull('MUESTRA_TIPO_ESTUDIO')
+            ->where('MUESTRA_TIPO_ESTUDIO', '!=', '');
+        
+        // Aplicar filtros condicionales
+        if ($muestraEstado) {
+            $query->where('ESTUDIO_ESTADO', $muestraEstado);
+        }
+        
+        if ($tipoEstudio) {
+            $query->where('MUESTRA_TIPO_ESTUDIO', $tipoEstudio);
+        }
+        
+        if ($prefijo) {
+            $query->where('CLAVE', $prefijo);
+        }
+        
+        $datos = $query
+            ->groupBy(DB::raw('YEAR(FECHA_SOLICITUD_RECOLECCION)'), DB::raw('MONTH(FECHA_SOLICITUD_RECOLECCION)'), 'MUESTRA_TIPO_ESTUDIO')
+            ->orderBy(DB::raw('YEAR(FECHA_SOLICITUD_RECOLECCION)'))
+            ->orderBy(DB::raw('MONTH(FECHA_SOLICITUD_RECOLECCION)'))
+            ->get();
+        
+        // Agrupar por mes y organizar tipos de estudio
+        $datosAgrupados = [];
+        $tiposEstudio = [];
+        
+        foreach ($datos as $item) {
+            $fecha = Carbon::createFromDate($item->anio, $item->mes, 1);
+            $mesKey = $fecha->format('Y-m');
+            $mesLabel = $fecha->format('M Y');
+            
+            if (!isset($datosAgrupados[$mesKey])) {
+                $datosAgrupados[$mesKey] = [
+                    'mes' => $mesLabel,
+                    'fecha_completa' => $mesKey
+                ];
+            }
+            
+            $datosAgrupados[$mesKey][$item->MUESTRA_TIPO_ESTUDIO] = $item->total;
+            $tiposEstudio[] = $item->MUESTRA_TIPO_ESTUDIO;
+        }
+        
+        $tiposEstudio = array_unique($tiposEstudio);
+        
+        // Completar datos faltantes con 0
+        foreach ($datosAgrupados as &$mes) {
+            foreach ($tiposEstudio as $tipo) {
+                if (!isset($mes[$tipo])) {
+                    $mes[$tipo] = 0;
+                }
+            }
+        }
+        
+        return [
+            'datos' => array_values($datosAgrupados),
+            'tipos_estudio' => array_values($tiposEstudio)
+        ];
+    }
+    
+    private function getComparacion2Anios($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
+    {
+        $fecha2AniosAtras = Carbon::parse($fechaDesde)->subYears(2);
+        $fechaHasta2AniosAtras = Carbon::parse($fechaHasta)->subYears(2);
         
         // Estudios del período actual
-        $estudiosActuales = $this->getQueryBase($fechaDesde, $fechaHasta, $institucionId, $muestraEstado)
+        $estudiosActuales = $this->getQueryBase($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
             ->count();
         
-        // Estudios del mismo período año anterior
-        $estudiosAnioAnterior = $this->getQueryBase($fechaDesdeAnioAnterior, $fechaHastaAnioAnterior, $institucionId, $muestraEstado)
-            ->count();
+        // Estudios de hace 2 años
+        $estudios2AniosAtras = $this->getQueryBase(
+            $fecha2AniosAtras->format('Y-m-d'), 
+            $fechaHasta2AniosAtras->format('Y-m-d'), 
+            $muestraEstado, 
+            $tipoEstudio, 
+            $prefijo
+        )->count();
         
         // Calcular porcentaje de cambio
         $porcentajeCambio = 0;
-        if ($estudiosAnioAnterior > 0) {
-            $porcentajeCambio = round((($estudiosActuales - $estudiosAnioAnterior) / $estudiosAnioAnterior) * 100, 1);
+        if ($estudios2AniosAtras > 0) {
+            $porcentajeCambio = round((($estudiosActuales - $estudios2AniosAtras) / $estudios2AniosAtras) * 100, 1);
         }
         
         // Comparación por meses
-        $comparacionMensual = $this->getComparacionMensual($fechaDesde, $fechaHasta, $institucionId, $muestraEstado);
+        $comparacionMensual = $this->getComparacionMensual2Anios($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo);
         
         return [
             'actual' => $estudiosActuales,
-            'anio_anterior' => $estudiosAnioAnterior,
+            'hace_2_anios' => $estudios2AniosAtras,
             'porcentaje_cambio' => $porcentajeCambio,
             'comparacion_mensual' => $comparacionMensual
         ];
     }
     
-    private function getComparacionMensual($fechaDesde, $fechaHasta, $institucionId, $muestraEstado)
+    private function getComparacionMensual2Anios($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
     {
         $fechaInicio = Carbon::parse($fechaDesde);
         $fechaFin = Carbon::parse($fechaHasta);
         
-        $mesesActuales = [];
-        $mesesAnteriores = [];
+        $mesesComparacion = [];
         
         $fechaActual = $fechaInicio->copy();
         while ($fechaActual->lte($fechaFin)) {
@@ -227,102 +344,135 @@ class DashboardController extends Controller
             $estudiosActual = $this->getQueryBase(
                 $inicioMes->format('Y-m-d'), 
                 $finMes->format('Y-m-d'), 
-                $institucionId, 
-                $muestraEstado
+                $muestraEstado, 
+                $tipoEstudio, 
+                $prefijo
             )->count();
             
-            // Estudios del mismo mes año anterior
-            $inicioMesAnterior = $inicioMes->copy()->subYear();
-            $finMesAnterior = $finMes->copy()->subYear();
+            // Estudios del mismo mes hace 2 años
+            $inicioMes2Anios = $inicioMes->copy()->subYears(2);
+            $finMes2Anios = $finMes->copy()->subYears(2);
             
-            $estudiosAnterior = $this->getQueryBase(
-                $inicioMesAnterior->format('Y-m-d'), 
-                $finMesAnterior->format('Y-m-d'), 
-                $institucionId, 
-                $muestraEstado
+            $estudios2Anios = $this->getQueryBase(
+                $inicioMes2Anios->format('Y-m-d'), 
+                $finMes2Anios->format('Y-m-d'), 
+                $muestraEstado, 
+                $tipoEstudio, 
+                $prefijo
             )->count();
             
-            $mesesActuales[] = [
+            $mesesComparacion[] = [
                 'mes' => $fechaActual->format('M Y'),
                 'estudios_actual' => $estudiosActual,
-                'estudios_anterior' => $estudiosAnterior
+                'estudios_2_anios' => $estudios2Anios
             ];
             
             $fechaActual->addMonth();
         }
         
-        return $mesesActuales;
+        return $mesesComparacion;
     }
-    
-    private function getPredicciones($fechaDesde, $fechaHasta, $institucionId, $muestraEstado)
+
+    private function getComparacion3Periodos($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
     {
-        // Obtener datos de los últimos 12 meses para hacer predicción
-        $fechaInicioHistorico = Carbon::parse($fechaDesde)->subMonths(12);
+        $fecha1AnioAtras = Carbon::parse($fechaDesde)->subYear();
+        $fechaHasta1AnioAtras = Carbon::parse($fechaHasta)->subYear();
         
-        $query = DB::table('estudios')
-            ->select(
-                DB::raw('YEAR(FECHA_SOLICITUD_RECOLECCION) as anio'),
-                DB::raw('MONTH(FECHA_SOLICITUD_RECOLECCION) as mes'),
-                DB::raw('COUNT(*) as total')
-            )
-            ->where('FECHA_SOLICITUD_RECOLECCION', '>=', $fechaInicioHistorico)
-            ->whereNotNull('FECHA_SOLICITUD_RECOLECCION')
-            ->where('FECHA_SOLICITUD_RECOLECCION', '>', '1000-01-01 00:00:00');
+        $fecha2AniosAtras = Carbon::parse($fechaDesde)->subYears(2);
+        $fechaHasta2AniosAtras = Carbon::parse($fechaHasta)->subYears(2);
         
-        // Aplicar filtros condicionales
-        if ($institucionId) {
-            $query->where('ID_INSTITUCION', $institucionId);
-        }
+        // Estudios actuales
+        $estudiosActuales = $this->getQueryBase($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)->count();
         
-        if ($muestraEstado) {
-            $query->where('MUESTRA_ESTADO', $muestraEstado);
-        }
+        // Hace 1 año
+        $estudios1Anio = $this->getQueryBase($fecha1AnioAtras->format('Y-m-d'), $fechaHasta1AnioAtras->format('Y-m-d'), $muestraEstado, $tipoEstudio, $prefijo)->count();
         
-        $datosHistoricos = $query
-            ->groupBy(DB::raw('YEAR(FECHA_SOLICITUD_RECOLECCION)'), DB::raw('MONTH(FECHA_SOLICITUD_RECOLECCION)'))
-            ->orderBy(DB::raw('YEAR(FECHA_SOLICITUD_RECOLECCION)'))
-            ->orderBy(DB::raw('MONTH(FECHA_SOLICITUD_RECOLECCION)'))
-            ->get();
+        // Hace 2 años
+        $estudios2Anios = $this->getQueryBase($fecha2AniosAtras->format('Y-m-d'), $fechaHasta2AniosAtras->format('Y-m-d'), $muestraEstado, $tipoEstudio, $prefijo)->count();
         
-        // Calcular promedio simple para predicción básica
-        $totalEstudios = $datosHistoricos->sum('total');
-        $promedioMensual = $datosHistoricos->count() > 0 ? round($totalEstudios / $datosHistoricos->count()) : 0;
-        
-        // Tendencia (muy básica)
-        $tendencia = 'estable';
-        if ($datosHistoricos->count() >= 3) {
-            $ultimosTres = $datosHistoricos->slice(-3);
-            $promedioPrimeros = $ultimosTres->slice(0, 2)->avg('total');
-            $ultimoMes = $ultimosTres->last()->total;
-            
-            if ($ultimoMes > $promedioPrimeros * 1.1) {
-                $tendencia = 'creciente';
-            } elseif ($ultimoMes < $promedioPrimeros * 0.9) {
-                $tendencia = 'decreciente';
-            }
-        }
+        // Comparación mensual
+        $comparacionMensual = $this->getComparacionMensual3Periodos($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo);
         
         return [
-            'promedio_mensual' => $promedioMensual,
-            'tendencia' => $tendencia,
-            'datos_historicos' => $datosHistoricos,
-            'prediccion_siguiente_mes' => $this->calcularPrediccionSiguienteMes($datosHistoricos)
+            'actual' => $estudiosActuales,
+            'hace_1_anio' => $estudios1Anio,
+            'hace_2_anios' => $estudios2Anios,
+            'cambio_1_anio' => $estudios1Anio > 0 ? round((($estudiosActuales - $estudios1Anio) / $estudios1Anio) * 100, 1) : 0,
+            'cambio_2_anios' => $estudios2Anios > 0 ? round((($estudiosActuales - $estudios2Anios) / $estudios2Anios) * 100, 1) : 0,
+            'comparacion_mensual' => $comparacionMensual
         ];
     }
     
-    private function calcularPrediccionSiguienteMes($datosHistoricos)
+    private function getPredicciones($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
+    {
+        // Obtener el mes siguiente basado en la fecha actual
+        $mesActual = Carbon::now();
+        $mesSiguiente = $mesActual->copy()->addMonth();
+        
+        // Obtener datos históricos para el mismo mes en años anteriores
+        $datosHistoricosMes = DB::table('estudios')
+            ->select(DB::raw('YEAR(FECHA_SOLICITUD_RECOLECCION) as anio'), DB::raw('COUNT(*) as total'))
+            ->whereMonth('FECHA_SOLICITUD_RECOLECCION', $mesSiguiente->month)
+            ->where('FECHA_SOLICITUD_RECOLECCION', '>=', Carbon::now()->subYears(5))
+            ->whereNotNull('FECHA_SOLICITUD_RECOLECCION')
+            ->where('FECHA_SOLICITUD_RECOLECCION', '>', '1000-01-01 00:00:00');
+        
+        if ($muestraEstado) $datosHistoricosMes->where('MUESTRA_ESTADO', $muestraEstado);
+        if ($tipoEstudio) $datosHistoricosMes->where('MUESTRA_TIPO_ESTUDIO', $tipoEstudio);
+        if ($prefijo) $datosHistoricosMes->where('CLAVE', $prefijo);
+        
+        $datosHistoricosMes = $datosHistoricosMes
+            ->groupBy(DB::raw('YEAR(FECHA_SOLICITUD_RECOLECCION)'))
+            ->orderBy(DB::raw('YEAR(FECHA_SOLICITUD_RECOLECCION)'))
+            ->get();
+        
+        $promedioMesSiguiente = $datosHistoricosMes->avg('total');
+        
+        return [
+            'mes_siguiente' => $mesSiguiente->format('F Y'),
+            'mes_siguiente_numero' => $mesSiguiente->month,
+            'prediccion_mes_siguiente' => round($promedioMesSiguiente),
+            'datos_historicos_mes' => $datosHistoricosMes,
+            'anios_analizados' => $datosHistoricosMes->count()
+        ];
+    }
+    
+    private function calcularPrediccionSiguienteMes($datosHistoricos, $factorTendencia)
     {
         if ($datosHistoricos->count() < 3) {
             return null;
         }
         
-        // Predicción simple basada en tendencia de últimos 3 meses
-        $ultimosTres = $datosHistoricos->slice(-3)->pluck('total')->toArray();
+        // Predicción mejorada con tendencia
+        $ultimosTres = $datosHistoricos->slice(-6)->pluck('total')->toArray();
+        $promedioBase = round(array_sum($ultimosTres) / count($ultimosTres));
         
-        // Media móvil simple
-        $prediccion = round(array_sum($ultimosTres) / count($ultimosTres));
+        // Aplicar factor de tendencia
+        $prediccion = round($promedioBase * (1 + $factorTendencia * 0.5));
         
-        return $prediccion;
+        return max(0, $prediccion); // No puede ser negativo
+    }
+    
+    private function calcularRangoPrediccion($datosHistoricos, $promedioMensual)
+    {
+        if ($datosHistoricos->count() < 6) {
+            return null;
+        }
+        
+        // Calcular desviación estándar simple
+        $valores = $datosHistoricos->pluck('total')->toArray();
+        $varianza = 0;
+        
+        foreach ($valores as $valor) {
+            $varianza += pow($valor - $promedioMensual, 2);
+        }
+        
+        $desviacionEstandar = sqrt($varianza / count($valores));
+        
+        return [
+            'minimo' => max(0, round($promedioMensual - $desviacionEstandar)),
+            'maximo' => round($promedioMensual + $desviacionEstandar)
+        ];
     }
 
     private function agruparPorcentajesBajos($datos, $umbral = 0.10)
@@ -351,7 +501,7 @@ class DashboardController extends Controller
         return collect($datosAgrupados);
     }
 
-    private function getEstudiosUltimos5Anios($fechaDesde, $fechaHasta, $institucionId, $muestraEstado)
+    private function getEstudiosUltimos5Anios($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
     {
         // Calcular fecha de inicio (5 años atrás desde la fecha más antigua del filtro)
         $fechaInicioHistorico = Carbon::parse($fechaDesde)->subYears(5);
@@ -367,12 +517,16 @@ class DashboardController extends Controller
             ->where('FECHA_SOLICITUD_RECOLECCION', '>', '1000-01-01 00:00:00');
         
         // Aplicar filtros condicionales
-        if ($institucionId) {
-            $query->where('ID_INSTITUCION', $institucionId);
+        if ($muestraEstado) {
+            $query->where('ESTUDIO_ESTADO', $muestraEstado);
         }
         
-        if ($muestraEstado) {
-            $query->where('MUESTRA_ESTADO', $muestraEstado);
+        if ($tipoEstudio) {
+            $query->where('MUESTRA_TIPO_ESTUDIO', $tipoEstudio);
+        }
+        
+        if ($prefijo) {
+            $query->where('CLAVE', $prefijo);
         }
         
         $datos = $query
@@ -392,5 +546,67 @@ class DashboardController extends Controller
         });
         
         return $datosFormateados;
+    }
+
+    private function getComparacionMensual3Periodos($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
+    {
+        $fechaInicio = Carbon::parse($fechaDesde);
+        $fechaFin = Carbon::parse($fechaHasta);
+        
+        $mesesComparacion = [];
+        
+        $fechaActual = $fechaInicio->copy();
+        while ($fechaActual->lte($fechaFin)) {
+            $inicioMes = $fechaActual->copy()->startOfMonth();
+            $finMes = $fechaActual->copy()->endOfMonth();
+            
+            // Si el mes se extiende fuera del rango, ajustar
+            if ($inicioMes->lt($fechaInicio)) $inicioMes = $fechaInicio->copy();
+            if ($finMes->gt($fechaFin)) $finMes = $fechaFin->copy();
+            
+            // Estudios del mes actual
+            $estudiosActual = $this->getQueryBase(
+                $inicioMes->format('Y-m-d'), 
+                $finMes->format('Y-m-d'), 
+                $muestraEstado, 
+                $tipoEstudio, 
+                $prefijo
+            )->count();
+            
+            // Estudios del mismo mes hace 1 año
+            $inicioMes1Anio = $inicioMes->copy()->subYear();
+            $finMes1Anio = $finMes->copy()->subYear();
+            
+            $estudios1Anio = $this->getQueryBase(
+                $inicioMes1Anio->format('Y-m-d'), 
+                $finMes1Anio->format('Y-m-d'), 
+                $muestraEstado, 
+                $tipoEstudio, 
+                $prefijo
+            )->count();
+            
+            // Estudios del mismo mes hace 2 años
+            $inicioMes2Anios = $inicioMes->copy()->subYears(2);
+            $finMes2Anios = $finMes->copy()->subYears(2);
+            
+            $estudios2Anios = $this->getQueryBase(
+                $inicioMes2Anios->format('Y-m-d'), 
+                $finMes2Anios->format('Y-m-d'), 
+                $muestraEstado, 
+                $tipoEstudio, 
+                $prefijo
+            )->count();
+            
+            $mesesComparacion[] = [
+                'mes' => $fechaActual->format('M Y'),
+                'estudios_actual' => $estudiosActual,
+                'estudios_1_anio' => $estudios1Anio,
+                'estudios_2_anios' => $estudios2Anios
+            ];
+            
+            $fechaActual->addMonth();
+        }
+        
+        return $mesesComparacion;
     }
 }
