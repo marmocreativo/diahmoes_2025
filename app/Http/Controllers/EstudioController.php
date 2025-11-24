@@ -20,155 +20,323 @@ class EstudioController extends Controller
      * Display a listing of the resource.
      */
     public function index(Request $request)
-    {
-        // NUEVO: Obtener prefijo de la URL, por defecto PRM
-        $prefijo = $request->get('prefijo', 'PRM');
+{
+    // NUEVO: Obtener prefijo de la URL, por defecto PRM
+    $prefijo = $request->get('prefijo', 'PRM');
+    
+    $query = Estudio::with(['medico', 'paciente', 'institucion', 'cliente', 'enviosCorreos']);
+    
+    // NUEVO: Filtro obligatorio por prefijo/CLAVE
+    $query->where('CLAVE', $prefijo);
+    
+    // BÚSQUEDA RÁPIDA (búsqueda global simplificada)
+    if ($request->filled('search')) {
+        $search = $request->get('search');
+        $query->where(function($q) use ($search) {
+            $q->where('CLAVE_INTERNA', 'like', "%{$search}%")
+            ->orWhere('FOLIO_MERCK', 'like', "%{$search}%")
+            ->orWhere('MUESTRA_FOLIO_KIT_BL', 'like', "%{$search}%")
+            ->orWhere('MUESTRA_INICIALES', 'like', "%{$search}%")
+            // Búsqueda por nombre completo del médico
+            ->orWhereHas('medico', function($subQ) use ($search) {
+                $subQ->where('USUARIO_NOMBRE', 'like', "%{$search}%")
+                    ->orWhere('USUARIO_APELLIDOS', 'like', "%{$search}%")
+                    ->orWhere(\DB::raw('CONCAT(USUARIO_NOMBRE, " ", USUARIO_APELLIDOS)'), 'like', "%{$search}%");
+            })
+            // Búsqueda por nombre completo del paciente
+            ->orWhereHas('paciente', function($subQ) use ($search) {
+                $subQ->where('USUARIO_NOMBRE', 'like', "%{$search}%")
+                    ->orWhere('USUARIO_APELLIDOS', 'like', "%{$search}%")
+                    ->orWhere(\DB::raw('CONCAT(USUARIO_NOMBRE, " ", USUARIO_APELLIDOS)'), 'like', "%{$search}%");
+            })
+            // Búsqueda por nombre de institución
+            ->orWhereHas('institucion', function($subQ) use ($search) {
+                $subQ->where('INSTITUCION_NOMBRE', 'like', "%{$search}%");
+            });
+        });
+    }
+    
+    // BÚSQUEDA AVANZADA - Campos específicos
+    
+    // Filtros de paciente
+    if ($request->filled('paciente_iniciales')) {
+        $query->where('MUESTRA_INICIALES', 'like', "%{$request->get('paciente_iniciales')}%");
+    }
+    
+    if ($request->filled('paciente_nombre')) {
+        $query->whereHas('paciente', function($q) use ($request) {
+            $q->where('USUARIO_NOMBRE', 'like', "%{$request->get('paciente_nombre')}%");
+        });
+    }
+    
+    if ($request->filled('paciente_apellidos')) {
+        $query->whereHas('paciente', function($q) use ($request) {
+            $q->where('USUARIO_APELLIDOS', 'like', "%{$request->get('paciente_apellidos')}%");
+        });
+    }
+    
+    // Filtros de médico
+    if ($request->filled('medico_nombre')) {
+        $query->whereHas('medico', function($q) use ($request) {
+            $q->where('USUARIO_NOMBRE', 'like', "%{$request->get('medico_nombre')}%");
+        });
+    }
+    
+    if ($request->filled('medico_apellidos')) {
+        $query->whereHas('medico', function($q) use ($request) {
+            $q->where('USUARIO_APELLIDOS', 'like', "%{$request->get('medico_apellidos')}%");
+        });
+    }
+    
+    // Filtro de institución
+    if ($request->filled('institucion_id')) {
+        $query->where('ID_INSTITUCION', $request->get('institucion_id'));
+    }
+    
+    // Filtros de estudio
+    if ($request->filled('clave_interna')) {
+        $query->where('CLAVE_INTERNA', 'like', "%{$request->get('clave_interna')}%");
+    }
+    
+    if ($request->filled('folio_merck')) {
+        $query->where('FOLIO_MERCK', 'like', "%{$request->get('folio_merck')}%");
+    }
+    
+    if ($request->filled('muestra_clave')) {
+        $query->where('MUESTRA_CLAVE', 'like', "%{$request->get('muestra_clave')}%");
+    }
+    
+    if ($request->filled('muestra_folio_sobre')) {
+        $query->where('MUESTRA_FOLIO_SOBRE', 'like', "%{$request->get('muestra_folio_sobre')}%");
+    }
+    
+    if ($request->filled('muestra_folio_kit_bl')) {
+        $query->where('MUESTRA_FOLIO_KIT_BL', 'like', "%{$request->get('muestra_folio_kit_bl')}%");
+    }
+    
+    // Filtros adicionales opcionales
+    if ($request->filled('estado')) {
+        $query->where('ESTUDIO_ESTADO', $request->get('estado'));
+    }
+    
+    if ($request->filled('fecha_desde')) {
+        $query->where('FECHA_SOLICITUD_RECOLECCION', '>=', $request->get('fecha_desde'));
+    }
+    
+    if ($request->filled('fecha_hasta')) {
+        $query->where('FECHA_SOLICITUD_RECOLECCION', '<=', $request->get('fecha_hasta'));
+    }
+    
+    // NUEVO: Filtros específicos de las tarjetas de estadísticas PARA LA CONSULTA PRINCIPAL
+    if ($request->filled('detenidos_recepcion')) {
+        $query->where('ESTUDIO_ESTADO', 'Solicitud Recolección');
+            //->where('FECHA_RECOLECCION', '!=', null)
+            //->where('FECHA_RECOLECCION', '!=', '0000-00-00 00:00:00');
+            //->where('FECHA_RECOLECCION', '<', now()->subWeekday());
+    }
+
+    if ($request->filled('detenidos_lab_liquida')) {
+        $query->where('ESTUDIO_ESTADO', 'Recepción Laboratorio')
+            ->where('MUESTRA_TIPO_ESTUDIO', 'Biopsia Líquida')
+            ->where('FECHA_RECEPCION_LABORATORIO', '!=', null)
+            ->where('FECHA_RECEPCION_LABORATORIO', '!=', '0000-00-00 00:00:00')
+            ->where('FECHA_RECEPCION_LABORATORIO', '<', now()->subWeekdays(3));
+    }
+
+    if ($request->filled('detenidos_lab_solida')) {
+        $query->where('ESTUDIO_ESTADO', 'Recepción Laboratorio')
+            ->where('MUESTRA_TIPO_ESTUDIO', 'Biopsia Sólida')
+            ->where('FECHA_RECEPCION_LABORATORIO', '!=', null)
+            ->where('FECHA_RECEPCION_LABORATORIO', '!=', '0000-00-00 00:00:00')
+            ->where('FECHA_RECEPCION_LABORATORIO', '<', now()->subWeekdays(5));
+    }
+
+    if ($request->filled('falta_enviar_resultados')) {
+        $query->where('ESTUDIO_ESTADO', 'Resultados Completos')
+            ->where('FECHA_OBTENCION_RESULTADOS', '!=', null)
+            ->where('FECHA_OBTENCION_RESULTADOS', '!=', '0000-00-00 00:00:00')
+            ->where('FECHA_OBTENCION_RESULTADOS', '<', now()->subWeekday());
+    }
+    
+    // Crear query base para estadísticas (con filtros aplicados)
+    $queryBaseParaEstadisticas = function() use ($request, $prefijo) {
+        $q = Estudio::where('CLAVE', $prefijo);
         
-        $query = Estudio::with(['medico', 'paciente', 'institucion', 'cliente', 'enviosCorreos']);
-        
-        // NUEVO: Filtro obligatorio por prefijo/CLAVE
-        $query->where('CLAVE', $prefijo);
-        
-        // BÚSQUEDA RÁPIDA (búsqueda global simplificada)
+        // Aplicar todos los filtros aquí también
         if ($request->filled('search')) {
             $search = $request->get('search');
-            $query->where(function($q) use ($search) {
-                $q->where('CLAVE_INTERNA', 'like', "%{$search}%")
+            $q->where(function($subQ) use ($search) {
+                $subQ->where('CLAVE_INTERNA', 'like', "%{$search}%")
                 ->orWhere('FOLIO_MERCK', 'like', "%{$search}%")
                 ->orWhere('MUESTRA_FOLIO_KIT_BL', 'like', "%{$search}%")
                 ->orWhere('MUESTRA_INICIALES', 'like', "%{$search}%")
-                // Búsqueda por nombre completo del médico
-                ->orWhereHas('medico', function($subQ) use ($search) {
-                    $subQ->where('USUARIO_NOMBRE', 'like', "%{$search}%")
+                ->orWhereHas('medico', function($subSubQ) use ($search) {
+                    $subSubQ->where('USUARIO_NOMBRE', 'like', "%{$search}%")
                         ->orWhere('USUARIO_APELLIDOS', 'like', "%{$search}%")
                         ->orWhere(\DB::raw('CONCAT(USUARIO_NOMBRE, " ", USUARIO_APELLIDOS)'), 'like', "%{$search}%");
                 })
-                // Búsqueda por nombre completo del paciente
-                ->orWhereHas('paciente', function($subQ) use ($search) {
-                    $subQ->where('USUARIO_NOMBRE', 'like', "%{$search}%")
+                ->orWhereHas('paciente', function($subSubQ) use ($search) {
+                    $subSubQ->where('USUARIO_NOMBRE', 'like', "%{$search}%")
                         ->orWhere('USUARIO_APELLIDOS', 'like', "%{$search}%")
                         ->orWhere(\DB::raw('CONCAT(USUARIO_NOMBRE, " ", USUARIO_APELLIDOS)'), 'like', "%{$search}%");
                 })
-                // Búsqueda por nombre de institución
-                ->orWhereHas('institucion', function($subQ) use ($search) {
-                    $subQ->where('INSTITUCION_NOMBRE', 'like', "%{$search}%");
+                ->orWhereHas('institucion', function($subSubQ) use ($search) {
+                    $subSubQ->where('INSTITUCION_NOMBRE', 'like', "%{$search}%");
                 });
             });
         }
         
-        // BÚSQUEDA AVANZADA - Campos específicos
-        
-        // Filtros de paciente
+        // Aplicar todos los demás filtros...
         if ($request->filled('paciente_iniciales')) {
-            $query->where('MUESTRA_INICIALES', 'like', "%{$request->get('paciente_iniciales')}%");
+            $q->where('MUESTRA_INICIALES', 'like', "%{$request->get('paciente_iniciales')}%");
         }
         
         if ($request->filled('paciente_nombre')) {
-            $query->whereHas('paciente', function($q) use ($request) {
-                $q->where('USUARIO_NOMBRE', 'like', "%{$request->get('paciente_nombre')}%");
+            $q->whereHas('paciente', function($subQ) use ($request) {
+                $subQ->where('USUARIO_NOMBRE', 'like', "%{$request->get('paciente_nombre')}%");
             });
         }
         
         if ($request->filled('paciente_apellidos')) {
-            $query->whereHas('paciente', function($q) use ($request) {
-                $q->where('USUARIO_APELLIDOS', 'like', "%{$request->get('paciente_apellidos')}%");
+            $q->whereHas('paciente', function($subQ) use ($request) {
+                $subQ->where('USUARIO_APELLIDOS', 'like', "%{$request->get('paciente_apellidos')}%");
             });
         }
         
-        // Filtros de médico
         if ($request->filled('medico_nombre')) {
-            $query->whereHas('medico', function($q) use ($request) {
-                $q->where('USUARIO_NOMBRE', 'like', "%{$request->get('medico_nombre')}%");
+            $q->whereHas('medico', function($subQ) use ($request) {
+                $subQ->where('USUARIO_NOMBRE', 'like', "%{$request->get('medico_nombre')}%");
             });
         }
         
         if ($request->filled('medico_apellidos')) {
-            $query->whereHas('medico', function($q) use ($request) {
-                $q->where('USUARIO_APELLIDOS', 'like', "%{$request->get('medico_apellidos')}%");
+            $q->whereHas('medico', function($subQ) use ($request) {
+                $subQ->where('USUARIO_APELLIDOS', 'like', "%{$request->get('medico_apellidos')}%");
             });
         }
         
-        // Filtro de institución
         if ($request->filled('institucion_id')) {
-            $query->where('ID_INSTITUCION', $request->get('institucion_id'));
+            $q->where('ID_INSTITUCION', $request->get('institucion_id'));
         }
         
-        // Filtros de estudio
         if ($request->filled('clave_interna')) {
-            $query->where('CLAVE_INTERNA', 'like', "%{$request->get('clave_interna')}%");
+            $q->where('CLAVE_INTERNA', 'like', "%{$request->get('clave_interna')}%");
         }
         
         if ($request->filled('folio_merck')) {
-            $query->where('FOLIO_MERCK', 'like', "%{$request->get('folio_merck')}%");
+            $q->where('FOLIO_MERCK', 'like', "%{$request->get('folio_merck')}%");
         }
         
         if ($request->filled('muestra_clave')) {
-            $query->where('MUESTRA_CLAVE', 'like', "%{$request->get('muestra_clave')}%");
+            $q->where('MUESTRA_CLAVE', 'like', "%{$request->get('muestra_clave')}%");
         }
         
         if ($request->filled('muestra_folio_sobre')) {
-            $query->where('MUESTRA_FOLIO_SOBRE', 'like', "%{$request->get('muestra_folio_sobre')}%");
+            $q->where('MUESTRA_FOLIO_SOBRE', 'like', "%{$request->get('muestra_folio_sobre')}%");
         }
         
         if ($request->filled('muestra_folio_kit_bl')) {
-            $query->where('MUESTRA_FOLIO_KIT_BL', 'like', "%{$request->get('muestra_folio_kit_bl')}%");
+            $q->where('MUESTRA_FOLIO_KIT_BL', 'like', "%{$request->get('muestra_folio_kit_bl')}%");
         }
         
-        // Filtros adicionales opcionales (mantener los existentes)
         if ($request->filled('estado')) {
-            $query->where('ESTUDIO_ESTADO', $request->get('estado'));
+            $q->where('ESTUDIO_ESTADO', $request->get('estado'));
         }
         
         if ($request->filled('fecha_desde')) {
-            $query->where('FECHA_SOLICITUD_RECOLECCION', '>=', $request->get('fecha_desde'));
+            $q->where('FECHA_SOLICITUD_RECOLECCION', '>=', $request->get('fecha_desde'));
         }
         
         if ($request->filled('fecha_hasta')) {
-            $query->where('FECHA_SOLICITUD_RECOLECCION', '<=', $request->get('fecha_hasta'));
+            $q->where('FECHA_SOLICITUD_RECOLECCION', '<=', $request->get('fecha_hasta'));
         }
-        
-        // Ordenamiento por defecto
-        $query->orderBy('ANIO', 'desc')
-            ->orderBy('SERIADO', 'desc');
-        
-        $estudios = $query->paginate(20)->withQueryString();
 
-        $estudios->getCollection()->transform(function ($estudio) {
-            $estudio->estadisticas_envios = [
-                'total' => $estudio->enviosCorreos->count(),
-                'enviados' => $estudio->enviosCorreos->where('ESTADO', 'enviado')->count(),
-                'leidos' => $estudio->enviosCorreos->where('ESTADO', 'leido')->count(),
-                'porcentaje_lectura' => $estudio->enviosCorreos->count() > 0 
-                    ? round(($estudio->enviosCorreos->where('ESTADO', 'leido')->count() / $estudio->enviosCorreos->count()) * 100)
-                    : 0
-            ];
-            return $estudio;
-        });
+        // NOTA: NO incluimos aquí los filtros de tarjetas porque son específicos para las estadísticas,
+        // no para el cálculo base de datos
         
-        // Datos para filtros
-        $estados = Estudio::getEstados() ?? [];
+        return $q;
+    };
+
+    // Calcular estadísticas
+    $estadisticas = [
+        // 1. Total de estudios (con filtros aplicados)
+        'total_estudios' => $queryBaseParaEstadisticas()->count(),
         
-        // NUEVO: Obtener instituciones para el select
-        $instituciones = \App\Models\Institucion::select('ID_INSTITUCION', 'INSTITUCION_NOMBRE')
-            ->orderBy('INSTITUCION_NOMBRE')
-            ->get();
+        // 2. Detenidos en recepción (>24 horas desde FECHA_RECEPCION)
+        'detenidos_recepcion' => $queryBaseParaEstadisticas()
+            ->where('ESTUDIO_ESTADO', 'Solicitud Recolección')
+            ->where('FECHA_RECEPCION', '!=', null)
+            ->where('FECHA_RECEPCION', '!=', '0000-00-00 00:00:00')
+            ->where('FECHA_RECEPCION', '<', now()->subDay())
+            ->count(),
         
-        return Inertia::render('estudios/index', [
-            'estudios' => $estudios,
-            'filters' => $request->only([
-                'search', 'estado', 'fecha_desde', 'fecha_hasta', 'prefijo',
-                // NUEVO: Filtros avanzados
-                'paciente_iniciales', 'paciente_nombre', 'paciente_apellidos',
-                'medico_nombre', 'medico_apellidos',
-                'institucion_id',
-                'clave_interna', 'folio_merck', 'muestra_clave', 
-                'muestra_folio_sobre', 'muestra_folio_kit_bl'
-            ]),
-            'estados' => $estados,
-            'instituciones' => $instituciones, // NUEVO: Lista de instituciones
-            'prefijo' => $prefijo,
-        ]);
-    }
+        // 3. Detenidos en laboratorio - Biopsia Líquida
+        'detenidos_lab_liquida' => $queryBaseParaEstadisticas()
+            ->where('ESTUDIO_ESTADO', 'Recepción Laboratorio')
+            ->where('MUESTRA_TIPO_ESTUDIO', 'Biopsia Líquida')
+            ->where('FECHA_RECEPCION_LABORATORIO', '!=', null)
+            ->where('FECHA_RECEPCION_LABORATORIO', '!=', '0000-00-00 00:00:00')
+            ->where('FECHA_RECEPCION_LABORATORIO', '<', now()->subWeekdays(3))
+            ->count(),
+        
+        // 4. Detenidos en laboratorio - Biopsia Sólida
+        'detenidos_lab_solida' => $queryBaseParaEstadisticas()
+            ->where('ESTUDIO_ESTADO', 'Recepción Laboratorio')
+            ->where('MUESTRA_TIPO_ESTUDIO', 'Biopsia Sólida')
+            ->where('FECHA_RECEPCION_LABORATORIO', '!=', null)
+            ->where('FECHA_RECEPCION_LABORATORIO', '!=', '0000-00-00 00:00:00')
+            ->where('FECHA_RECEPCION_LABORATORIO', '<', now()->subWeekdays(5))
+            ->count(),
+        
+        // 5. Falta enviar resultados (>1 día hábil desde FECHA_OBTENCION_RESULTADOS)
+        'falta_enviar_resultados' => $queryBaseParaEstadisticas()
+            ->where('ESTUDIO_ESTADO', 'Resultados Completos')
+            ->where('FECHA_OBTENCION_RESULTADOS', '!=', null)
+            ->where('FECHA_OBTENCION_RESULTADOS', '!=', '0000-00-00 00:00:00')
+            ->where('FECHA_OBTENCION_RESULTADOS', '<', now()->subWeekday())
+            ->count(),
+    ];
+
+    // Continuar con el código original para la consulta paginada...
+    $estudios = $query->orderBy('ANIO', 'desc')
+        ->orderBy('SERIADO', 'desc')
+        ->paginate(20)->withQueryString();
+
+    $estudios->getCollection()->transform(function ($estudio) {
+        $estudio->estadisticas_envios = [
+            'total' => $estudio->enviosCorreos->count(),
+            'enviados' => $estudio->enviosCorreos->where('ESTADO', 'enviado')->count(),
+            'leidos' => $estudio->enviosCorreos->where('ESTADO', 'leido')->count(),
+            'porcentaje_lectura' => $estudio->enviosCorreos->count() > 0 
+                ? round(($estudio->enviosCorreos->where('ESTADO', 'leido')->count() / $estudio->enviosCorreos->count()) * 100)
+                : 0
+        ];
+        return $estudio;
+    });
+    
+    // Datos para filtros
+    $estados = Estudio::getEstados() ?? [];
+    $instituciones = \App\Models\Institucion::select('ID_INSTITUCION', 'INSTITUCION_NOMBRE')
+        ->orderBy('INSTITUCION_NOMBRE')
+        ->get();
+    
+    return Inertia::render('estudios/index', [
+        'estudios' => $estudios,
+        'estadisticas' => $estadisticas,
+        'filters' => $request->only([
+            'search', 'estado', 'fecha_desde', 'fecha_hasta', 'prefijo',
+            'paciente_iniciales', 'paciente_nombre', 'paciente_apellidos',
+            'medico_nombre', 'medico_apellidos',
+            'institucion_id',
+            'clave_interna', 'folio_merck', 'muestra_clave', 
+            'muestra_folio_sobre', 'muestra_folio_kit_bl',
+            'detenidos_recepcion', 'detenidos_lab_liquida', 'detenidos_lab_solida', 'falta_enviar_resultados'
+        ]),
+        'estados' => $estados,
+        'instituciones' => $instituciones,
+        'prefijo' => $prefijo,
+    ]);
+}
 
     /**
      * Show the form for creating a new resource.

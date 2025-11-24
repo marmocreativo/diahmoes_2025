@@ -55,6 +55,12 @@ interface ComparativaTipos {
     tipos_estudio: string[];
 }
 
+interface ComparativaMutacion {
+    mutado: number;
+    no_mutado: number;
+    invalido: number;
+}
+
 interface Comparacion3Periodos {
     actual: number;
     hace_1_anio: number;
@@ -90,6 +96,7 @@ interface Datos {
         fecha_completa: string;
     }>;
     comparativa_tipos: ComparativaTipos;
+    comparativa_mutacion: ComparativaMutacion;
     comparacion_3_periodos: Comparacion3Periodos;
     predicciones: Predicciones;
 }
@@ -322,147 +329,229 @@ export default function Dashboard() {
                         </CardContent>
                     </Card>
 
-                    {/* Métricas Principales y Tipo de Estudio - Segunda fila */}
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                        {/* Total de Estudios */}
-                        <Card className="border-2 border-blue-100">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                                    <Users className="h-4 w-4 text-blue-600" />
-                                    Total de Estudios
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <HelpCircle className="h-3 w-3 text-gray-400" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Número total de estudios en el período seleccionado</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-5xl font-bold text-blue-600">
-                                    {datos.metricas_principales.total_estudios}
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">
-                                    Estudios realizados
-                                </p>
-                            </CardContent>
-                        </Card>
-
-                        {/* Estudios Pendientes */}
-                        <Card className="border-2 border-orange-100">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                                    <Clock className="h-4 w-4 text-orange-600" />
-                                    Pendientes
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <HelpCircle className="h-3 w-3 text-gray-400" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Estudios que no tienen estado "Resultados Enviados"</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-5xl font-bold text-orange-600">
-                                    {datos.metricas_principales.pendientes}
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">
-                                    En proceso
-                                </p>
-                            </CardContent>
-                        </Card>
-
-                        {/* Estudios Completados */}
-                        <Card className="border-2 border-green-100">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                                    <CheckCircle className="h-4 w-4 text-green-600" />
-                                    Completados
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <HelpCircle className="h-3 w-3 text-gray-400" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Estudios con resultados enviados</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-5xl font-bold text-green-600">
-                                    {datos.metricas_principales.completados}
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">
-                                    Finalizados
-                                </p>
-                            </CardContent>
-                        </Card>
-
-                        {/* Tipo de Estudio - Gráfica Pie */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2 text-lg">
-                                    <Activity className="h-5 w-5" />
-                                    Tipo de Estudio
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <HelpCircle className="h-4 w-4 text-gray-400" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Distribución de estudios por tipo</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-4">
-                                    {/* Barra única con múltiples segmentos */}
-                                    <div className="w-full bg-gray-200 rounded-full h-8 flex overflow-hidden">
-                                        {datos.graficas_pie.tipo_estudio.map((tipo, index) => {
-                                            const porcentaje = (tipo.value / datos.metricas_principales.total_estudios) * 100;
-                                            return (
-                                                <div
-                                                    key={index}
-                                                    className="h-full flex items-center justify-center text-white text-xs font-medium"
-                                                    style={{
-                                                        width: `${porcentaje}%`,
-                                                        backgroundColor: pieColors[index % pieColors.length]
-                                                    }}
-                                                    title={`${tipo.name}: ${tipo.value} (${Math.round(porcentaje)}%)`}
-                                                >
-                                                    {porcentaje > 10 && `${Math.round(porcentaje)}%`}
-                                                </div>
-                                            );
-                                        })}
+                    {/* Métricas Principales y Gráficas - Segunda fila con layout mejorado */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        {/* Métricas principales en columnas más pequeñas */}
+                        <div className="lg:col-span-2">
+                            <Card className="border-2 border-blue-100 h-full">
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm font-medium flex items-center gap-1">
+                                        <Users className="h-4 w-4 text-blue-600" />
+                                        Total
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <HelpCircle className="h-3 w-3 text-gray-400" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Total de estudios en el período</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-3xl font-bold text-blue-600">
+                                        {datos.metricas_principales.total_estudios}
                                     </div>
-                                    
-                                    {/* Leyenda debajo */}
-                                    <div className="space-y-2">
-                                        {datos.graficas_pie.tipo_estudio.map((tipo, index) => {
-                                            const porcentaje = (tipo.value / datos.metricas_principales.total_estudios) * 100;
-                                            return (
-                                                <div key={index} className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-2">
-                                                        <div 
-                                                            className="w-3 h-3 rounded-full"
-                                                            style={{ backgroundColor: pieColors[index % pieColors.length] }}
-                                                        />
-                                                        <span className="text-sm font-medium">{tipo.name}</span>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Estudios
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        <div className="lg:col-span-2">
+                            <Card className="border-2 border-orange-100 h-full">
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm font-medium flex items-center gap-1">
+                                        <Clock className="h-4 w-4 text-orange-600" />
+                                        En Laboratorio
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <HelpCircle className="h-3 w-3 text-gray-400" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Estudios en proceso</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-3xl font-bold text-orange-600">
+                                        {datos.metricas_principales.pendientes}
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        En proceso
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        <div className="lg:col-span-2">
+                            <Card className="border-2 border-green-100 h-full">
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm font-medium flex items-center gap-1">
+                                        <CheckCircle className="h-4 w-4 text-green-600" />
+                                        Resultados Enviados
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <HelpCircle className="h-3 w-3 text-gray-400" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Estudios finalizados</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-3xl font-bold text-green-600">
+                                        {datos.metricas_principales.completados}
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Finalizados
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Tipo de Estudio - Card más grande */}
+                        <div className="lg:col-span-3">
+                            <Card className="h-full">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-lg">
+                                        <Activity className="h-5 w-5" />
+                                        Tipo de Estudio
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <HelpCircle className="h-4 w-4 text-gray-400" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Distribución de estudios por tipo</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    {/* Contenido existente de tipo de estudio */}
+                                    <div className="space-y-4">
+                                        <div className="w-full bg-gray-200 rounded-full h-8 flex overflow-hidden">
+                                            {datos.graficas_pie.tipo_estudio.map((tipo, index) => {
+                                                const porcentaje = (tipo.value / datos.metricas_principales.total_estudios) * 100;
+                                                return (
+                                                    <div
+                                                        key={index}
+                                                        className="h-full flex items-center justify-center text-white text-xs font-medium"
+                                                        style={{
+                                                            width: `${porcentaje}%`,
+                                                            backgroundColor: pieColors[index % pieColors.length]
+                                                        }}
+                                                        title={`${tipo.name}: ${tipo.value} (${Math.round(porcentaje)}%)`}
+                                                    >
+                                                        {porcentaje > 10 && `${Math.round(porcentaje)}%`}
                                                     </div>
-                                                    <span className="text-sm font-bold">
-                                                        {tipo.value} ({Math.round(porcentaje)}%)
-                                                    </span>
-                                                </div>
-                                            );
-                                        })}
+                                                );
+                                            })}
+                                        </div>
+                                        
+                                        <div className="space-y-2">
+                                            {datos.graficas_pie.tipo_estudio.map((tipo, index) => {
+                                                const porcentaje = (tipo.value / datos.metricas_principales.total_estudios) * 100;
+                                                return (
+                                                    <div key={index} className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2">
+                                                            <div 
+                                                                className="w-3 h-3 rounded-full"
+                                                                style={{ backgroundColor: pieColors[index % pieColors.length] }}
+                                                            />
+                                                            <span className="text-sm font-medium">{tipo.name}</span>
+                                                        </div>
+                                                        <span className="text-sm font-bold">
+                                                            {tipo.value} ({Math.round(porcentaje)}%)
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Estado de Mutación - Card más grande */}
+                        <div className="lg:col-span-3">
+                            <Card className="h-full">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-lg">
+                                        <TestTube className="h-5 w-5" />
+                                        Estado de Mutación
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <HelpCircle className="h-4 w-4 text-gray-400" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Distribución por estado de mutación (KRAS, NRAS, BRAF)</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-4">
+                                        {/* Los datos ahora vienen directamente como totales */}
+                                        {(() => {
+                                            const total = datos.comparativa_mutacion.mutado + datos.comparativa_mutacion.no_mutado + datos.comparativa_mutacion.invalido;
+                                            
+                                            const datosGrafica = [
+                                                { name: 'Mutado', value: datos.comparativa_mutacion.mutado, color: '#EF4444' },
+                                                { name: 'No Mutado', value: datos.comparativa_mutacion.no_mutado, color: '#10B981' },
+                                                { name: 'Inválido/Sin Datos', value: datos.comparativa_mutacion.invalido, color: '#6B7280' }
+                                            ].filter(item => item.value > 0);
+
+                                            return (
+                                                <>
+                                                    <div className="w-full bg-gray-200 rounded-full h-8 flex overflow-hidden">
+                                                        {datosGrafica.map((item, index) => {
+                                                            const porcentaje = total > 0 ? (item.value / total) * 100 : 0;
+                                                            return (
+                                                                <div
+                                                                    key={index}
+                                                                    className="h-full flex items-center justify-center text-white text-xs font-medium"
+                                                                    style={{
+                                                                        width: `${porcentaje}%`,
+                                                                        backgroundColor: item.color
+                                                                    }}
+                                                                    title={`${item.name}: ${item.value} (${Math.round(porcentaje)}%)`}
+                                                                >
+                                                                    {porcentaje > 10 && `${Math.round(porcentaje)}%`}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                    
+                                                    <div className="space-y-2">
+                                                        {datosGrafica.map((item, index) => {
+                                                            const porcentaje = total > 0 ? (item.value / total) * 100 : 0;
+                                                            return (
+                                                                <div key={index} className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div 
+                                                                            className="w-3 h-3 rounded-full"
+                                                                            style={{ backgroundColor: item.color }}
+                                                                        />
+                                                                        <span className="text-sm font-medium">{item.name}</span>
+                                                                    </div>
+                                                                    <span className="text-sm font-bold">
+                                                                        {item.value} ({Math.round(porcentaje)}%)
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </>
+                                            );
+                                        })()}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
                     </div>
 
                     {/* Top 10 - Tercera fila */}

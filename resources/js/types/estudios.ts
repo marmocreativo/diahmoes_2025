@@ -223,6 +223,14 @@ export interface EstudioIndexProps extends SharedData {
     estados: Record<string, string>;
     prefijo: string;
     tiposEstudio: Record<string, string>;
+    // NUEVO: Estadísticas separadas
+    estadisticas: {
+        total_estudios: number;
+        detenidos_recepcion: number;
+        detenidos_lab_liquida: number;
+        detenidos_lab_solida: number;
+        falta_enviar_resultados: number;
+    };
 }
 
 export interface EstudioCreateProps extends SharedData {

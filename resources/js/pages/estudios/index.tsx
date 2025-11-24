@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Search, X, Filter, Eye, Edit, Download, ArrowRight, Calendar, FileText, TestTube, Microscope, Plus, MessageCircle, Printer, Trash2, Mail, CheckCircle, Clock, ChevronDown, ChevronUp, Monitor, Smartphone, Settings, Wrench, AlertTriangle } from 'lucide-react';
@@ -7,7 +7,7 @@ import WhatsAppDialog from '@/components/WhatsAppDialog';
 
 export default function EstudiosIndex() {
     // Tipar correctamente las props
-    const { estudios, filters, estados, prefijo, instituciones } = usePage<EstudioIndexProps>().props;
+    const { estudios, filters, estados, prefijo, instituciones, estadisticas } = usePage<EstudioIndexProps>().props;
     
     // Estados para el buscador
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
@@ -59,6 +59,92 @@ export default function EstudiosIndex() {
     const [deletingId, setDeletingId] = useState<number | null>(null);
     // Estado que indica busqueda
     const [isSearching, setIsSearching] = useState(false);
+
+    // Función para verificar si una fecha es de días hábiles atrás
+    const esDiaHabilAtras = (fecha: string, diasHabiles: number) => {
+        if (!fecha || fecha === '0000-00-00 00:00:00') return false;
+        
+        const fechaEstudio = new Date(fecha.split('T')[0] + 'T00:00:00');
+        const ahora = new Date();
+        
+        let diasContados = 0;
+        let fechaTemp = new Date(fechaEstudio);
+        
+        while (fechaTemp < ahora && diasContados < diasHabiles) {
+            fechaTemp.setDate(fechaTemp.getDate() + 1);
+            const diaSemana = fechaTemp.getDay();
+            if (diaSemana >= 1 && diaSemana <= 5) { // Lunes a Viernes
+                diasContados++;
+            }
+        }
+        
+        return diasContados >= diasHabiles;
+    };
+
+    // Función para verificar si han pasado más de 24 horas
+    const hanPasado24Horas = (fecha: string) => {
+        if (!fecha || fecha === '0000-00-00 00:00:00') return false;
+        
+        const fechaEstudio = new Date(fecha);
+        const ahora = new Date();
+        const diferenciaHoras = (ahora.getTime() - fechaEstudio.getTime()) / (1000 * 60 * 60);
+        
+        return diferenciaHoras > 24;
+    };
+
+    // Función para verificar si han pasado más de 1 día hábil
+    const hanPasadoUnDiaHabil = (fecha: string) => {
+        return esDiaHabilAtras(fecha, 1);
+    };
+
+    // Función para obtener alertas de un estudio
+    const obtenerAlertas = (estudio: any) => {
+        const alertas = [];
+        
+        // Alerta 1: Solicitud Recolección + 24 horas en FECHA_RECEPCION
+        if (estudio.ESTUDIO_ESTADO === 'Solicitud Recolección' && 
+            hanPasado24Horas(estudio.FECHA_RECEPCION)) {
+            alertas.push({
+                tipo: 'recepcion',
+                mensaje: '>24h en recepción',
+                color: 'bg-orange-100 text-orange-800 border-orange-300'
+            });
+        }
+        
+        // Alerta 2: Recepción Laboratorio + Biopsia Líquida + 3 días hábiles
+        if (estudio.ESTUDIO_ESTADO === 'Recepción Laboratorio' && 
+            estudio.MUESTRA_TIPO_ESTUDIO === 'Biopsia Líquida' && 
+            esDiaHabilAtras(estudio.FECHA_RECEPCION_LABORATORIO, 3)) {
+            alertas.push({
+                tipo: 'laboratorio_liquida',
+                mensaje: '>3d lab líquida',
+                color: 'bg-blue-100 text-blue-800 border-blue-300'
+            });
+        }
+        
+        // Alerta 3: Recepción Laboratorio + Biopsia Sólida + 5 días hábiles
+        if (estudio.ESTUDIO_ESTADO === 'Recepción Laboratorio' && 
+            estudio.MUESTRA_TIPO_ESTUDIO === 'Biopsia Sólida' && 
+            esDiaHabilAtras(estudio.FECHA_RECEPCION_LABORATORIO, 5)) {
+            alertas.push({
+                tipo: 'laboratorio_solida',
+                mensaje: '>5d lab sólida',
+                color: 'bg-purple-100 text-purple-800 border-purple-300'
+            });
+        }
+        
+        // Alerta 4: Resultados Completos + 1 día hábil
+        if (estudio.ESTUDIO_ESTADO === 'Resultados Completos' && 
+            hanPasadoUnDiaHabil(estudio.FECHA_OBTENCION_RESULTADOS)) {
+            alertas.push({
+                tipo: 'envio_pendiente',
+                mensaje: '>1d sin enviar',
+                color: 'bg-yellow-100 text-yellow-800 border-yellow-300'
+            });
+        }
+        
+        return alertas;
+    };
 
     // Función para generar años disponibles (últimos 10 años)
     const getAvailableYears = () => {
@@ -150,108 +236,129 @@ export default function EstudiosIndex() {
         }
     };
 
-    // Componente para el dropdown de fechas
+    // Componente para el dropdown de fechas (ACTUALIZADO)
     const FechasDropdown = ({ estudio }: { estudio: any }) => {
-    const fechas = [
-        {
-            label: 'Solicitud Recolección',
-            fecha: estudio.FECHA_SOLICITUD_RECOLECCION,
-            icon: '📅',
-            color: 'text-orange-600'
-        },
-        {
-            label: 'Recepción',
-            fecha: estudio.FECHA_RECEPCION,
-            icon: '📦',
-            color: 'text-blue-600'
-        },
-        {
-            label: 'Recepción Laboratorio',
-            fecha: estudio.FECHA_RECEPCION_LABORATORIO,
-            icon: '🧪',
-            color: 'text-purple-600'
-        },
-        {
-            label: 'Obtención Resultados',
-            fecha: estudio.FECHA_OBTENCION_RESULTADOS,
-            icon: '📊',
-            color: 'text-green-600'
-        },
-        {
-            label: 'Resultados Enviados',
-            fecha: estudio.FECHA_RESULTADOS_CORREO,
-            icon: '📧',
-            color: 'text-teal-600'
-        }
-    ];
+        const fechas = [
+            {
+                label: 'Solicitud Recolección',
+                fecha: estudio.FECHA_SOLICITUD_RECOLECCION,
+                icon: '📅',
+                color: 'text-orange-600'
+            },
+            {
+                label: 'Recepción',
+                fecha: estudio.FECHA_RECEPCION,
+                icon: '📦',
+                color: 'text-blue-600'
+            },
+            {
+                label: 'Recepción Laboratorio',
+                fecha: estudio.FECHA_RECEPCION_LABORATORIO,
+                icon: '🧪',
+                color: 'text-purple-600'
+            },
+            {
+                label: 'Obtención Resultados',
+                fecha: estudio.FECHA_OBTENCION_RESULTADOS,
+                icon: '📊',
+                color: 'text-green-600'
+            },
+            {
+                label: 'Resultados Enviados',
+                fecha: estudio.FECHA_RESULTADOS_CORREO,
+                icon: '📧',
+                color: 'text-teal-600'
+            }
+        ];
 
-    return (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-20">
-            <div className="p-3">
-                <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
-                    <h3 className="text-sm font-semibold text-gray-800">
-                        Historial de Fechas
-                    </h3>
-                    <span className="text-xs text-gray-500 font-mono">
-                        {estudio.CLAVE_INTERNA}
-                    </span>
-                </div>
+        // Detectar si debe aparecer por arriba o por abajo
+        const [showAbove, setShowAbove] = useState(false);
+        const dropdownRef = useRef<HTMLDivElement>(null);
+
+        useEffect(() => {
+            if (dropdownRef.current) {
+                const rect = dropdownRef.current.getBoundingClientRect();
+                const viewportHeight = window.innerHeight;
+                const spaceBelow = viewportHeight - rect.top;
+                const dropdownHeight = 320; // Altura aproximada del dropdown
                 
-                <div className="space-y-2">
-                    {fechas.map((item, index) => {
-                        const { fecha, hora } = formatearFechaHora(item.fecha);
-                        const tieneValor = item.fecha && item.fecha !== '0000-00-00 00:00:00';
-                        
-                        return (
-                            <div 
-                                key={index}
-                                className={`flex items-center justify-between py-2 px-3 rounded-md transition-colors ${
-                                    tieneValor ? 'bg-gray-50 hover:bg-gray-100' : 'bg-gray-25 opacity-60'
-                                }`}
-                            >
-                                <div className="flex items-center space-x-2 flex-1">
-                                    <span className="text-sm">{item.icon}</span>
-                                    <div className="flex-1">
-                                        <div className={`text-xs font-medium ${item.color}`}>
-                                            {item.label}
+                // Si no hay suficiente espacio abajo, mostrar arriba
+                setShowAbove(spaceBelow < dropdownHeight);
+            }
+        }, []);
+
+        return (
+            <div 
+                ref={dropdownRef}
+                className={`absolute right-0 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-20 ${
+                    showAbove ? 'bottom-full mb-2' : 'top-full mt-2'
+                }`}
+            >
+                <div className="p-3">
+                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
+                        <h3 className="text-sm font-semibold text-gray-800">
+                            Historial de Fechas
+                        </h3>
+                        <span className="text-xs text-gray-500 font-mono">
+                            {estudio.CLAVE_INTERNA}
+                        </span>
+                    </div>
+                    
+                    <div className="space-y-2">
+                        {fechas.map((item, index) => {
+                            const { fecha, hora } = formatearFechaHora(item.fecha);
+                            const tieneValor = item.fecha && item.fecha !== '0000-00-00 00:00:00';
+                            
+                            return (
+                                <div 
+                                    key={index}
+                                    className={`flex items-center justify-between py-2 px-3 rounded-md transition-colors ${
+                                        tieneValor ? 'bg-gray-50 hover:bg-gray-100' : 'bg-gray-25 opacity-60'
+                                    }`}
+                                >
+                                    <div className="flex items-center space-x-2 flex-1">
+                                        <span className="text-sm">{item.icon}</span>
+                                        <div className="flex-1">
+                                            <div className={`text-xs font-medium ${item.color}`}>
+                                                {item.label}
+                                            </div>
+                                            {tieneValor ? (
+                                                <div className="text-xs text-gray-600">
+                                                    {fecha} • {hora}
+                                                </div>
+                                            ) : (
+                                                <div className="text-xs text-gray-400 italic">
+                                                    Pendiente
+                                                </div>
+                                            )}
                                         </div>
-                                        {tieneValor ? (
-                                            <div className="text-xs text-gray-600">
-                                                {fecha} • {hora}
-                                            </div>
-                                        ) : (
-                                            <div className="text-xs text-gray-400 italic">
-                                                Pendiente
-                                            </div>
-                                        )}
                                     </div>
+                                    
+                                    {tieneValor && (
+                                        <div className="text-green-500">
+                                            <CheckCircle className="h-4 w-4" />
+                                        </div>
+                                    )}
                                 </div>
-                                
-                                {tieneValor && (
-                                    <div className="text-green-500">
-                                        <CheckCircle className="h-4 w-4" />
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-                
-                {/* Footer con estadísticas */}
-                <div className="mt-3 pt-2 border-t border-gray-100">
-                    <div className="flex justify-between text-xs text-gray-500">
-                        <span>
-                            Completado: {fechas.filter(f => f.fecha && f.fecha !== '0000-00-00 00:00:00').length}/5
-                        </span>
-                        <span>
-                            {estudio.ESTUDIO_ESTADO || 'Sin estado'}
-                        </span>
+                            );
+                        })}
+                    </div>
+                    
+                    {/* Footer con estadísticas */}
+                    <div className="mt-3 pt-2 border-t border-gray-100">
+                        <div className="flex justify-between text-xs text-gray-500">
+                            <span>
+                                Completado: {fechas.filter(f => f.fecha && f.fecha !== '0000-00-00 00:00:00').length}/5
+                            </span>
+                            <span>
+                                {estudio.ESTUDIO_ESTADO || 'Sin estado'}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    );
-};
+        );
+    };
 
     // Función para reparar estudios
     const handleRepararEstudios = async () => {
@@ -772,7 +879,7 @@ export default function EstudiosIndex() {
         <AppLayout>
             <Head title="Estudios - DIAHMOES" />
             
-            <div className="flex h-full flex-1 flex-col gap-6 p-6">
+            <div className="flex flex-1 flex-col gap-6 p-6" style={{height: 'calc(100vh - 64px)', overflow: 'auto'}}>
                 {/* Header */}
                 <div className="bg-gradient-to-r from-[#189BAF] to-[#157a8c] rounded-2xl p-6 text-white">
                     <div className="flex items-center justify-between">
@@ -910,6 +1017,150 @@ export default function EstudiosIndex() {
                             </Link>
                         </div>
                     </div>
+                </div>
+
+                {/* Tarjetas de Estadísticas Clickeables */}
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+                    {/* Total de Estudios */}
+                    <button
+                        onClick={() => {
+                            // Limpiar TODOS los filtros y solo mantener prefijo
+                            router.get('/estudios', { prefijo });
+                        }}
+                        className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 hover:shadow-xl hover:border-blue-300 transition-all duration-200 text-left"
+                    >
+                        <div className="flex items-center">
+                            <div className="flex-shrink-0">
+                                <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                                    <FileText className="h-5 w-5 text-white" />
+                                </div>
+                            </div>
+                            <div className="ml-3">
+                                <div className="text-2xl font-bold text-gray-900">
+                                    {estadisticas?.total_estudios || 0}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                    Estudios Totales
+                                </div>
+                            </div>
+                        </div>
+                    </button>
+
+                    {/* Detenidos en Recepción */}
+                    <button
+                        onClick={() => {
+                            // Limpiar TODOS los filtros y solo aplicar el específico
+                            router.get('/estudios', { 
+                                prefijo,
+                                detenidos_recepcion: 'true'
+                            });
+                        }}
+                        className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 hover:shadow-xl hover:border-orange-300 transition-all duration-200 text-left"
+                    >
+                        <div className="flex items-center">
+                            <div className="flex-shrink-0">
+                                <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                                    <AlertTriangle className="h-5 w-5 text-white" />
+                                </div>
+                            </div>
+                            <div className="ml-3">
+                                <div className="text-2xl font-bold text-gray-900">
+                                    {estadisticas?.detenidos_recepcion || 0}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                    Detenidos Recepción
+                                    <div className="text-xs text-orange-600">&gt;24 horas</div>
+                                </div>
+                            </div>
+                        </div>
+                    </button>
+
+                    {/* Detenidos Lab - Biopsia Líquida */}
+                    <button
+                        onClick={() => {
+                            // Limpiar TODOS los filtros y solo aplicar el específico
+                            router.get('/estudios', { 
+                                prefijo,
+                                detenidos_lab_liquida: 'true'
+                            });
+                        }}
+                        className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 hover:shadow-xl hover:border-blue-300 transition-all duration-200 text-left"
+                    >
+                        <div className="flex items-center">
+                            <div className="flex-shrink-0">
+                                <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                                    <TestTube className="h-5 w-5 text-white" />
+                                </div>
+                            </div>
+                            <div className="ml-3">
+                                <div className="text-2xl font-bold text-gray-900">
+                                    {estadisticas?.detenidos_lab_liquida || 0}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                    Lab Biopsia Líquida
+                                    <div className="text-xs text-blue-600">&gt;3 días hábiles</div>
+                                </div>
+                            </div>
+                        </div>
+                    </button>
+
+                    {/* Detenidos Lab - Biopsia Sólida */}
+                    <button
+                        onClick={() => {
+                            // Limpiar TODOS los filtros y solo aplicar el específico
+                            router.get('/estudios', { 
+                                prefijo,
+                                detenidos_lab_solida: 'true'
+                            });
+                        }}
+                        className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 hover:shadow-xl hover:border-purple-300 transition-all duration-200 text-left"
+                    >
+                        <div className="flex items-center">
+                            <div className="flex-shrink-0">
+                                <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
+                                    <Microscope className="h-5 w-5 text-white" />
+                                </div>
+                            </div>
+                            <div className="ml-3">
+                                <div className="text-2xl font-bold text-gray-900">
+                                    {estadisticas?.detenidos_lab_solida || 0}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                    Lab Biopsia Sólida
+                                    <div className="text-xs text-purple-600">&gt;5 días hábiles</div>
+                                </div>
+                            </div>
+                        </div>
+                    </button>
+
+                    {/* Falta Enviar Resultados */}
+                    <button
+                        onClick={() => {
+                            // Limpiar TODOS los filtros y solo aplicar el específico
+                            router.get('/estudios', { 
+                                prefijo,
+                                falta_enviar_resultados: 'true'
+                            });
+                        }}
+                        className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 hover:shadow-xl hover:border-green-300 transition-all duration-200 text-left"
+                    >
+                        <div className="flex items-center">
+                            <div className="flex-shrink-0">
+                                <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                                    <Mail className="h-5 w-5 text-white" />
+                                </div>
+                            </div>
+                            <div className="ml-3">
+                                <div className="text-2xl font-bold text-gray-900">
+                                    {estadisticas?.falta_enviar_resultados || 0}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                    Falta Enviar
+                                    <div className="text-xs text-green-600">&gt;1 día hábil</div>
+                                </div>
+                            </div>
+                        </div>
+                    </button>
                 </div>
 
                 {/* Buscador Principal - Responsive */}
@@ -1182,19 +1433,7 @@ export default function EstudiosIndex() {
                 </div>
 
                 {/* Resultados - Vista Condicional */}
-                <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-                    {/* Contador de resultados */}
-                    <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
-                        <div className="flex items-center justify-between">
-                            <div className="text-sm text-gray-700">
-                                {estudios?.meta?.total || 0} estudios encontrados
-                                {searchTerm && ` para "${searchTerm}"`}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                                Página {estudios?.meta?.current_page || 1} de {estudios?.meta?.last_page || 1}
-                            </div>
-                        </div>
-                    </div>
+                <div className="bg-white rounded-xl shadow-lg border border-gray-100">
 
                     {/* VISTA MÓVIL - TARJETAS */}
                     {showMobileView ? (
@@ -1212,7 +1451,7 @@ export default function EstudiosIndex() {
                         </div>
                     ) : (
                         /* VISTA DESKTOP - TABLA ORIGINAL */
-                        <div className="overflow-x-auto">
+                        <div>
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
@@ -1297,6 +1536,22 @@ export default function EstudiosIndex() {
                                             {/* Fecha / Estado */}
                                             <td className="px-3 py-3">
                                                 <div className="space-y-2">
+                                                    {/* NUEVO: Etiquetas de Alerta */}
+                                                    {(() => {
+                                                        const alertas = obtenerAlertas(estudio);
+                                                        return alertas.length > 0 ? (
+                                                            <div className="space-y-1">
+                                                                {alertas.map((alerta, index) => (
+                                                                    <div key={index} className="flex items-center space-x-1">
+                                                                        <span className={`flex px-2 py-1 rounded text-xs font-medium border ${alerta.color} animate-[pulse_2s_ease-in-out_infinite]`}>
+                                                                            <AlertTriangle className="h-3 w-3 me-2 text-red-500 animate-pulse" />
+                                                                            {alerta.mensaje}
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        ) : null;
+                                                    })()}
                                                     {/* Fecha con dropdown */}
                                                     <div className="relative">
                                                         <div 
@@ -1342,6 +1597,8 @@ export default function EstudiosIndex() {
                                                     <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${getEstadoClasses(estudio.ESTUDIO_ESTADO)}`}>
                                                         {estudio.ESTUDIO_ESTADO || 'Sin estado'}
                                                     </span>
+                                                    
+                                                    
                                                 </div>
                                             </td>
 

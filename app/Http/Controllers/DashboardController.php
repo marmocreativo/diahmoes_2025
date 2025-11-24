@@ -33,6 +33,7 @@ class DashboardController extends Controller
             'todos_estados' => $this->getTodosEstados($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
             'tendencia_5_anios' => $this->getEstudiosUltimos5Anios($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
             'comparativa_tipos' => $this->getComparativaTiposEstudio($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
+            'comparativa_mutacion' => $this->getComparativaMutacion($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
             'comparacion_3_periodos' => $this->getComparacion3Periodos($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
             'predicciones' => $this->getPredicciones($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
         ];
@@ -287,6 +288,82 @@ class DashboardController extends Controller
             'datos' => array_values($datosAgrupados),
             'tipos_estudio' => array_values($tiposEstudio)
         ];
+    }
+
+    private function getComparativaMutacion($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
+    {
+        // Usar las fechas del período actual, no 5 años atrás
+        $query = DB::table('estudios')
+            ->select(
+                'R_ESTATUS_KRAS',
+                'R_ESTATUS_NRAS',
+                'R_ESTATUS_BRAF',
+                DB::raw('COUNT(*) as total')
+            )
+            ->whereBetween('FECHA_SOLICITUD_RECOLECCION', [$fechaDesde . ' 00:00:00', $fechaHasta . ' 23:59:59'])
+            ->whereNotNull('FECHA_SOLICITUD_RECOLECCION')
+            ->where('FECHA_SOLICITUD_RECOLECCION', '>', '1000-01-01 00:00:00');
+        
+        // Aplicar filtros condicionales
+        if ($muestraEstado) {
+            $query->where('MUESTRA_ESTADO', $muestraEstado);
+        }
+        
+        if ($tipoEstudio) {
+            $query->where('MUESTRA_TIPO_ESTUDIO', $tipoEstudio);
+        }
+        
+        if ($prefijo) {
+            $query->where('CLAVE', $prefijo);
+        }
+        
+        $datos = $query
+            ->groupBy('R_ESTATUS_KRAS', 'R_ESTATUS_NRAS', 'R_ESTATUS_BRAF')
+            ->get();
+        
+        // Clasificar y sumar totales
+        $totales = [
+            'mutado' => 0,
+            'no_mutado' => 0,
+            'invalido' => 0
+        ];
+        
+        foreach ($datos as $item) {
+            $estado = $this->clasificarMutacion($item->R_ESTATUS_KRAS, $item->R_ESTATUS_NRAS, $item->R_ESTATUS_BRAF);
+            $totales[$estado] += $item->total;
+        }
+        
+        return $totales;
+    }
+
+    private function clasificarMutacion($kras, $nras, $braf)
+    {
+        // Convertir a mayúsculas y limpiar espacios para comparación consistente
+        $kras = trim(strtoupper($kras ?? ''));
+        $nras = trim(strtoupper($nras ?? ''));
+        $braf = trim(strtoupper($braf ?? ''));
+        
+        // Estados que indican mutación
+        $estadosMutado = ['MUTADO', 'MUTADO (VER NOTAS)'];
+        
+        // Estados que indican no mutación
+        $estadosNoMutado = ['NO MUTADO', 'NO MUTADO (VER NOTAS)'];
+        
+        // Estados inválidos/no procesables
+        $estadosInvalidos = ['INVALIDO', 'NO APLICA', 'NO PROCESABLE', '', 'NULL'];
+        
+        // Verificar si alguna columna tiene mutación
+        if (in_array($kras, $estadosMutado) || in_array($nras, $estadosMutado) || in_array($braf, $estadosMutado)) {
+            return 'mutado';
+        }
+        
+        // Verificar si alguna columna tiene no mutación (y ninguna tiene mutación)
+        if (in_array($kras, $estadosNoMutado) || in_array($nras, $estadosNoMutado) || in_array($braf, $estadosNoMutado)) {
+            return 'no_mutado';
+        }
+        
+        // Si no hay mutación ni no mutación clara, es inválido
+        return 'invalido';
     }
     
     private function getComparacion2Anios($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
