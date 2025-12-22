@@ -29,6 +29,7 @@ interface EditLaboratorioProps {
         R_NUMERO_CELULAS_TUMORALES?: string;
         R_AREA_TUMORAL?: string;
         R_PORCENTAJE_TUMOR_TEJIDO?: string;
+        R_ENRIQUECIMIENTO?: string;
         R_RAZON_ADECUADO_PROCESAMIENTO?: string;
         R_RESULTADO_HISTOPATOLOGICO?: string;
         ESTUDIO_NOTAS?: string;
@@ -74,6 +75,7 @@ export default function EditLaboratorioConCondicionales() {
     // Estado para processing y campos que requieren reactividad
     const [processing, setProcessing] = useState(false);
     const [estudiosSeleccionados, setEstudiosSeleccionados] = useState(estudio.R_ESTUDIO_SOLICITADO || '');
+    const [enriquecimiento, setEnriquecimiento] = useState(estudio.R_ENRIQUECIMIENTO || '');
     const [adecuadoProcesamiento, setAdecuadoProcesamiento] = useState(estudio.R_ADECUADO_PROCESAMIENTO || '');
     const [resultadosCompletos, setResultadosCompletos] = useState(estudio.R_COMPLETOS === 'si');
     const [metodoSeleccionado, setMetodoSeleccionado] = useState(estudio.R_METODO_PROCESO || '');
@@ -298,6 +300,12 @@ export default function EditLaboratorioConCondicionales() {
         const nuevoEstudio = e.target.value;
         console.log('🔄 Cambiando estudio solicitado de:', estudiosSeleccionados, 'a:', nuevoEstudio);
         setEstudiosSeleccionados(nuevoEstudio);
+    };
+
+    const handleEnriquecimientoChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
+        const nuevoValor = e.target.value;
+        console.log('🔄 Cambiando enriquecimiento de:', enriquecimiento, 'a:', nuevoValor);
+        setEnriquecimiento(nuevoValor);
     };
 
     const handleAdecuadoProcesamientoChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
@@ -813,6 +821,20 @@ const getFormData = useCallback((): Record<string, any> => {
                                                     %
                                                 </span>
                                             </div>
+                                        </div>
+
+                                        <div>
+                                            <label className={labelClass}>¿Enriquecimiento?</label>
+                                            <select
+                                                name="R_ENRIQUECIMIENTO"
+                                                className={selectClass}
+                                                value={enriquecimiento}
+                                                onChange={handleEnriquecimientoChange}
+                                            >
+                                                <option value="">Selecciona</option>
+                                                <option value="Si">Si</option>
+                                                <option value="No">No</option>
+                                            </select>
                                         </div>
 
                                         <div>
