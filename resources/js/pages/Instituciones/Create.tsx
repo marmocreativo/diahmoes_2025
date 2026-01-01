@@ -41,6 +41,7 @@ export default function Create() {
         INSTITUCION_CIUDAD: '',
         INSTITUCION_ESTADO: '',
         INSTITUCION_CODIGO_POSTAL: '',
+        INSTITUCION_PROCEDENCIA: '',
     });
 
     const submit: FormEventHandler = (e) => {
@@ -443,6 +444,23 @@ export default function Create() {
                                 {errors.INSTITUCION_CODIGO_POSTAL && (
                                     <p className="mt-1 text-sm text-red-600">{errors.INSTITUCION_CODIGO_POSTAL}</p>
                                 )}
+                            </div>
+                            <div className="md:col-span-2">
+                                <label htmlFor="INSTITUCION_PROCEDENCIA" className="block text-sm font-medium text-gray-700 mb-2">
+                                    Procedencia
+                                </label>
+                                <select
+                                    id="INSTITUCION_PROCEDENCIA"
+                                    value={data.INSTITUCION_PROCEDENCIA}
+                                    onChange={(e) => setData('INSTITUCION_PROCEDENCIA', e.target.value)}
+                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF] transition-colors"
+                                >
+                                    <option value="">No especificado</option>
+                                    <option value="Privado">Privado</option>
+                                    <option value="IMSS">IMSS</option>
+                                    <option value="ISSSTE">ISSSTE</option>
+                                    <option value="SSA">SSA</option>
+                                </select>
                             </div>
                         </div>
                     </div>

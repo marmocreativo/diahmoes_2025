@@ -69,6 +69,7 @@ class Estudio extends Model
         'MUESTRA_LIQ_HEMOLISIS',
         'MUESTRA_LIQ_AMP_INDICACION',
         'MUESTRA_LIQ_AMP_RAZON',
+        'MUESTRA_LIQ_LIPEMICA',
         'R_ESTUDIO_SOLICITADO',
         'R_METODO_PROCESO',
         'R_EVALUACION_HISTOPATOLOGICA',

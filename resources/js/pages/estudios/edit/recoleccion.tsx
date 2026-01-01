@@ -760,6 +760,21 @@ export default function EditRecoleccionOptimized() {
                                                 placeholder="55-1234-5678"
                                             />
                                         </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">
+                                                Procedencia
+                                            </label>
+                                            <select
+                                                name="INSTITUCION_PROCEDENCIA"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                            >
+                                                <option value="">No especificado</option>
+                                                <option value="Privado">Privado</option>
+                                                <option value="IMSS">IMSS</option>
+                                                <option value="ISSSTE">ISSSTE</option>
+                                                <option value="SSA">SSA</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 )}
                             </div>

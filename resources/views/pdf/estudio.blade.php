@@ -297,6 +297,9 @@
                         Tras centrifugar la muestra para obtener plasma <b class="highlight">{{ $estudio->MUESTRA_LIQ_HEMOLISIS ?? '' }}.</b>
                         Las reacciones de amplificación para {{ $estudio->R_ESTUDIO_SOLICITADO ?? '' }} indican <b class="highlight">{{ $estudio->MUESTRA_LIQ_AMP_INDICACION ?? '' }}</b> del DNA en la muestra
                         <b class="highlight">@if($estudio->MUESTRA_LIQ_AMP_RAZON), {{ $estudio->MUESTRA_LIQ_AMP_RAZON }}@endif.</b>
+                         @if($estudio->MUESTRA_LIQ_LIPEMICA === 'Si')
+                            <b class="highlight">Muestra presenta lipemia.</b>
+                        @endif
                     @else
                         @if($estudio->R_ADECUADO_PROCESAMIENTO == 'express')
                             El tejido se haya adecuadamente preservado desde el punto de vista morfológico, y la muestra reúne la cantidad absoluta y proporción adecuadas de células tumorales para su procesamiento bajo la metodología empleada

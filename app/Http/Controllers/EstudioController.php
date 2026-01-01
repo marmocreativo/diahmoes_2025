@@ -286,6 +286,7 @@ class EstudioController extends Controller
             ->where('FECHA_RECEPCION_LABORATORIO', '!=', null)
             ->where('FECHA_RECEPCION_LABORATORIO', '!=', '0000-00-00 00:00:00')
             ->where('FECHA_RECEPCION_LABORATORIO', '<', now()->subWeekdays(5))
+            ->where('R_ENRIQUECIMIENTO', '!=', 'Si')
             ->count(),
         
         // 5. Falta enviar resultados (>1 día hábil desde FECHA_OBTENCION_RESULTADOS)
@@ -763,11 +764,16 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
         \Log::info('Correos antes de enviar al frontend: ' . $estudio->correosCopia->count());
         \Log::info('Correos data: ', $estudio->correosCopia->toArray());
 
+        // Obtener las respuestas más comunes de diagnóstico histopatológico
+        $diagnosticosComunes = $this->getDiagnosticosHistopatologicosComunes();
+
+
         return Inertia::render('estudios/edit/recepcion', [
             'estudio' => $estudio,
             'pacientes' => $pacientes,
             'tiposEnvio' => Estudio::getTiposEnvio(),
             'correosExistentes' => $estudio->correosCopia,
+            'diagnosticosComunes' => $diagnosticosComunes,
         ]);
     }
 
@@ -814,7 +820,8 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
             'MUESTRA_LIQ_CANTIDAD_ML',
             'MUESTRA_LIQ_HEMOLISIS',
             'MUESTRA_LIQ_AMP_INDICACION',
-            'MUESTRA_LIQ_AMP_RAZON'
+            'MUESTRA_LIQ_AMP_RAZON',
+            'MUESTRA_LIQ_LIPEMICA'
         ])->with([
             'medico:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
             'paciente:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
@@ -835,7 +842,7 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
         // Cargar solo campos necesarios para informe
         $estudio = Estudio::select([
             'ID', 'CLAVE_INTERNA', 'FECHA_INFORME', 'FECHA_RESULTADOS_CORREO', 'ESTUDIO_FACTURADO',
-            'ESTUDIO_ESTADO', 'ESTUDIO_COMENTARIOS', 'BENEFICIARIO', 'ID_MEDICO'
+            'ESTUDIO_ESTADO', 'ESTUDIO_COMENTARIOS', 'BENEFICIARIO', 'ID_MEDICO','MUESTRA_TIPO_ESTUDIO'
         ])->with([
             'medico:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS,USUARIO_CORREO,USUARIO_TELEFONO',
             'paciente:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
@@ -1181,6 +1188,7 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
                 'MUESTRA_LIQ_HEMOLISIS' => 'nullable|string|max:50',
                 'MUESTRA_LIQ_AMP_INDICACION' => 'nullable|string|max:50',
                 'MUESTRA_LIQ_AMP_RAZON' => 'nullable|string|max:255',
+                'MUESTRA_LIQ_LIPEMICA' => 'nullable|in:Si,No',
                 // Análisis histopatológico
                 'R_PRESERVACION_H_E' => 'nullable|string|max:100',
                 'R_NUMERO_CELULAS_TUMORALES' => 'nullable|string|max:100',
@@ -1226,6 +1234,7 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
                 'MUESTRA_LIQ_HEMOLISIS',
                 'MUESTRA_LIQ_AMP_INDICACION',
                 'MUESTRA_LIQ_AMP_RAZON',
+                'MUESTRA_LIQ_LIPEMICA',
                 'R_PRESERVACION_H_E',
                 'R_NUMERO_CELULAS_TUMORALES',
                 'R_AREA_TUMORAL',
@@ -2919,5 +2928,21 @@ private function enviarCorreosReporte(Estudio $estudio, bool $enviarAdjunto = tr
 
         \Log::warning('⚠️ No se pudo obtener ID de institución');
         return null;
+    }
+
+    /**
+     * Obtener los diagnósticos histopatológicos más comunes
+     */
+    private function getDiagnosticosHistopatologicosComunes($limite = 10)
+    {
+        return Estudio::select('MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA')
+            ->whereNotNull('MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA')
+            ->where('MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA', '!=', '')
+            ->where('MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA', '!=', 'N/A')
+            ->groupBy('MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA')
+            ->orderByRaw('COUNT(*) DESC')
+            ->limit($limite)
+            ->pluck('MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA')
+            ->toArray();
     }
 }

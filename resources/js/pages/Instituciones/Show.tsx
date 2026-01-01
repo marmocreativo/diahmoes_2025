@@ -122,6 +122,10 @@ export default function Show() {
                                         </span>
                                     )}
                                 </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-600 font-medium">Procedencia:</span>
+                                    <span className="text-gray-900 text-right">{institucion.INSTITUCION_PROCEDENCIA || 'No especificado'}</span>
+                                </div>
                             </div>
                         </div>
                         <div className="flex items-center space-x-3">

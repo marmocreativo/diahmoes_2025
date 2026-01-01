@@ -159,27 +159,33 @@ class DashboardExportController extends Controller
             $resultadosBraf = trim(($dato->R_ESTATUS_BRAF ?? '') . ' ' . ($dato->R_GENOTIPO_BRAF ?? ''));
             
             $sheet->setCellValue('A' . $row, $dato->CLAVE_INTERNA ?? '');
-            $sheet->setCellValue('B' . $row, ''); // MU - vacío
+            $sheet->setCellValue('B' . $row, $dato->FOLIO_MERCK ?? '');
             $sheet->setCellValue('C' . $row, $fechaRecepcionLab ? $fechaRecepcionLab->format('Y-m-d') : '');
             $sheet->setCellValue('D' . $row, $dato->ESTUDIO_ESTADO ?? '');
             $sheet->setCellValue('E' . $row, $dato->MUESTRA_INICIALES ?? '');
             $sheet->setCellValue('F' . $row, $dato->MUESTRA_GENERO ?? '');
             $sheet->setCellValue('G' . $row, $dato->MUESTRA_EDAD ?? '');
             $sheet->setCellValue('H' . $row, $dato->MUESTRA_SITIO_LESION ?? '');
-            $sheet->setCellValue('I' . $row, ''); // COLON/ASCEN-DESC - vacío
+            $sheet->setCellValue('I' . $row, (function($sitio) {
+                $sitio = trim(strtoupper($sitio ?? ''));
+                if ($sitio === 'COLON DESCENDENTE') return 'DESC';
+                if ($sitio === 'COLON ASCENDENTE') return 'ASC';
+                if ($sitio === 'COLON') return 'ND';
+                return '';
+            })($dato->MUESTRA_SITIO_LESION));
             $sheet->setCellValue('J' . $row, $dato->MUESTRA_BLOQUES ?? '');
             $sheet->setCellValue('K' . $row, $dato->MUESTRA_LAMINILLAS ?? '');
             $sheet->setCellValue('L' . $row, $dato->MUESTRA_TIPO_ESTUDIO ?? '');
-            $sheet->setCellValue('M' . $row, ''); // MUE - vacío
+            $sheet->setCellValue('M' . $row, $dato->MUESTRA_CLAVE ?? '');
             $sheet->setCellValue('N' . $row, $dato->MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA ?? '');
             $sheet->setCellValue('O' . $row, $dato->medico_completo ?? '');
             $sheet->setCellValue('P' . $row, $dato->INSTITUCION_NOMBRE ?? '');
-            $sheet->setCellValue('Q' . $row, ''); // PROCEDENCIA - vacío
+            $sheet->setCellValue('Q' . $row, $dato->INSTITUCION_PROCEDENCIA ?? '');
             $sheet->setCellValue('R' . $row, $dato->USUARIO_TELEFONO ?? '');
             $sheet->setCellValue('S' . $row, $dato->USUARIO_CORREO ?? '');
             $sheet->setCellValue('T' . $row, $dato->MUESTRA_CIUDAD ?? '');
             $sheet->setCellValue('U' . $row, $dato->MUESTRA_ESTADO ?? '');
-            $sheet->setCellValue('V' . $row, $fechaAnalisis ? $fechaAnalisis->format('Y-m-d') : '');
+            $sheet->setCellValue('V' . $row, $fechaRecepcionLab ? $fechaRecepcionLab->format('Y-m-d') : '');
             $sheet->setCellValue('W' . $row, $resultadosKras ?: '');
             $sheet->setCellValue('X' . $row, $resultadosNras ?: '');
             $sheet->setCellValue('Y' . $row, $dato->R_INTERPRETACION ?? '');
@@ -266,6 +272,7 @@ class DashboardExportController extends Controller
                 'e.MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA',
                 DB::raw('CONCAT(u.USUARIO_NOMBRE, " ", u.USUARIO_APELLIDOS) as medico_completo'),
                 'i.INSTITUCION_NOMBRE',
+                'i.INSTITUCION_PROCEDENCIA',
                 'u.USUARIO_TELEFONO',
                 'u.USUARIO_CORREO',
                 'e.MUESTRA_CIUDAD',

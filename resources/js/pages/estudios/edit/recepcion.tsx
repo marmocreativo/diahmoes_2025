@@ -11,6 +11,7 @@ interface EditRecepcionProps {
     pacientes: any[];
     correosExistentes: any[];
     tiposEnvio: Record<string, string>;
+    diagnosticosComunes?: string[];
     [key: string]: any;
 }
 
@@ -33,7 +34,7 @@ interface PacienteEncontrado {
 }
 
 export default function EditRecepcionOptimized() {
-    const { estudio, pacientes = [], correosExistentes = [], tiposEnvio } = usePage<EditRecepcionProps>().props;
+    const { estudio, pacientes = [], correosExistentes = [], tiposEnvio, diagnosticosComunes = [] } = usePage<EditRecepcionProps>().props;
 
     // Referencias para inputs simples - no causan re-renders
     const formRef = useRef<HTMLFormElement>(null);
@@ -1685,9 +1686,38 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Diagnóstico Histopatológico de Referencia
-                                        </label>
+                                        <div className='flex'>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Diagnóstico Histopatológico de Referencia
+                                            </label>
+                                            <div className="mb-2">
+                                                <select
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent text-sm"
+                                                    onChange={(e) => {
+                                                        const textarea = document.querySelector('textarea[name="MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA"]') as HTMLTextAreaElement;
+                                                        if (textarea && e.target.value) {
+                                                            textarea.value = e.target.value;
+                                                            // Disparar evento change para mantener sincronización
+                                                            const event = new Event('change', { bubbles: true });
+                                                            textarea.dispatchEvent(event);
+                                                        }
+                                                        // Resetear el select después de seleccionar
+                                                        e.target.value = '';
+                                                    }}
+                                                    defaultValue=""
+                                                >
+                                                    <option value="">📋 Seleccionar diagnóstico común...</option>
+                                                    {diagnosticosComunes?.map((diagnostico, index) => (
+                                                        <option key={index} value={diagnostico}>
+                                                            {diagnostico.length > 60 ? `${diagnostico.substring(0, 60)}...` : diagnostico}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <p className="text-xs text-gray-500 mt-1">
+                                                    💡 Selecciona un diagnóstico común para autocompletar el campo
+                                                </p>
+                                            </div>
+                                        </div>
                                         <textarea
                                             name="MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA"
                                             defaultValue={estudio.MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA || ''}

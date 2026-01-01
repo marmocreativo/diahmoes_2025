@@ -16,6 +16,7 @@ export interface Institucion {
     INSTITUCION_ESTADO: string;
     INSTITUCION_CODIGO_POSTAL: string;
     INSTITUCION_PIN: string;
+    INSTITUCION_PROCEDENCIA: string;
     FECHA_REGISTRO: string;
     FECHA_ACTUALIZACION: string;
     

@@ -43,6 +43,7 @@ interface EditLaboratorioProps {
         MUESTRA_LIQ_HEMOLISIS?: string;
         MUESTRA_LIQ_AMP_INDICACION?: string;
         MUESTRA_LIQ_AMP_RAZON?: string;
+        MUESTRA_LIQ_LIPEMICA?: string;
     };
     [key: string]: any;
 }
@@ -60,6 +61,7 @@ interface CamposSangreTotal {
     hemolisis: string;
     ampIndicacion: string;
     ampRazon: string;
+    lipemica: string;
 }
 
 export default function EditLaboratorioConCondicionales() {
@@ -87,7 +89,8 @@ export default function EditLaboratorioConCondicionales() {
         cantidadMl: estudio.MUESTRA_LIQ_CANTIDAD_ML || '',
         hemolisis: estudio.MUESTRA_LIQ_HEMOLISIS || '',
         ampIndicacion: estudio.MUESTRA_LIQ_AMP_INDICACION || '',
-        ampRazon: estudio.MUESTRA_LIQ_AMP_RAZON || ''
+        ampRazon: estudio.MUESTRA_LIQ_AMP_RAZON || '',
+        lipemica: estudio.MUESTRA_LIQ_LIPEMICA || ''
     });
 
     // Estados para los estatus mutacionales - NUEVO
@@ -398,6 +401,7 @@ const getFormData = useCallback((): Record<string, any> => {
         data.MUESTRA_LIQ_HEMOLISIS = camposSangreTotal.hemolisis;
         data.MUESTRA_LIQ_AMP_INDICACION = camposSangreTotal.ampIndicacion;
         data.MUESTRA_LIQ_AMP_RAZON = camposSangreTotal.ampRazon;
+        data.MUESTRA_LIQ_LIPEMICA = camposSangreTotal.lipemica;
     }
 
     // Resto del código existente...
@@ -760,6 +764,20 @@ const getFormData = useCallback((): Record<string, any> => {
                                                 onChange={(e) => handleCampoSangreTotalChange('ampRazon', e.target.value)}
                                                 placeholder="Razón personalizada"
                                             />
+                                        </div>
+
+                                        <div>
+                                            <label className={labelClass}>¿Muestra lipémica?</label>
+                                            <select
+                                                name="MUESTRA_LIQ_LIPEMICA"
+                                                className={selectClass}
+                                                value={camposSangreTotal.lipemica}
+                                                onChange={(e) => handleCampoSangreTotalChange('lipemica', e.target.value)}
+                                            >
+                                                <option value="">Selecciona</option>
+                                                <option value="Si">Si</option>
+                                                <option value="No">No</option>
+                                            </select>
                                         </div>
                                     </div>
                                 )}

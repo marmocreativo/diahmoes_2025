@@ -56,6 +56,7 @@ class InstitucionController extends Controller
                 'INSTITUCION_CIUDAD' => $institucion->INSTITUCION_CIUDAD,
                 'INSTITUCION_ESTADO' => $institucion->INSTITUCION_ESTADO,
                 'INSTITUCION_CODIGO_POSTAL' => $institucion->INSTITUCION_CODIGO_POSTAL,
+                'INSTITUCION_PROCEDENCIA' => $institucion->INSTITUCION_PROCEDENCIA,
                 'FECHA_REGISTRO' => $institucion->FECHA_REGISTRO?->format('d/m/Y H:i'),
                 'FECHA_ACTUALIZACION' => $institucion->FECHA_ACTUALIZACION?->format('d/m/Y H:i'),
                 // Campos calculados
@@ -115,6 +116,7 @@ class InstitucionController extends Controller
             'INSTITUCION_CIUDAD' => 'required|string|max:255',
             'INSTITUCION_ESTADO' => 'required|string|max:255',
             'INSTITUCION_CODIGO_POSTAL' => 'required|string|size:5',
+            'INSTITUCION_PROCEDENCIA' => 'nullable|string|max:255',
         ], [
             'INSTITUCION_NOMBRE.required' => 'El nombre de la institución es obligatorio.',
             'INSTITUCION_CORREO.required' => 'El correo es obligatorio.',
@@ -133,6 +135,7 @@ class InstitucionController extends Controller
             'INSTITUCION_ESTADO.required' => 'El estado es obligatorio.',
             'INSTITUCION_CODIGO_POSTAL.required' => 'El código postal es obligatorio.',
             'INSTITUCION_CODIGO_POSTAL.size' => 'El código postal debe tener 5 dígitos.',
+            'INSTITUCION_PROCEDENCIA.max' => 'La procedencia no puede exceder 255 caracteres.',
         ]);
 
         // Generar PIN automáticamente
@@ -170,6 +173,7 @@ class InstitucionController extends Controller
                 'INSTITUCION_ESTADO' => $institucion->INSTITUCION_ESTADO,
                 'INSTITUCION_CODIGO_POSTAL' => $institucion->INSTITUCION_CODIGO_POSTAL,
                 'INSTITUCION_PIN' => $institucion->INSTITUCION_PIN,
+                'INSTITUCION_PROCEDENCIA' => $institucion->INSTITUCION_PROCEDENCIA,
                 'FECHA_REGISTRO' => $institucion->FECHA_REGISTRO?->format('d/m/Y H:i'),
                 'FECHA_ACTUALIZACION' => $institucion->FECHA_ACTUALIZACION?->format('d/m/Y H:i'),
                 // Campos calculados
@@ -232,6 +236,7 @@ class InstitucionController extends Controller
                 'INSTITUCION_ESTADO' => $institucion->INSTITUCION_ESTADO,
                 'INSTITUCION_CODIGO_POSTAL' => $institucion->INSTITUCION_CODIGO_POSTAL,
                 'INSTITUCION_PIN' => $institucion->INSTITUCION_PIN,
+                'INSTITUCION_PROCEDENCIA' => $institucion->INSTITUCION_PROCEDENCIA,
             ],
             'estados' => Institucion::getEstados(),
             'estados_mexico' => $this->getEstadosMexico(),
@@ -268,6 +273,7 @@ class InstitucionController extends Controller
             'INSTITUCION_ESTADO' => 'required|string|max:255',
             'INSTITUCION_CODIGO_POSTAL' => 'required|string|size:5',
             'INSTITUCION_PIN' => 'required|string|size:4',
+            'INSTITUCION_PROCEDENCIA' => 'nullable|string|max:255',
         ], [
             'INSTITUCION_NOMBRE.required' => 'El nombre de la institución es obligatorio.',
             'INSTITUCION_CORREO.required' => 'El correo es obligatorio.',
@@ -288,6 +294,7 @@ class InstitucionController extends Controller
             'INSTITUCION_CODIGO_POSTAL.size' => 'El código postal debe tener 5 dígitos.',
             'INSTITUCION_PIN.required' => 'El PIN es obligatorio.',
             'INSTITUCION_PIN.size' => 'El PIN debe tener 4 dígitos.',
+            'INSTITUCION_PROCEDENCIA.max' => 'La procedencia no puede exceder 255 caracteres.',
         ]);
 
         // Actualizar institución

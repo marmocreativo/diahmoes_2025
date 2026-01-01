@@ -759,8 +759,8 @@ export default function EditInformeComplete() {
                                         </div>
                                     </div>
                                 </div>
-
                                 {/* NUEVA SECCIÓN: Retorno de Material */}
+                                {(estudio.MUESTRA_TIPO_ESTUDIO ?? 'Biopsia Sólida') == 'Biopsia Sólida' && (
                                 <div>
                                     <h4 className="text-md font-medium mb-3 text-gray-700 border-b border-gray-200 pb-2">
                                         Retorno de Material
@@ -815,6 +815,7 @@ export default function EditInformeComplete() {
                                         </div>
                                     </div>
                                 </div>
+                                )}
 
                                 {/* Información adicional - ACTUALIZAR PARA MOSTRAR ESTADO ACTUAL */}
                                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

@@ -25,6 +25,8 @@ class HojaDetalladaExport implements FromCollection, WithHeadings, WithTitle, Wi
             ->leftJoin('instituciones as i', 'e.ID_INSTITUCION', '=', 'i.ID_INSTITUCION')
             ->select(
                 'e.CLAVE_INTERNA',
+                'e.FOLIO_MERCK',
+                'e.MUESTRA_CLAVE',
                 'e.FECHA_RECEPCION_LABORATORIO',
                 'e.ESTUDIO_ESTADO',
                 'e.MUESTRA_INICIALES',
@@ -37,6 +39,7 @@ class HojaDetalladaExport implements FromCollection, WithHeadings, WithTitle, Wi
                 'e.MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA',
                 DB::raw('CONCAT(u.USUARIO_NOMBRE, " ", u.USUARIO_APELLIDOS) as medico_completo'),
                 'i.INSTITUCION_NOMBRE',
+                'i.INSTITUCION_PROCEDENCIA',
                 'u.USUARIO_TELEFONO',
                 'u.USUARIO_CORREO',
                 'e.MUESTRA_CIUDAD',
@@ -93,27 +96,27 @@ class HojaDetalladaExport implements FromCollection, WithHeadings, WithTitle, Wi
 
         return [
             $row->CLAVE_INTERNA ?? '',
-            '', // MU - vacío
+            $row->FOLIO_MERCK ?? '',
             $fechaRecepcionLab ? $fechaRecepcionLab->format('Y-m-d') : '',
             $row->ESTUDIO_ESTADO ?? '',
             $row->MUESTRA_INICIALES ?? '',
             $row->MUESTRA_GENERO ?? '',
             $row->MUESTRA_EDAD ?? '',
             $row->MUESTRA_SITIO_LESION ?? '',
-            '', // COLON/ASCEN-DESC - vacío
+            $this->getColonType($row->MUESTRA_SITIO_LESION ?? ''), // COLON/ASCEN-DESC
             $row->MUESTRA_BLOQUES ?? '',
             $row->MUESTRA_LAMINILLAS ?? '',
             $row->MUESTRA_TIPO_ESTUDIO ?? '',
-            '', // MUE - vacío
+            $row->MUESTRA_CLAVE ?? '',
             $row->MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA ?? '',
             $row->medico_completo ?? '',
             $row->INSTITUCION_NOMBRE ?? '',
-            '', // PROCEDENCIA - vacío
+            $row->INSTITUCION_PROCEDENCIA ?? '',
             $row->USUARIO_TELEFONO ?? '',
             $row->USUARIO_CORREO ?? '',
             $row->MUESTRA_CIUDAD ?? '',
             $row->MUESTRA_ESTADO ?? '',
-            $fechaAnalisis ? $fechaAnalisis->format('Y-m-d') : '',
+            $fechaRecepcionLab ? $fechaRecepcionLab->format('Y-m-d') : '',
             $resultadosKras ?: '',
             $resultadosNras ?: '',
             $row->R_INTERPRETACION ?? '',
@@ -168,5 +171,26 @@ class HojaDetalladaExport implements FromCollection, WithHeadings, WithTitle, Wi
     public function title(): string
     {
         return 'Reporte Detallado';
+    }
+
+    private function getColonType($sitioLesion)
+    {
+        $sitio = trim(strtoupper($sitioLesion));
+        
+        // Buscar palabras clave en lugar de coincidencias exactas
+        if (strpos($sitio, 'DESCENDENTE') !== false) {
+            return 'DESC';
+        }
+        
+        if (strpos($sitio, 'ASCENDENTE') !== false) {
+            return 'ASC';
+        }
+        
+        // Si solo contiene "COLON" pero no es ascendente ni descendente
+        if (strpos($sitio, 'COLON') !== false) {
+            return 'ND';
+        }
+        
+        return ''; // Cualquier otra respuesta queda vacío
     }
 }
