@@ -144,7 +144,6 @@ export default function CreateLote() {
                                     name="FECHA_CADUCIDAD"
                                     value={formData.FECHA_CADUCIDAD}
                                     onChange={handleChange}
-                                    min={today}
                                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent ${
                                         errors.FECHA_CADUCIDAD ? 'border-red-500' : 'border-gray-300'
                                     }`}
@@ -234,6 +233,7 @@ export default function CreateLote() {
                                     <ul className="text-sm text-blue-700 space-y-1">
                                         <li>• El lote se creará con estado "Disponible"</li>
                                         <li>• La cantidad actual será igual a la cantidad inicial</li>
+                                        <li>• Si no especificas fecha de caducidad, el lote no generará alertas de vencimiento</li>
                                         <li>• El sistema alertará automáticamente cuando el lote esté próximo a vencer (30 días)</li>
                                     </ul>
                                 </div>

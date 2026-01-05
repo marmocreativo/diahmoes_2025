@@ -1076,6 +1076,26 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
                 return $value !== null && $value !== '';
             });
 
+            // NUEVO: Lógica para copiar diagnóstico histopatológico si R_RESULTADO_HISTOPATOLOGICO está vacío
+            if (isset($datosActualizar['MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA'])) {
+                $diagnosticoReferencia = $datosActualizar['MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA'];
+                $resultadoHistopatologicoActual = $estudio->R_RESULTADO_HISTOPATOLOGICO;
+                
+                \Log::info('🔍 Verificando R_RESULTADO_HISTOPATOLOGICO:', [
+                    'valor_actual' => $resultadoHistopatologicoActual,
+                    'esta_vacio' => empty(trim($resultadoHistopatologicoActual)),
+                    'diagnostico_referencia' => $diagnosticoReferencia
+                ]);
+                
+                // Si R_RESULTADO_HISTOPATOLOGICO está vacío, copiar el valor de referencia
+                if (empty(trim($resultadoHistopatologicoActual))) {
+                    $datosActualizar['R_RESULTADO_HISTOPATOLOGICO'] = $diagnosticoReferencia;
+                    \Log::info('✅ Copiando diagnóstico de referencia a R_RESULTADO_HISTOPATOLOGICO');
+                } else {
+                    \Log::info('ℹ️ R_RESULTADO_HISTOPATOLOGICO ya tiene contenido, manteniéndolo intacto');
+                }
+            }
+
             // Manejar actualización de estado según el flujo
             if ($estadoActual === 'Solicitud Recolección') {
                 $datosActualizar['ESTUDIO_ESTADO'] = 'Recepción Laboratorio';

@@ -79,9 +79,9 @@ public function store(Request $request, Insumo $insumo)
     $request->validate([
         'LOTE' => 'required|string|max:255',
         'CANTIDAD_INICIAL' => 'required|integer|min:1',
-        'FECHA_CADUCIDAD' => 'required|date|after:today', // CAMBIADO: required en lugar de nullable
+        'FECHA_CADUCIDAD' => 'nullable|date|after:today', // CAMBIADO: nullable en lugar de required
         'COSTO_UNITARIO' => 'nullable|numeric|min:0',
-        'NOTAS' => 'nullable|string|max:500', // AGREGADO
+        'NOTAS' => 'nullable|string|max:500',
         'ESTADO' => 'nullable|string|in:disponible,agotado,vencido,proximo_vencer',
     ]);
 
@@ -93,9 +93,9 @@ public function store(Request $request, Insumo $insumo)
             'LOTE' => $request->LOTE,
             'CANTIDAD_INICIAL' => $request->CANTIDAD_INICIAL,
             'CANTIDAD_ACTUAL' => $request->CANTIDAD_INICIAL, // Inicialmente igual
-            'FECHA_CADUCIDAD' => $request->FECHA_CADUCIDAD,
+            'FECHA_CADUCIDAD' => $request->FECHA_CADUCIDAD, // Puede ser null
             'COSTO_UNITARIO' => $request->COSTO_UNITARIO,
-            'NOTAS' => $request->NOTAS, // AGREGADO
+            'NOTAS' => $request->NOTAS,
             'ESTADO' => $request->ESTADO ?? 'disponible',
         ]);
 
@@ -173,10 +173,10 @@ public function update(Request $request, Insumo $insumo, InsumoLote $lote)
 
     $request->validate([
         'LOTE' => 'required|string|max:255',
-        'CANTIDAD_INICIAL' => 'required|integer|min:1', // AGREGADO para permitir edición
-        'FECHA_CADUCIDAD' => 'required|date', // CAMBIADO: required
+        'CANTIDAD_INICIAL' => 'required|integer|min:1',
+        'FECHA_CADUCIDAD' => 'nullable|date',
         'COSTO_UNITARIO' => 'nullable|numeric|min:0',
-        'NOTAS' => 'nullable|string|max:500', // AGREGADO
+        'NOTAS' => 'nullable|string|max:500',
         'ESTADO' => 'nullable|string|in:disponible,agotado,vencido,proximo_vencer',
     ]);
 
@@ -188,19 +188,39 @@ public function update(Request $request, Insumo $insumo, InsumoLote $lote)
             ]);
         }
 
+        // NUEVA LÓGICA: Calcular la nueva CANTIDAD_ACTUAL
+        $cantidadInicialAnterior = $lote->CANTIDAD_INICIAL;
+        $cantidadActualAnterior = $lote->CANTIDAD_ACTUAL;
+        $nuevaCantidadInicial = $request->CANTIDAD_INICIAL;
+        
+        // Calcular cuánto se había usado del lote original
+        $cantidadUsada = $cantidadInicialAnterior - $cantidadActualAnterior;
+        
+        // La nueva cantidad actual = nueva cantidad inicial - cantidad ya usada
+        $nuevaCantidadActual = $nuevaCantidadInicial - $cantidadUsada;
+        
+        \Log::info('🔢 Cálculo de cantidades:', [
+            'cantidad_inicial_anterior' => $cantidadInicialAnterior,
+            'cantidad_actual_anterior' => $cantidadActualAnterior,
+            'cantidad_usada' => $cantidadUsada,
+            'nueva_cantidad_inicial' => $nuevaCantidadInicial,
+            'nueva_cantidad_actual' => $nuevaCantidadActual
+        ]);
+
         $lote->update([
             'LOTE' => $request->LOTE,
-            'CANTIDAD_INICIAL' => $request->CANTIDAD_INICIAL, // AGREGADO
+            'CANTIDAD_INICIAL' => $nuevaCantidadInicial,
+            'CANTIDAD_ACTUAL' => $nuevaCantidadActual, // CORREGIDO: Ajustar proporcionalmente
             'FECHA_CADUCIDAD' => $request->FECHA_CADUCIDAD,
             'COSTO_UNITARIO' => $request->COSTO_UNITARIO,
-            'NOTAS' => $request->NOTAS, // AGREGADO
+            'NOTAS' => $request->NOTAS,
             'ESTADO' => $request->ESTADO ?? $lote->ESTADO,
         ]);
 
         \Log::info('✅ Lote actualizado exitosamente');
 
         return redirect()->route('insumos.lotes.index', $insumo)
-            ->with('success', 'Lote actualizado exitosamente.');
+            ->with('success', 'Lote actualizado exitosamente. Stock ajustado proporcionalmente.');
 
     } catch (\Exception $e) {
         \Log::error('❌ Error actualizando lote:', [

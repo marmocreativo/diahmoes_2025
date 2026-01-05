@@ -203,7 +203,7 @@ export function AppSidebar() {
                         >
                             <Link href="/insumos" prefetch className="flex items-center gap-3">
                                 <Package className="!size-4" />
-                                <span className="font-medium">Insumos</span>
+                                <span className="font-medium">Inventario</span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>

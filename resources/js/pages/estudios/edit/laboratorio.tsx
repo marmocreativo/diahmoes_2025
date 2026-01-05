@@ -3,7 +3,7 @@ import { Head, router, usePage, Link } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, ChevronLeft, Save, Eye, FileText, FlaskConical } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Save, Eye, FileText, Plus, Trash2, FlaskConical } from 'lucide-react';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import { type BreadcrumbItem } from '@/types';
@@ -101,6 +101,149 @@ export default function EditLaboratorioConCondicionales() {
     const [genotipoKRAS, setGenotipoKRAS] = useState(estudio.R_GENOTIPO_KRAS || '');
     const [genotipoNRAS, setGenotipoNRAS] = useState(estudio.R_GENOTIPO_NRAS || '');
     const [genotipoBRAF, setGenotipoBRAF] = useState(estudio.R_GENOTIPO_BRAF || '');
+
+    // Funciones para manejar insumos
+    const cargarInsumosDisponibles = useCallback(async () => {
+        try {
+            const response = await fetch('/api/estudios/insumos-disponibles');
+            const data = await response.json();
+            
+            if (data.success) {
+                const select = document.getElementById('insumo-select') as HTMLSelectElement;
+                if (select) {
+                    // Limpiar opciones anteriores (excepto la primera)
+                    while (select.options.length > 1) {
+                        select.remove(1);
+                    }
+                    
+                    // Agregar insumos disponibles
+                    data.insumos.forEach((insumo: any) => {
+                        const option = document.createElement('option');
+                        option.value = insumo.ID;
+                        option.textContent = `${insumo.NOMBRE} (${insumo.UNIDAD_MEDIDA}) - Stock: ${insumo.STOCK_TOTAL}`;
+                        select.appendChild(option);
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error cargando insumos:', error);
+        }
+    }, []);
+
+    const cargarInsumosDelEstudio = useCallback(async () => {
+        console.log('=== CARGANDO INSUMOS DEL ESTUDIO ===');
+        console.log('Estudio ID:', estudio.ID);
+        
+        try {
+            const response = await fetch(`/estudios/${estudio.ID}/insumos`);
+            
+            console.log('Response status:', response.status);
+            console.log('Response ok:', response.ok);
+            
+            if (!response.ok) {
+                console.error('Error en la respuesta:', response.status, response.statusText);
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('Datos recibidos:', data);
+            
+            const container = document.getElementById('insumos-list');
+            if (!container) {
+                console.error('Container "insumos-list" no encontrado');
+                return;
+            }
+            
+            if (data.success && data.insumos && data.insumos.length > 0) {
+                console.log('Renderizando', data.insumos.length, 'insumos');
+                
+                container.innerHTML = `
+                    <div class="space-y-2">
+                        <h5 class="font-medium">Insumos utilizados:</h5>
+                        ${data.insumos.map((uso: any) => {
+                            console.log('Procesando insumo:', uso);
+                            
+                            // Obtener el nombre del insumo
+                            const nombreInsumo = uso.lote?.insumo?.NOMBRE || 
+                                            uso.nombre_insumo || 
+                                            'Sin nombre';
+                            
+                            // Obtener el número de lote
+                            const numeroLote = uso.lote?.LOTE || 
+                                            uso.numero_lote || 
+                                            'Sin lote';
+                            
+                            // Obtener la cantidad
+                            const cantidad = uso.CANTIDAD || uso.cantidad || 0;
+                            
+                            // Obtener el costo
+                            const costoTotal = uso.costo_total || 0;
+                            
+                            console.log('Datos procesados:', {
+                                nombreInsumo,
+                                numeroLote,
+                                cantidad,
+                                costoTotal
+                            });
+                            
+                            return `
+                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div>
+                                        <p class="font-medium">${nombreInsumo}</p>
+                                        <p class="text-sm text-gray-600">
+                                            Lote: ${numeroLote} | 
+                                            Cantidad: ${cantidad}
+                                            ${costoTotal > 0 ? ` | Costo: $${costoTotal.toFixed(2)}` : ''}
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onclick="eliminarInsumo(${uso.ID || uso.id})"
+                                        class="text-red-600 hover:text-red-800 transition-colors"
+                                        title="Eliminar insumo"
+                                    >
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            `;
+                        }).join('')}
+                        ${data.costo_total && data.costo_total > 0 ? `
+                            <div class="bg-green-50 border border-green-200 rounded-lg p-3 mt-3">
+                                <p class="text-green-800 font-medium">
+                                    Costo total de insumos: $${parseFloat(data.costo_total).toFixed(2)}
+                                </p>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                
+                console.log('Insumos renderizados exitosamente');
+            } else {
+                console.log('No hay insumos o la respuesta no fue exitosa');
+                container.innerHTML = `
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <p class="text-yellow-800 text-sm font-medium">No se han agregado insumos a este estudio</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('=== ERROR CARGANDO INSUMOS ===');
+            console.error('Error completo:', error);
+            console.error('Mensaje:', error instanceof Error ? error.message : error);
+            console.error('Stack:', error instanceof Error ? error.stack : 'No disponible');
+            
+            const container = document.getElementById('insumos-list');
+            if (container) {
+                container.innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <p class="text-red-800 text-sm font-medium">Error al cargar insumos: ${error instanceof Error ? error.message : 'Error desconocido'}</p>
+                    </div>
+                `;
+            }
+        }
+    }, [estudio.ID]);
 
     // Configuración React Quill
     const quillModules = {
@@ -377,50 +520,84 @@ export default function EditLaboratorioConCondicionales() {
 };
 
     // Función para obtener datos del formulario
-const getFormData = useCallback((): Record<string, any> => {
-    if (!formRef.current) return {};
-    
-    const formData = new FormData(formRef.current);
-    const data: Record<string, any> = {};
-    
-    formData.forEach((value, key) => {
-        data[key] = value;
-    });
+    const getFormData = useCallback((): Record<string, any> => {
+        if (!formRef.current) return {};
+        
+        const formData = new FormData(formRef.current);
+        const data: Record<string, any> = {};
+        
+        formData.forEach((value, key) => {
+            data[key] = value;
+        });
 
-    // Agregar valores de estado para genotipos
-    data.R_GENOTIPO_KRAS = genotipoKRAS;
-    data.R_GENOTIPO_NRAS = genotipoNRAS;
-    data.R_GENOTIPO_BRAF = genotipoBRAF;
+        // Agregar valores de estado para genotipos
+        data.R_GENOTIPO_KRAS = genotipoKRAS;
+        data.R_GENOTIPO_NRAS = genotipoNRAS;
+        data.R_GENOTIPO_BRAF = genotipoBRAF;
 
-    // Agregar valores de sangre total
-    if (esSangreTotal) {
-        data.MUESTRA_LIQ_CONDICION = camposSangreTotal.condicion;
-        data.MUESTRA_LIQ_CONDICION_PRESENCIA = camposSangreTotal.condicionPresencia;
-        data.MUESTRA_LIQ_CANTIDAD_ADECUADA = camposSangreTotal.cantidadAdecuada;
-        data.MUESTRA_LIQ_CANTIDAD_ML = camposSangreTotal.cantidadMl;
-        data.MUESTRA_LIQ_HEMOLISIS = camposSangreTotal.hemolisis;
-        data.MUESTRA_LIQ_AMP_INDICACION = camposSangreTotal.ampIndicacion;
-        data.MUESTRA_LIQ_AMP_RAZON = camposSangreTotal.ampRazon;
-        data.MUESTRA_LIQ_LIPEMICA = camposSangreTotal.lipemica;
-    }
+        // Agregar valores de sangre total
+        if (esSangreTotal) {
+            data.MUESTRA_LIQ_CONDICION = camposSangreTotal.condicion;
+            data.MUESTRA_LIQ_CONDICION_PRESENCIA = camposSangreTotal.condicionPresencia;
+            data.MUESTRA_LIQ_CANTIDAD_ADECUADA = camposSangreTotal.cantidadAdecuada;
+            data.MUESTRA_LIQ_CANTIDAD_ML = camposSangreTotal.cantidadMl;
+            data.MUESTRA_LIQ_HEMOLISIS = camposSangreTotal.hemolisis;
+            data.MUESTRA_LIQ_AMP_INDICACION = camposSangreTotal.ampIndicacion;
+            data.MUESTRA_LIQ_AMP_RAZON = camposSangreTotal.ampRazon;
+            data.MUESTRA_LIQ_LIPEMICA = camposSangreTotal.lipemica;
+        }
 
-    // Resto del código existente...
-    data.R_COMPLETOS = resultadosCompletos ? 'si' : 'no';
-    data.ESTUDIO_NOTAS = notasContent;
+        // Resto del código existente...
+        data.R_COMPLETOS = resultadosCompletos ? 'si' : 'no';
+        data.ESTUDIO_NOTAS = notasContent;
 
-    if (!resultadosCompletos) {
-        data.FECHA_OBTENCION_RESULTADOS = null;
-        data.HORA_OBTENCION_RESULTADOS = null;
-    }
+        if (!resultadosCompletos) {
+            data.FECHA_OBTENCION_RESULTADOS = null;
+            data.HORA_OBTENCION_RESULTADOS = null;
+        }
 
-    const fechaRecepcion = data.FECHA_RECEPCION_LABORATORIO as string;
-    const horaRecepcion = data.HORA_RECEPCION_LABORATORIO as string;
-    if (fechaRecepcion && horaRecepcion) {
-        data.FECHA_RECEPCION_LABORATORIO = fechaRecepcion + ' ' + horaRecepcion + ':00';
-    }
+        const fechaRecepcion = data.FECHA_RECEPCION_LABORATORIO as string;
+        const horaRecepcion = data.HORA_RECEPCION_LABORATORIO as string;
+        if (fechaRecepcion && horaRecepcion) {
+            data.FECHA_RECEPCION_LABORATORIO = fechaRecepcion + ' ' + horaRecepcion + ':00';
+        }
 
-    return data;
-}, [resultadosCompletos, genotipoKRAS, genotipoNRAS, genotipoBRAF, notasContent, camposSangreTotal, esSangreTotal]);
+        return data;
+    }, [resultadosCompletos, genotipoKRAS, genotipoNRAS, genotipoBRAF, notasContent, camposSangreTotal, esSangreTotal]);
+
+    // Función global para eliminar insumo (llamada desde el HTML)
+    useEffect(() => {
+        (window as any).eliminarInsumo = async (insumoId: number) => {
+            if (!confirm('¿Estás seguro de eliminar este insumo? La cantidad se devolverá al inventario.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/estudios/${estudio.ID}/insumos/${insumoId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    },
+                });
+                
+                if (response.ok) {
+                    cargarInsumosDelEstudio();
+                    alert('Insumo eliminado y cantidad devuelta al inventario');
+                } else {
+                    alert('Error al eliminar insumo');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al eliminar insumo');
+            }
+        };
+    }, [estudio.ID, cargarInsumosDelEstudio]);
+
+    // Cargar datos al montar el componente
+    useEffect(() => {
+        cargarInsumosDisponibles();
+        cargarInsumosDelEstudio();
+    }, [cargarInsumosDisponibles, cargarInsumosDelEstudio]);
 
 
     // Clases CSS compartidas
@@ -595,6 +772,8 @@ const getFormData = useCallback((): Record<string, any> => {
                             </div>
                         </div>
                     </div>
+
+                    
 
                     {/* Configuración del Estudio y Resultados */}
                     <div className="bg-white rounded-lg p-6 shadow-sm mb-6">
@@ -1043,75 +1222,451 @@ const getFormData = useCallback((): Record<string, any> => {
                         </div>
                     </div>
 
-                    {/* Resultados y Documentación */}
-                    <div className="bg-white rounded-lg p-6 shadow-sm mb-6">
-                        <h3 className="text-lg font-semibold mb-4">Resultados y Documentación</h3>
-                        
-                        <div className="space-y-6">
-                            {/* Resultado Histopatológico - Solo para no sangre total */}
-                            {!esSangreTotal && (
+                    
+                    <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+                        {/* Resultados y Documentación */}
+                        <div className="bg-white rounded-lg p-6 shadow-sm mb-6">
+                            <h3 className="text-lg font-semibold mb-4">Resultados y Documentación</h3>
+                            
+                            <div className="space-y-6">
+                                {/* Resultado Histopatológico - Solo para no sangre total */}
+                                {!esSangreTotal && (
+                                    <div>
+                                        <label className={labelClass}>Resultado Histopatológico</label>
+                                        <textarea
+                                            name="R_RESULTADO_HISTOPATOLOGICO"
+                                            className={textareaClass}
+                                            rows={12}
+                                            defaultValue={estudio.R_RESULTADO_HISTOPATOLOGICO || ''}
+                                            placeholder="Ingrese el resultado histopatológico..."
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Notas del estudio */}
                                 <div>
-                                    <label className={labelClass}>Resultado Histopatológico</label>
+                                    <label className={labelClass}>Notas (Visibles en el reporte)</label>
+                                    <div className="border border-gray-300 rounded-md">
+                                        <ReactQuill
+                                            theme="snow"
+                                            value={notasContent}
+                                            onChange={setNotasContent}
+                                            modules={quillModules}
+                                            formats={quillFormats}
+                                            style={{
+                                                height: '500px',
+                                                marginBottom: '42px'
+                                            }}
+                                            placeholder="Ingrese las notas del estudio..."
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Comentarios del estudio */}
+                                <div>
+                                    <label className={labelClass}>Comentarios (Visible solo para cliente)</label>
                                     <textarea
-                                        name="R_RESULTADO_HISTOPATOLOGICO"
+                                        name="ESTUDIO_COMENTARIOS"
                                         className={textareaClass}
                                         rows={12}
-                                        defaultValue={estudio.R_RESULTADO_HISTOPATOLOGICO || ''}
-                                        placeholder="Ingrese el resultado histopatológico..."
+                                        defaultValue={estudio.ESTUDIO_COMENTARIOS || ''}
+                                        placeholder="Ingrese comentarios del estudio..."
                                     />
                                 </div>
-                            )}
 
-                            {/* Notas del estudio */}
-                            <div>
-                                <label className={labelClass}>Notas (Visibles en el reporte)</label>
-                                <div className="border border-gray-300 rounded-md">
-                                    <ReactQuill
-                                        theme="snow"
-                                        value={notasContent}
-                                        onChange={setNotasContent}
-                                        modules={quillModules}
-                                        formats={quillFormats}
-                                        style={{
-                                            height: '500px',
-                                            marginBottom: '42px'
-                                        }}
-                                        placeholder="Ingrese las notas del estudio..."
+                                {/* Checkbox resultados completos */}
+                                <div className="flex items-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                    <input
+                                        type="checkbox"
+                                        name="R_COMPLETOS"
+                                        id="resultadosCompletos"
+                                        className="h-4 w-4 text-[#189BAF] focus:ring-[#189BAF] border-gray-300 rounded"
+                                        checked={resultadosCompletos}
+                                        onChange={handleResultadosCompletosChange}
                                     />
+                                    <label htmlFor="resultadosCompletos" className="ml-2 block text-sm text-gray-900 font-medium">
+                                        Resultados Completos
+                                    </label>
+                                    <span className="ml-2 text-sm text-gray-600">
+                                        (Al marcar se establecerá la fecha y hora de obtención de resultados)
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Insumos Utilizados */}
+                        <div className="bg-white rounded-lg p-6 shadow-sm mb-6">
+                            <h3 className="text-lg font-semibold mb-4">Insumos Utilizados</h3>
+                            
+                            {/* Agregar nuevo insumo */}
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                                <h5 className="font-medium mb-3">Añadir insumo al estudio</h5>
+                                
+                                {/* Selector de insumo */}
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Seleccionar Insumo
+                                        </label>
+                                        <select
+                                            id="insumo-select"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                            onChange={async (e) => {
+                                                const select = e.target as HTMLSelectElement;
+                                                const insumoId = select.value;
+                                                
+                                                console.log('=== SELECTOR DE INSUMO CAMBIADO ===');
+                                                console.log('Insumo ID seleccionado:', insumoId);
+                                                
+                                                if (insumoId) {
+                                                    const loteSelect = document.getElementById('lote-select') as HTMLSelectElement;
+                                                    const stockInfo = document.getElementById('stock-info') as HTMLDivElement;
+                                                    const url = `/insumos/${insumoId}/lotes-disponibles`;
+                                                    
+                                                    console.log('URL de petición:', url);
+                                                    console.log('Elementos del DOM encontrados:', {
+                                                        loteSelect: !!loteSelect,
+                                                        stockInfo: !!stockInfo
+                                                    });
+                                                    
+                                                    try {
+                                                        console.log('Iniciando fetch...');
+                                                        const response = await fetch(url);
+                                                        
+                                                        console.log('=== RESPUESTA RECIBIDA ===');
+                                                        console.log('Status:', response.status);
+                                                        console.log('Status Text:', response.statusText);
+                                                        console.log('OK:', response.ok);
+                                                        console.log('Headers:', Object.fromEntries(response.headers.entries()));
+                                                        
+                                                        if (!response.ok) {
+                                                            const errorText = await response.text();
+                                                            console.error('Error en respuesta:', {
+                                                                status: response.status,
+                                                                statusText: response.statusText,
+                                                                body: errorText
+                                                            });
+                                                            alert(`Error al cargar lotes: ${response.status} - ${response.statusText}`);
+                                                            return;
+                                                        }
+                                                        
+                                                        const data = await response.json();
+                                                        console.log('=== DATOS RECIBIDOS ===');
+                                                        console.log('Data completo:', data);
+                                                        console.log('Tipo de data:', typeof data);
+                                                        console.log('Propiedades:', Object.keys(data));
+                                                        
+                                                        if (loteSelect) {
+                                                            console.log('Limpiando selector de lotes...');
+                                                            loteSelect.innerHTML = '<option value="">Selecciona un lote</option>';
+                                                            loteSelect.disabled = false;
+                                                            
+                                                            if (data.lotes && Array.isArray(data.lotes)) {
+                                                                console.log('Cantidad de lotes:', data.lotes.length);
+                                                                
+                                                                if (data.lotes.length > 0) {
+                                                                    data.lotes.forEach((lote: any, index: number) => {
+                                                                        console.log(`Lote ${index + 1}:`, lote);
+                                                                        
+                                                                        const option = document.createElement('option');
+                                                                        option.value = lote.ID;
+                                                                        option.textContent = `${lote.LOTE} - Stock: ${lote.CANTIDAD_ACTUAL}${lote.PROXIMO_VENCER ? ' ⚠️ Próximo a vencer' : ''}`;
+                                                                        option.dataset.stock = lote.CANTIDAD_ACTUAL;
+                                                                        loteSelect.appendChild(option);
+                                                                    });
+                                                                    
+                                                                    console.log('Lotes agregados al selector');
+                                                                    
+                                                                    // Mostrar info de stock
+                                                                    if (stockInfo) {
+                                                                        stockInfo.classList.remove('hidden');
+                                                                        console.log('Info de stock mostrada');
+                                                                    }
+                                                                } else {
+                                                                    console.log('No hay lotes disponibles');
+                                                                    const option = document.createElement('option');
+                                                                    option.value = '';
+                                                                    option.textContent = 'No hay lotes disponibles';
+                                                                    loteSelect.appendChild(option);
+                                                                }
+                                                            } else {
+                                                                console.error('data.lotes no es un array o no existe:', {
+                                                                    lotes: data.lotes,
+                                                                    esArray: Array.isArray(data.lotes)
+                                                                });
+                                                                
+                                                                const option = document.createElement('option');
+                                                                option.value = '';
+                                                                option.textContent = 'Error al cargar lotes';
+                                                                loteSelect.appendChild(option);
+                                                            }
+                                                        } else {
+                                                            console.error('Selector de lotes no encontrado en el DOM');
+                                                        }
+                                                    } catch (error) {
+                                                        console.error('=== ERROR EN FETCH ===');
+                                                        console.error('Tipo de error:', error instanceof Error ? error.constructor.name : typeof error);
+                                                        console.error('Mensaje:', error instanceof Error ? error.message : error);
+                                                        console.error('Stack:', error instanceof Error ? error.stack : 'No stack trace');
+                                                        
+                                                        alert('Error al cargar lotes: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+                                                    }
+                                                } else {
+                                                    console.log('No se seleccionó ningún insumo (valor vacío)');
+                                                    
+                                                    // Resetear selector de lotes
+                                                    const loteSelect = document.getElementById('lote-select') as HTMLSelectElement;
+                                                    if (loteSelect) {
+                                                        loteSelect.innerHTML = '<option value="">Primero selecciona un insumo</option>';
+                                                        loteSelect.disabled = true;
+                                                    }
+                                                }
+                                            }}
+                                        >
+                                            <option value="">Selecciona un insumo</option>
+                                            {/* Los insumos se cargarán dinámicamente */}
+                                        </select>
+                                    </div>
+                                    
+                                    {/* Selector de lote */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Seleccionar Lote
+                                        </label>
+                                        <select
+                                            id="lote-select"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                            disabled
+                                        >
+                                            <option value="">Primero selecciona un insumo</option>
+                                        </select>
+                                    </div>
+                                    
+                                    {/* Cantidad */}
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <div className="col-span-2">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Cantidad *
+                                            </label>
+                                            <input
+                                                type="number"
+                                                id="cantidad-input"
+                                                min="1"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                placeholder="Cantidad a usar"
+                                            />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={async () => {
+                                                console.log('=== INICIANDO AGREGAR INSUMO ===');
+                                                
+                                                const insumoSelect = document.getElementById('insumo-select') as HTMLSelectElement;
+                                                const loteSelect = document.getElementById('lote-select') as HTMLSelectElement;
+                                                const cantidadInput = document.getElementById('cantidad-input') as HTMLInputElement;
+                                                
+                                                console.log('Elementos del formulario:', {
+                                                    insumoSelect: !!insumoSelect,
+                                                    loteSelect: !!loteSelect,
+                                                    cantidadInput: !!cantidadInput
+                                                });
+                                                
+                                                const insumoId = insumoSelect?.value;
+                                                const loteId = loteSelect?.value;
+                                                const cantidad = cantidadInput?.value ? parseInt(cantidadInput.value) : null;
+                                                
+                                                console.log('Valores capturados:', {
+                                                    insumoId,
+                                                    loteId,
+                                                    cantidad,
+                                                    cantidadTipo: typeof cantidad
+                                                });
+                                                
+                                                if (!loteId || !cantidad) {
+                                                    console.warn('Validación fallida: faltan datos');
+                                                    alert('Por favor selecciona un lote y cantidad');
+                                                    return;
+                                                }
+                                                
+                                                // Validar disponibilidad
+                                                const stockDisponible = loteSelect.selectedOptions[0]?.dataset.stock 
+                                                    ? parseInt(loteSelect.selectedOptions[0].dataset.stock) 
+                                                    : 0;
+                                                
+                                                console.log('Validación de stock:', {
+                                                    stockDisponible,
+                                                    cantidadSolicitada: cantidad,
+                                                    suficiente: cantidad <= stockDisponible
+                                                });
+                                                
+                                                if (cantidad > stockDisponible) {
+                                                    console.warn('Stock insuficiente');
+                                                    alert(`Stock insuficiente. Disponible: ${stockDisponible}`);
+                                                    return;
+                                                }
+                                                
+                                                // Obtener CSRF token
+                                                const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
+                                                const csrfToken = csrfTokenMeta?.getAttribute('content');
+                                                
+                                                console.log('CSRF Token:', {
+                                                    metaExists: !!csrfTokenMeta,
+                                                    tokenValue: csrfToken ? `"${csrfToken}"` : 'null',
+                                                    tokenLength: csrfToken?.length || 0
+                                                });
+                                                
+                                                // Preparar datos
+                                                const requestBody = {
+                                                    ID_INSUMO_LOTE: parseInt(loteId),
+                                                    CANTIDAD: cantidad,
+                                                };
+                                                
+                                                console.log('Body de la petición:', requestBody);
+                                                
+                                                // URL
+                                                const url = `/estudios/${estudio.ID}/insumos`;
+                                                console.log('URL:', url);
+                                                console.log('Estudio ID:', estudio.ID);
+                                                
+                                                // Headers
+                                                const headers = {
+                                                    'Content-Type': 'application/json',
+                                                    'Accept': 'application/json',
+                                                    'X-CSRF-TOKEN': csrfToken || '',
+                                                };
+                                                
+                                                console.log('Headers:', headers);
+                                                
+                                                try {
+                                                    console.log('=== ENVIANDO PETICIÓN ===');
+                                                    console.log('Configuración completa:', {
+                                                        url,
+                                                        method: 'POST',
+                                                        headers,
+                                                        body: JSON.stringify(requestBody)
+                                                    });
+                                                    
+                                                    const response = await fetch(url, {
+                                                        method: 'POST',
+                                                        headers,
+                                                        body: JSON.stringify(requestBody),
+                                                    });
+                                                    
+                                                    console.log('=== RESPUESTA RECIBIDA ===');
+                                                    console.log('Response completo:', response);
+                                                    console.log('Status:', response.status);
+                                                    console.log('Status Text:', response.statusText);
+                                                    console.log('OK:', response.ok);
+                                                    console.log('Content-Type:', response.headers.get('Content-Type'));
+                                                    console.log('Todos los headers:', Object.fromEntries(response.headers.entries()));
+                                                    
+                                                    // Leer el cuerpo de la respuesta
+                                                    const contentType = response.headers.get('Content-Type') || '';
+                                                    console.log('Tipo de contenido:', contentType);
+                                                    
+                                                    let data;
+                                                    let responseText = '';
+                                                    
+                                                    try {
+                                                        // Intentar leer como texto primero
+                                                        responseText = await response.text();
+                                                        console.log('=== CUERPO DE RESPUESTA (TEXTO) ===');
+                                                        console.log('Longitud:', responseText.length);
+                                                        console.log('Primeros 500 caracteres:', responseText.substring(0, 500));
+                                                        console.log('Últimos 200 caracteres:', responseText.substring(Math.max(0, responseText.length - 200)));
+                                                        
+                                                        // Intentar parsear como JSON
+                                                        if (contentType.includes('application/json') || responseText.trim().startsWith('{') || responseText.trim().startsWith('[')) {
+                                                            console.log('Intentando parsear como JSON...');
+                                                            data = JSON.parse(responseText);
+                                                            console.log('JSON parseado exitosamente:', data);
+                                                        } else {
+                                                            console.error('La respuesta NO es JSON');
+                                                            console.error('Es HTML? ', responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html'));
+                                                            
+                                                            // Si es HTML, buscar información de error
+                                                            if (responseText.includes('<!DOCTYPE') || responseText.includes('<html')) {
+                                                                console.error('Respuesta HTML detectada - probablemente una página de error');
+                                                                
+                                                                // Intentar extraer el título o mensaje de error
+                                                                const titleMatch = responseText.match(/<title>(.*?)<\/title>/i);
+                                                                if (titleMatch) {
+                                                                    console.error('Título de la página:', titleMatch[1]);
+                                                                }
+                                                            }
+                                                            
+                                                            throw new Error(`Respuesta no es JSON. Content-Type: ${contentType}. Status: ${response.status}`);
+                                                        }
+                                                    } catch (parseError) {
+                                                        console.error('=== ERROR AL PARSEAR RESPUESTA ===');
+                                                        console.error('Error:', parseError);
+                                                        console.error('Response text completo:', responseText);
+                                                        throw new Error(`Error al parsear respuesta: ${parseError instanceof Error ? parseError.message : 'Error desconocido'}`);
+                                                    }
+                                                    
+                                                    if (response.ok) {
+                                                        console.log('=== PETICIÓN EXITOSA ===');
+                                                        console.log('Data recibida:', data);
+                                                        
+                                                        if (data.success) {
+                                                            console.log('Operación exitosa según el servidor');
+                                                            
+                                                            // Recargar lista de insumos
+                                                            console.log('Recargando lista de insumos...');
+                                                            await cargarInsumosDelEstudio();
+                                                            
+                                                            // Limpiar formulario
+                                                            console.log('Limpiando formulario...');
+                                                            if (insumoSelect) insumoSelect.value = '';
+                                                            if (loteSelect) {
+                                                                loteSelect.innerHTML = '<option value="">Primero selecciona un insumo</option>';
+                                                                loteSelect.disabled = true;
+                                                            }
+                                                            if (cantidadInput) cantidadInput.value = '';
+                                                            
+                                                        } else {
+                                                            console.error('Operación fallida según el servidor:', data);
+                                                            alert('Error al agregar insumo: ' + (data.message || 'Error desconocido'));
+                                                        }
+                                                    } else {
+                                                        console.error('=== RESPUESTA NO EXITOSA ===');
+                                                        console.error('Status:', response.status);
+                                                        console.error('Data:', data);
+                                                        alert(`Error al agregar insumo: ${response.status} - ${data?.message || response.statusText}`);
+                                                    }
+                                                } catch (error) {
+                                                    console.error('=== ERROR EN EL PROCESO ===');
+                                                    console.error('Tipo:', error instanceof Error ? error.constructor.name : typeof error);
+                                                    console.error('Mensaje:', error instanceof Error ? error.message : error);
+                                                    console.error('Stack:', error instanceof Error ? error.stack : 'No disponible');
+                                                    
+                                                    alert('Error al agregar insumo: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+                                                }
+                                            }}
+                                            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center justify-center mt-6"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                    
+                                    {/* Info de stock */}
+                                    <div id="stock-info" className="hidden bg-gray-50 rounded p-2 text-sm text-gray-600">
+                                        💡 Tip: Los lotes se ordenan por fecha de caducidad (FIFO)
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Comentarios del estudio */}
-                            <div>
-                                <label className={labelClass}>Comentarios (Visible solo para cliente)</label>
-                                <textarea
-                                    name="ESTUDIO_COMENTARIOS"
-                                    className={textareaClass}
-                                    rows={12}
-                                    defaultValue={estudio.ESTUDIO_COMENTARIOS || ''}
-                                    placeholder="Ingrese comentarios del estudio..."
-                                />
-                            </div>
-
-                            {/* Checkbox resultados completos */}
-                            <div className="flex items-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                                <input
-                                    type="checkbox"
-                                    name="R_COMPLETOS"
-                                    id="resultadosCompletos"
-                                    className="h-4 w-4 text-[#189BAF] focus:ring-[#189BAF] border-gray-300 rounded"
-                                    checked={resultadosCompletos}
-                                    onChange={handleResultadosCompletosChange}
-                                />
-                                <label htmlFor="resultadosCompletos" className="ml-2 block text-sm text-gray-900 font-medium">
-                                    Resultados Completos
-                                </label>
-                                <span className="ml-2 text-sm text-gray-600">
-                                    (Al marcar se establecerá la fecha y hora de obtención de resultados)
-                                </span>
+                            {/* Lista de insumos utilizados */}
+                            <div id="insumos-list">
+                                {/* Los insumos se cargarán aquí dinámicamente */}
+                                <div className="text-center text-gray-500 py-4">
+                                    Cargando insumos...
+                                </div>
                             </div>
                         </div>
                     </div>
+
+                    
 
                    {/* Botones de navegación */}
                     <div className="bg-white rounded-lg p-4 shadow-sm">

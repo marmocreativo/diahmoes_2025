@@ -24,6 +24,7 @@ class InsumoLote extends Model
         'PROVEEDOR',
         'COSTO_UNITARIO',
         'ESTADO',
+        'NOTAS',
     ];
 
     protected $casts = [
@@ -225,6 +226,7 @@ class InsumoLote extends Model
 
         static::saving(function ($lote) {
             // Actualizar estado automáticamente según caducidad y cantidad
+            // CAMBIADO: Solo verificar fecha de caducidad si no es null
             if ($lote->FECHA_CADUCIDAD && $lote->FECHA_CADUCIDAD->isPast()) {
                 $lote->ESTADO = self::ESTADO_VENCIDO;
             } elseif ($lote->CANTIDAD_ACTUAL <= 0) {

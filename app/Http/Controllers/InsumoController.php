@@ -21,7 +21,7 @@ class InsumoController extends Controller
             $search = $request->get('search');
             $query->where(function($q) use ($search) {
                 $q->where('NOMBRE', 'like', "%{$search}%")
-                  ->orWhere('DESCRIPCION', 'like', "%{$search}%");
+                ->orWhere('DESCRIPCION', 'like', "%{$search}%");
             });
         }
         
@@ -35,18 +35,38 @@ class InsumoController extends Controller
             $query->stockBajo();
         }
         
-        // Cargar la relación de lotes disponibles para calcular stock
-        $query->with(['lotesDisponibles']);
+        // CAMBIO: Cargar lotes con información adicional
+        $query->with(['lotes' => function($query) {
+            $query->orderBy('FECHA_CADUCIDAD', 'asc')
+                ->orderBy('created_at', 'desc');
+        }]);
         
         // Ordenamiento
         $query->orderBy('NOMBRE', 'asc');
         
         $insumos = $query->paginate(20)->withQueryString();
         
-        // Agregar stock total a cada insumo
+        // CAMBIO: Agregar información completa de stock y lotes
         $insumos->getCollection()->transform(function ($insumo) {
-            $insumo->stock_total = $insumo->lotesDisponibles->sum('CANTIDAD_ACTUAL');
+            $insumo->stock_total = $insumo->lotes->where('ESTADO', 'disponible')->sum('CANTIDAD_ACTUAL');
             $insumo->stock_bajo = $insumo->stock_total <= $insumo->STOCK_MINIMO;
+            
+            // Formatear lotes con información adicional
+            $insumo->lotes_formateados = $insumo->lotes->map(function($lote) {
+                return [
+                    'ID' => $lote->ID,
+                    'LOTE' => $lote->LOTE,
+                    'CANTIDAD_INICIAL' => $lote->CANTIDAD_INICIAL,
+                    'CANTIDAD_ACTUAL' => $lote->CANTIDAD_ACTUAL,
+                    'FECHA_CADUCIDAD' => $lote->FECHA_CADUCIDAD,
+                    'COSTO_UNITARIO' => $lote->COSTO_UNITARIO,
+                    'ESTADO' => $lote->ESTADO,
+                    'created_at' => $lote->created_at,
+                    'dias_para_vencer' => $lote->FECHA_CADUCIDAD ? now()->diffInDays($lote->FECHA_CADUCIDAD, false) : null,
+                    'proximo_vencer' => $lote->proximo_vencer ?? false,
+                ];
+            });
+            
             return $insumo;
         });
         

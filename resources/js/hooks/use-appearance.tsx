@@ -20,8 +20,9 @@ const setCookie = (name: string, value: string, days = 365) => {
 };
 
 const applyTheme = (appearance: Appearance) => {
-    const isDark = appearance === 'dark' || (appearance === 'system' && prefersDark());
-
+    //const isDark = appearance === 'dark' || (appearance === 'system' && prefersDark());
+    // CAMBIO: Siempre aplicar tema light
+    const isDark = false; // Forzamos siempre light
     document.documentElement.classList.toggle('dark', isDark);
 };
 
@@ -39,14 +40,16 @@ const handleSystemThemeChange = () => {
 };
 
 export function initializeTheme() {
-    const savedAppearance = (localStorage.getItem('appearance') as Appearance) || 'system';
-
+    //const savedAppearance = (localStorage.getItem('appearance') as Appearance) || 'system';
+    // CAMBIO: Siempre inicializar con light
+    const savedAppearance = 'light' as Appearance;
     applyTheme(savedAppearance);
 
     // Add the event listener for system theme changes...
     mediaQuery()?.addEventListener('change', handleSystemThemeChange);
 }
 
+/*
 export function useAppearance() {
     const [appearance, setAppearance] = useState<Appearance>('system');
 
@@ -67,6 +70,33 @@ export function useAppearance() {
         updateAppearance(savedAppearance || 'system');
 
         return () => mediaQuery()?.removeEventListener('change', handleSystemThemeChange);
+    }, [updateAppearance]);
+
+    return { appearance, updateAppearance } as const;
+}
+*/
+
+export function useAppearance() {
+    // CAMBIO: Estado siempre en light
+    const [appearance, setAppearance] = useState<Appearance>('light');
+
+    const updateAppearance = useCallback((mode: Appearance) => {
+        // CAMBIO: Ignorar el parámetro y siempre usar light
+        const forcedMode = 'light';
+        setAppearance(forcedMode);
+
+        // Store in localStorage for client-side persistence...
+        localStorage.setItem('appearance', forcedMode);
+
+        // Store in cookie for SSR...
+        setCookie('appearance', forcedMode);
+
+        applyTheme(forcedMode);
+    }, []);
+
+    useEffect(() => {
+        // CAMBIO: Siempre usar light, ignorar lo guardado
+        updateAppearance('light');
     }, [updateAppearance]);
 
     return { appearance, updateAppearance } as const;
