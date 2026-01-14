@@ -222,24 +222,8 @@ export default function InsumosIndex() {
     };
 
     const handleDeleteInsumo = (insumo: Insumo) => {
-        const confirmMessage = `¿Estás seguro de que deseas eliminar el insumo "${insumo.NOMBRE}"?\n\nEsta acción NO se puede deshacer.`;
-        
-        if (window.confirm(confirmMessage)) {
-            setDeletingId(insumo.ID);
-            
-            router.delete(`/insumos/${insumo.ID}`, {
-                onSuccess: () => {
-                    // Éxito
-                },
-                onError: (errors) => {
-                    console.error('Error al eliminar insumo:', errors);
-                    alert('Error al eliminar el insumo. Puede que tenga lotes asociados.');
-                },
-                onFinish: () => {
-                    setDeletingId(null);
-                }
-            });
-        }
+        // Redirigir a la página de confirmación en lugar de mostrar confirm()
+        router.get(`/insumos/${insumo.ID}/confirm-delete`);
     };
 
     const getEstadoBadgeClasses = (estado: string) => {

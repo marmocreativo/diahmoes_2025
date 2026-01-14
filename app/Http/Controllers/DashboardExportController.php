@@ -230,11 +230,11 @@ class DashboardExportController extends Controller
 
         // Aplicar filtros
         if (!empty($filters['fecha_inicio'])) {
-            $query->where('e.FECHA_SOLICITUD_RECOLECCION', '>=', $filters['fecha_inicio']);
+            $query->where('e.FECHA_RECEPCION', '>=', $filters['fecha_inicio']);
         }
         
         if (!empty($filters['fecha_fin'])) {
-            $query->where('e.FECHA_SOLICITUD_RECOLECCION', '<=', $filters['fecha_fin']);
+            $query->where('e.FECHA_RECEPCION', '<=', $filters['fecha_fin']);
         }
 
         if (!empty($filters['muestra_estado'])) {
@@ -290,11 +290,11 @@ class DashboardExportController extends Controller
 
         // Aplicar los mismos filtros
         if (!empty($filters['fecha_inicio'])) {
-            $query->where('e.FECHA_SOLICITUD_RECOLECCION', '>=', $filters['fecha_inicio']);
+            $query->where('e.FECHA_RECEPCION', '>=', $filters['fecha_inicio']);
         }
         
         if (!empty($filters['fecha_fin'])) {
-            $query->where('e.FECHA_SOLICITUD_RECOLECCION', '<=', $filters['fecha_fin']);
+            $query->where('e.FECHA_RECEPCION', '<=', $filters['fecha_fin']);
         }
 
         if (!empty($filters['muestra_estado'])) {

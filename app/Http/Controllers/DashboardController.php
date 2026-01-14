@@ -35,7 +35,8 @@ class DashboardController extends Controller
             'comparativa_tipos' => $this->getComparativaTiposEstudio($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
             'comparativa_mutacion' => $this->getComparativaMutacion($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
             'comparacion_3_periodos' => $this->getComparacion3Periodos($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
-            'predicciones' => $this->getPredicciones($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
+            'predicciones' => $this->getPredicciones($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
+            'estudios_faltantes' => $this->getEstudiosFaltantes($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo) // NUEVA LÍNEA
         ];
         
         return Inertia::render('dashboard', [
@@ -81,9 +82,9 @@ class DashboardController extends Controller
     private function getQueryBase($fechaDesde, $fechaHasta, $muestraEstado = null, $tipoEstudio = null, $prefijo = null)
     {
         $query = DB::table('estudios')
-            ->whereBetween('FECHA_SOLICITUD_RECOLECCION', [$fechaDesde . ' 00:00:00', $fechaHasta . ' 23:59:59'])
-            ->whereNotNull('FECHA_SOLICITUD_RECOLECCION')
-            ->where('FECHA_SOLICITUD_RECOLECCION', '>', '1000-01-01 00:00:00');
+            ->whereBetween('FECHA_RECEPCION', [$fechaDesde . ' 00:00:00', $fechaHasta . ' 23:59:59'])
+            ->whereNotNull('FECHA_RECEPCION')
+            ->where('FECHA_RECEPCION', '>', '1000-01-01 00:00:00');
             
         if ($muestraEstado) {
             $query->where('MUESTRA_ESTADO', $muestraEstado);
@@ -126,17 +127,15 @@ class DashboardController extends Controller
     
     private function getGraficasPie($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
     {
-        // Solo MUESTRA_TIPO_ESTUDIO
+        // Solo MUESTRA_TIPO_ESTUDIO - INCLUIR VALORES VACÍOS
         $muestraTipoEstudio = $this->getQueryBase($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
             ->select('MUESTRA_TIPO_ESTUDIO', DB::raw('COUNT(*) as total'))
-            ->whereNotNull('MUESTRA_TIPO_ESTUDIO')
-            ->where('MUESTRA_TIPO_ESTUDIO', '!=', '')
             ->groupBy('MUESTRA_TIPO_ESTUDIO')
             ->orderByDesc('total')
             ->get()
             ->map(function($item) {
                 return [
-                    'name' => $item->MUESTRA_TIPO_ESTUDIO ?: 'Sin especificar',
+                    'name' => empty($item->MUESTRA_TIPO_ESTUDIO) ? 'N/D' : $item->MUESTRA_TIPO_ESTUDIO,
                     'value' => $item->total
                 ];
             });
@@ -223,16 +222,16 @@ class DashboardController extends Controller
         
         $query = DB::table('estudios')
             ->select(
-                DB::raw('YEAR(FECHA_SOLICITUD_RECOLECCION) as anio'),
-                DB::raw('MONTH(FECHA_SOLICITUD_RECOLECCION) as mes'),
+                DB::raw('YEAR(FECHA_RECEPCION) as anio'),
+                DB::raw('MONTH(FECHA_RECEPCION) as mes'),
                 'MUESTRA_TIPO_ESTUDIO',
                 DB::raw('COUNT(*) as total')
             )
-            ->where('FECHA_SOLICITUD_RECOLECCION', '>=', $fechaInicioHistorico)
-            ->whereNotNull('FECHA_SOLICITUD_RECOLECCION')
-            ->where('FECHA_SOLICITUD_RECOLECCION', '>', '1000-01-01 00:00:00')
-            ->whereNotNull('MUESTRA_TIPO_ESTUDIO')
-            ->where('MUESTRA_TIPO_ESTUDIO', '!=', '');
+            ->where('FECHA_RECEPCION', '>=', $fechaInicioHistorico)
+            ->whereNotNull('FECHA_RECEPCION')
+            ->where('FECHA_RECEPCION', '>', '1000-01-01 00:00:00')
+            ->whereNotNull('MUESTRA_TIPO_ESTUDIO');
+            //->where('MUESTRA_TIPO_ESTUDIO', '!=', '');
         
         // Aplicar filtros condicionales
         if ($muestraEstado) {
@@ -248,9 +247,9 @@ class DashboardController extends Controller
         }
         
         $datos = $query
-            ->groupBy(DB::raw('YEAR(FECHA_SOLICITUD_RECOLECCION)'), DB::raw('MONTH(FECHA_SOLICITUD_RECOLECCION)'), 'MUESTRA_TIPO_ESTUDIO')
-            ->orderBy(DB::raw('YEAR(FECHA_SOLICITUD_RECOLECCION)'))
-            ->orderBy(DB::raw('MONTH(FECHA_SOLICITUD_RECOLECCION)'))
+            ->groupBy(DB::raw('YEAR(FECHA_RECEPCION)'), DB::raw('MONTH(FECHA_RECEPCION)'), 'MUESTRA_TIPO_ESTUDIO')
+            ->orderBy(DB::raw('YEAR(FECHA_RECEPCION)'))
+            ->orderBy(DB::raw('MONTH(FECHA_RECEPCION)'))
             ->get();
         
         // Agrupar por mes y organizar tipos de estudio
@@ -300,9 +299,9 @@ class DashboardController extends Controller
                 'R_ESTATUS_BRAF',
                 DB::raw('COUNT(*) as total')
             )
-            ->whereBetween('FECHA_SOLICITUD_RECOLECCION', [$fechaDesde . ' 00:00:00', $fechaHasta . ' 23:59:59'])
-            ->whereNotNull('FECHA_SOLICITUD_RECOLECCION')
-            ->where('FECHA_SOLICITUD_RECOLECCION', '>', '1000-01-01 00:00:00');
+            ->whereBetween('FECHA_RECEPCION', [$fechaDesde . ' 00:00:00', $fechaHasta . ' 23:59:59'])
+            ->whereNotNull('FECHA_RECEPCION')
+            ->where('FECHA_RECEPCION', '>', '1000-01-01 00:00:00');
         
         // Aplicar filtros condicionales
         if ($muestraEstado) {
@@ -488,19 +487,19 @@ class DashboardController extends Controller
         
         // Obtener datos históricos para el mismo mes en años anteriores
         $datosHistoricosMes = DB::table('estudios')
-            ->select(DB::raw('YEAR(FECHA_SOLICITUD_RECOLECCION) as anio'), DB::raw('COUNT(*) as total'))
-            ->whereMonth('FECHA_SOLICITUD_RECOLECCION', $mesSiguiente->month)
-            ->where('FECHA_SOLICITUD_RECOLECCION', '>=', Carbon::now()->subYears(5))
-            ->whereNotNull('FECHA_SOLICITUD_RECOLECCION')
-            ->where('FECHA_SOLICITUD_RECOLECCION', '>', '1000-01-01 00:00:00');
+            ->select(DB::raw('YEAR(FECHA_RECEPCION) as anio'), DB::raw('COUNT(*) as total'))
+            ->whereMonth('FECHA_RECEPCION', $mesSiguiente->month)
+            ->where('FECHA_RECEPCION', '>=', Carbon::now()->subYears(5))
+            ->whereNotNull('FECHA_RECEPCION')
+            ->where('FECHA_RECEPCION', '>', '1000-01-01 00:00:00');
         
         if ($muestraEstado) $datosHistoricosMes->where('MUESTRA_ESTADO', $muestraEstado);
         if ($tipoEstudio) $datosHistoricosMes->where('MUESTRA_TIPO_ESTUDIO', $tipoEstudio);
         if ($prefijo) $datosHistoricosMes->where('CLAVE', $prefijo);
         
         $datosHistoricosMes = $datosHistoricosMes
-            ->groupBy(DB::raw('YEAR(FECHA_SOLICITUD_RECOLECCION)'))
-            ->orderBy(DB::raw('YEAR(FECHA_SOLICITUD_RECOLECCION)'))
+            ->groupBy(DB::raw('YEAR(FECHA_RECEPCION)'))
+            ->orderBy(DB::raw('YEAR(FECHA_RECEPCION)'))
             ->get();
         
         $promedioMesSiguiente = $datosHistoricosMes->avg('total');
@@ -585,13 +584,13 @@ class DashboardController extends Controller
         
         $query = DB::table('estudios')
             ->select(
-                DB::raw('YEAR(FECHA_SOLICITUD_RECOLECCION) as anio'),
-                DB::raw('MONTH(FECHA_SOLICITUD_RECOLECCION) as mes'),
+                DB::raw('YEAR(FECHA_RECEPCION) as anio'),
+                DB::raw('MONTH(FECHA_RECEPCION) as mes'),
                 DB::raw('COUNT(*) as total')
             )
-            ->where('FECHA_SOLICITUD_RECOLECCION', '>=', $fechaInicioHistorico)
-            ->whereNotNull('FECHA_SOLICITUD_RECOLECCION')
-            ->where('FECHA_SOLICITUD_RECOLECCION', '>', '1000-01-01 00:00:00');
+            ->where('FECHA_RECEPCION', '>=', $fechaInicioHistorico)
+            ->whereNotNull('FECHA_RECEPCION')
+            ->where('FECHA_RECEPCION', '>', '1000-01-01 00:00:00');
         
         // Aplicar filtros condicionales
         if ($muestraEstado) {
@@ -607,9 +606,9 @@ class DashboardController extends Controller
         }
         
         $datos = $query
-            ->groupBy(DB::raw('YEAR(FECHA_SOLICITUD_RECOLECCION)'), DB::raw('MONTH(FECHA_SOLICITUD_RECOLECCION)'))
-            ->orderBy(DB::raw('YEAR(FECHA_SOLICITUD_RECOLECCION)'))
-            ->orderBy(DB::raw('MONTH(FECHA_SOLICITUD_RECOLECCION)'))
+            ->groupBy(DB::raw('YEAR(FECHA_RECEPCION)'), DB::raw('MONTH(FECHA_RECEPCION)'))
+            ->orderBy(DB::raw('YEAR(FECHA_RECEPCION)'))
+            ->orderBy(DB::raw('MONTH(FECHA_RECEPCION)'))
             ->get();
         
         // Formatear datos para la gráfica
@@ -685,5 +684,98 @@ class DashboardController extends Controller
         }
         
         return $mesesComparacion;
+    }
+
+    private function getEstudiosFaltantes($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
+    {
+        // Obtener todos los estudios que cumplen con los filtros
+        $query = $this->getQueryBase($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
+            ->select('ID', 'CLAVE', 'ANIO', 'SERIADO', 'CLAVE_INTERNA')
+            ->orderBy('CLAVE')
+            ->orderBy('ANIO')
+            ->orderBy('SERIADO');
+        
+        $estudiosEncontrados = $query->get();
+        
+        // Agrupar por CLAVE y AÑO
+        $gruposClave = $estudiosEncontrados->groupBy(function($estudio) {
+            return $estudio->CLAVE . '_' . $estudio->ANIO;
+        });
+        
+        $estudiosFaltantes = [];
+        
+        foreach ($gruposClave as $grupoKey => $estudios) {
+            list($clave, $anio) = explode('_', $grupoKey);
+            
+            // Obtener el rango de seriados
+            $seriados = $estudios->pluck('SERIADO')->toArray();
+            $minSeriado = min($seriados);
+            $maxSeriado = max($seriados);
+            
+            // Crear array con todos los números que deberían existir
+            $seriadosCompletos = range($minSeriado, $maxSeriado);
+            
+            // Encontrar los faltantes
+            $seriadosFaltantes = array_diff($seriadosCompletos, $seriados);
+            
+            // Por cada faltante, buscar el estudio en la BD
+            foreach ($seriadosFaltantes as $seriadoFaltante) {
+                $estudioFaltante = DB::table('estudios')
+                    ->select('ID', 'CLAVE_INTERNA', 'CLAVE', 'ANIO', 'SERIADO', 'FECHA_RECEPCION', 'MUESTRA_TIPO_ESTUDIO', 'ESTUDIO_ESTADO')
+                    ->where('CLAVE', $clave)
+                    ->where('ANIO', $anio)
+                    ->where('SERIADO', $seriadoFaltante)
+                    ->first();
+                
+                if ($estudioFaltante) {
+                    $estudiosFaltantes[] = [
+                        'id' => $estudioFaltante->ID,
+                        'clave_interna' => $estudioFaltante->CLAVE_INTERNA,
+                        'clave' => $estudioFaltante->CLAVE,
+                        'anio' => $estudioFaltante->ANIO,
+                        'seriado' => $estudioFaltante->SERIADO,
+                        'fecha_recepcion' => $estudioFaltante->FECHA_RECEPCION,
+                        'tipo_estudio' => $estudioFaltante->MUESTRA_TIPO_ESTUDIO ?: 'N/D',
+                        'estado' => $estudioFaltante->ESTUDIO_ESTADO ?: 'Sin estado',
+                        'url' => "/estudios/{$estudioFaltante->ID}",
+                        'razon_faltante' => $this->determinarRazonFaltante($estudioFaltante, $fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
+                    ];
+                }
+            }
+        }
+        
+        return collect($estudiosFaltantes)->sortBy(['clave', 'anio', 'seriado'])->values()->all();
+    }
+
+    private function determinarRazonFaltante($estudio, $fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
+    {
+        $razones = [];
+        
+        // Verificar fecha
+        if ($estudio->FECHA_RECEPCION) {
+            $fechaEstudio = date('Y-m-d', strtotime($estudio->FECHA_RECEPCION));
+            if ($fechaEstudio < $fechaDesde || $fechaEstudio > $fechaHasta) {
+                $razones[] = 'Fecha fuera del rango';
+            }
+        } else {
+            $razones[] = 'Sin fecha de recepción';
+        }
+        
+        // Verificar estado
+        if ($muestraEstado && $estudio->MUESTRA_ESTADO !== $muestraEstado) {
+            $razones[] = "Estado: {$estudio->MUESTRA_ESTADO} (filtrado: {$muestraEstado})";
+        }
+        
+        // Verificar tipo estudio
+        if ($tipoEstudio && $estudio->MUESTRA_TIPO_ESTUDIO !== $tipoEstudio) {
+            $razones[] = "Tipo: {$estudio->MUESTRA_TIPO_ESTUDIO} (filtrado: {$tipoEstudio})";
+        }
+        
+        // Verificar prefijo
+        if ($prefijo && $estudio->CLAVE !== $prefijo) {
+            $razones[] = "Prefijo: {$estudio->CLAVE} (filtrado: {$prefijo})";
+        }
+        
+        return empty($razones) ? 'Datos incompletos' : implode(', ', $razones);
     }
 }

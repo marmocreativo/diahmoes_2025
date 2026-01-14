@@ -177,10 +177,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // CRUD básico de insumos
     Route::resource('insumos', InsumoController::class)
         ->parameters(['insumos' => 'insumo:ID']);
+    
+    // Confirmación antes de eliminar insumo
+    Route::get('insumos/{insumo:ID}/confirm-delete', [InsumoController::class, 'confirmDelete'])
+        ->name('insumos.confirm-delete');
 
     // Obtener insumos disponibles (para formularios)
     Route::get('api/insumos/disponibles', [InsumoController::class, 'getDisponibles'])
         ->name('api.insumos.disponibles');
+
+    
 
     /*
     |--------------------------------------------------------------------------

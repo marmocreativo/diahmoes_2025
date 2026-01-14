@@ -300,29 +300,91 @@ class InsumoController extends Controller
      */
     public function destroy(Insumo $insumo)
     {
-        try {
-            // Verificar si tiene lotes asociados
-            if ($insumo->lotes()->count() > 0) {
-                return back()->withErrors([
-                    'delete' => 'No se puede eliminar el insumo porque tiene lotes asociados.'
-                ]);
-            }
+        \Log::info('🔴 INICIANDO ELIMINACIÓN DE INSUMO');
+        \Log::info('📦 Insumo ID: ' . $insumo->ID);
+        \Log::info('📦 Insumo: ' . $insumo->NOMBRE);
 
+        try {
+            // Iniciar transacción para garantizar consistencia
+            \DB::beginTransaction();
+
+            // 1. Obtener información previa para logging
+            $totalLotes = $insumo->lotes()->count();
+            $totalEstudiosInsumos = \DB::table('estudios_insumos')
+                ->join('insumos_lotes', 'estudios_insumos.ID_INSUMO_LOTE', '=', 'insumos_lotes.ID')
+                ->where('insumos_lotes.ID_INSUMO', $insumo->ID)
+                ->count();
+
+            \Log::info('📊 Registros a eliminar:', [
+                'total_lotes' => $totalLotes,
+                'total_estudios_insumos' => $totalEstudiosInsumos
+            ]);
+
+            // 2. Eliminar primero los registros de estudios_insumos
+            // Esto se hace automáticamente por las foreign keys CASCADE definidas en la migración
+            // Pero lo hacemos explícito para mejor control y logging
+            $estudiosInsumosEliminados = \DB::table('estudios_insumos')
+                ->join('insumos_lotes', 'estudios_insumos.ID_INSUMO_LOTE', '=', 'insumos_lotes.ID')
+                ->where('insumos_lotes.ID_INSUMO', $insumo->ID)
+                ->delete();
+
+            \Log::info('✅ Registros estudios_insumos eliminados: ' . $estudiosInsumosEliminados);
+
+            // 3. Eliminar los lotes del insumo
+            $lotesEliminados = $insumo->lotes()->delete();
+            
+            \Log::info('✅ Lotes eliminados: ' . $lotesEliminados);
+
+            // 4. Finalmente eliminar el insumo
             $insumo->delete();
             
+            \Log::info('✅ Insumo eliminado exitosamente');
+
+            // Confirmar transacción
+            \DB::commit();
+
             return redirect()->route('insumos.index')
-                ->with('success', 'Insumo eliminado exitosamente.');
+                ->with('success', "Insumo '{$insumo->NOMBRE}' eliminado exitosamente junto con {$totalLotes} lotes y {$totalEstudiosInsumos} usos en estudios.");
 
         } catch (\Exception $e) {
+            // Revertir transacción en caso de error
+            \DB::rollBack();
+            
             \Log::error('❌ Error eliminando insumo:', [
                 'insumo_id' => $insumo->ID,
-                'error' => $e->getMessage()
+                'error_message' => $e->getMessage(),
+                'error_line' => $e->getLine(),
+                'error_file' => $e->getFile()
             ]);
             
             return back()->withErrors([
                 'delete' => 'Error al eliminar el insumo: ' . $e->getMessage()
             ]);
         }
+    }
+
+    /**
+     * Mostrar información antes de eliminar (opcional - para confirmación)
+     */
+    public function confirmDelete(Insumo $insumo)
+    {
+        $insumo->load('lotes.usos');
+        
+        $estadisticas = [
+            'total_lotes' => $insumo->lotes->count(),
+            'total_usos_estudios' => $insumo->lotes->sum(function($lote) {
+                return $lote->usos->count();
+            }),
+            'estudios_afectados' => $insumo->lotes->flatMap(function($lote) {
+                return $lote->usos->pluck('ID_ESTUDIO');
+            })->unique()->count(),
+            'stock_total_actual' => $insumo->lotes->sum('CANTIDAD_ACTUAL'),
+        ];
+
+        return Inertia::render('insumos/confirm-delete', [
+            'insumo' => $insumo,
+            'estadisticas' => $estadisticas
+        ]);
     }
 
     /**

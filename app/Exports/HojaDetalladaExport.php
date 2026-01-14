@@ -55,25 +55,25 @@ class HojaDetalladaExport implements FromCollection, WithHeadings, WithTitle, Wi
                 'e.FECHA_RESULTADOS_CORREO'
             );
 
-        // Aplicar los mismos filtros que en la primera hoja
+        // ✅ FILTROS CORREGIDOS - usar FECHA_RECEPCION:
         if (!empty($this->filters['fecha_inicio'])) {
-            $query->where('e.FECHA_SOLICITUD_RECOLECCION', '>=', $this->filters['fecha_inicio']);
+            $query->where('e.FECHA_RECEPCION', '>=', $this->filters['fecha_inicio']);
         }
         
         if (!empty($this->filters['fecha_fin'])) {
-            $query->where('e.FECHA_SOLICITUD_RECOLECCION', '<=', $this->filters['fecha_fin']);
+            $query->where('e.FECHA_RECEPCION', '<=', $this->filters['fecha_fin']);
         }
 
-        if (!empty($this->filters['institucion_id'])) {
-            $query->where('e.ID_INSTITUCION', $this->filters['institucion_id']);
+        if (!empty($this->filters['muestra_estado'])) {
+            $query->where('e.MUESTRA_ESTADO', $this->filters['muestra_estado']);
         }
 
-        if (!empty($this->filters['medico_id'])) {
-            $query->where('e.ID_MEDICO', $this->filters['medico_id']);
+        if (!empty($this->filters['tipo_estudio'])) {
+            $query->where('e.MUESTRA_TIPO_ESTUDIO', $this->filters['tipo_estudio']);
         }
 
-        if (!empty($this->filters['estado'])) {
-            $query->where('e.ESTUDIO_ESTADO', $this->filters['estado']);
+        if (!empty($this->filters['prefijo'])) {
+            $query->where('e.CLAVE', $this->filters['prefijo']);
         }
 
         return $query->get();

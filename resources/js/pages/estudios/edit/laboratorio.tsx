@@ -962,6 +962,7 @@ export default function EditLaboratorioConCondicionales() {
                                 )}
 
                                 {/* Campos específicos para TEJIDO - CONDICIONAL */}
+                                {/* Filtro  */}
                                 {!esSangreTotal && (
                                     <div className="space-y-4 border border-green-200 rounded-lg p-4 bg-green-50">
                                         <h4 className="font-medium text-green-800">Análisis de Tejido</h4>

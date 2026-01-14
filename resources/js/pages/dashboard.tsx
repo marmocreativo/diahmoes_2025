@@ -83,6 +83,19 @@ interface Predicciones {
     anios_analizados: number;
 }
 
+interface EstudioFaltante {
+    id: number;
+    clave_interna: string;
+    clave: string;
+    anio: number;
+    seriado: number;
+    fecha_recepcion: string;
+    tipo_estudio: string;
+    estado: string;
+    url: string;
+    razon_faltante: string;
+}
+
 interface Datos {
     metricas_principales: MetricasPrincipales;
     graficas_pie: GraficasPie;
@@ -99,7 +112,9 @@ interface Datos {
     comparativa_mutacion: ComparativaMutacion;
     comparacion_3_periodos: Comparacion3Periodos;
     predicciones: Predicciones;
+    estudios_faltantes: EstudioFaltante[];
 }
+
 
 export default function Dashboard() {
 
@@ -817,6 +832,103 @@ export default function Dashboard() {
                     {/* Título para separar - Comparativa y Predicción */}
                     <div className="border-t pt-6">
                         <div className="text-center mb-6">
+                            <h2 className="text-2xl font-bold text-gray-900 mb-2">Posibles errores</h2>
+                            <p className="text-gray-600">Busqueda de estudios con datos no capturados</p>
+                        </div>
+                    </div>
+
+                    {/* Estudios Faltantes - Nueva sección */}
+                        {datos.estudios_faltantes && datos.estudios_faltantes.length > 0 && (
+                            <>
+                                <div className="border-t pt-6">
+                                    <div className="text-center mb-6">
+                                        <h2 className="text-2xl font-bold text-red-700 mb-2">⚠️ Estudios Faltantes Detectados</h2>
+                                        <p className="text-gray-600">
+                                            Se detectaron {datos.estudios_faltantes.length} estudios que deberían aparecer en los resultados pero fueron filtrados
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <Card className="border-red-200 bg-red-50">
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-red-700">
+                                            <Activity className="h-5 w-5" />
+                                            Estudios que no aparecen en los filtros actuales
+                                            <Tooltip>
+                                                <TooltipTrigger>
+                                                    <HelpCircle className="h-4 w-4 text-red-400" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Estos estudios están en secuencias numéricas de los resultados pero no aparecen por diferencias en fechas u otros campos</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Estudios que forman parte de la secuencia numérica pero no cumplen con los filtros aplicados
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full border-collapse">
+                                                <thead>
+                                                    <tr className="border-b border-red-200">
+                                                        <th className="text-left py-2 px-3 font-semibold text-red-700">Clave Interna</th>
+                                                        <th className="text-left py-2 px-3 font-semibold text-red-700">Prefijo</th>
+                                                        <th className="text-left py-2 px-3 font-semibold text-red-700">Año</th>
+                                                        <th className="text-left py-2 px-3 font-semibold text-red-700">Seriado</th>
+                                                        <th className="text-left py-2 px-3 font-semibold text-red-700">Fecha Recepción</th>
+                                                        <th className="text-left py-2 px-3 font-semibold text-red-700">Tipo Estudio</th>
+                                                        <th className="text-left py-2 px-3 font-semibold text-red-700">Estado</th>
+                                                        <th className="text-left py-2 px-3 font-semibold text-red-700">Razón</th>
+                                                        <th className="text-left py-2 px-3 font-semibold text-red-700">Acción</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {datos.estudios_faltantes.map((estudio, index) => (
+                                                        <tr key={index} className="border-b border-red-100 hover:bg-red-100">
+                                                            <td className="py-2 px-3 font-mono text-sm">{estudio.clave_interna}</td>
+                                                            <td className="py-2 px-3">{estudio.clave}</td>
+                                                            <td className="py-2 px-3">{estudio.anio}</td>
+                                                            <td className="py-2 px-3 font-bold">{estudio.seriado}</td>
+                                                            <td className="py-2 px-3 text-sm">
+                                                                {estudio.fecha_recepcion ? 
+                                                                    new Date(estudio.fecha_recepcion).toLocaleDateString('es-ES') : 
+                                                                    'Sin fecha'
+                                                                }
+                                                            </td>
+                                                            <td className="py-2 px-3 text-sm">{estudio.tipo_estudio}</td>
+                                                            <td className="py-2 px-3 text-sm">{estudio.estado}</td>
+                                                            <td className="py-2 px-3 text-xs text-red-600">{estudio.razon_faltante}</td>
+                                                            <td className="py-2 px-3">
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="border-red-300 text-red-700 hover:bg-red-100"
+                                                                    onClick={() => window.open(estudio.url, '_blank')}
+                                                                >
+                                                                    Ver Estudio
+                                                                </Button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        
+                                        <div className="mt-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
+                                            <p className="text-sm text-yellow-800">
+                                                <strong>💡 Sugerencia:</strong> Estos estudios no aparecen en los resultados actuales porque no cumplen con uno o más filtros. 
+                                                Revisa las fechas de recepción, tipos de estudio o estados para determinar si necesitan corrección.
+                                            </p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </>
+                        )}
+
+                    {/* Título para separar - Comparativa y Predicción */}
+                    <div className="border-t pt-6">
+                        <div className="text-center mb-6">
                             <h2 className="text-2xl font-bold text-gray-900 mb-2">Comparativa y Predicción</h2>
                             <p className="text-gray-600">Análisis comparativo con datos históricos y proyecciones futuras</p>
                         </div>
@@ -961,6 +1073,8 @@ export default function Dashboard() {
                             </CardContent>
                         </Card>
                     </div>
+
+
                 </div>
             </AppLayout>
         </TooltipProvider>
