@@ -721,7 +721,7 @@ class DashboardController extends Controller
             // Por cada faltante, buscar el estudio en la BD
             foreach ($seriadosFaltantes as $seriadoFaltante) {
                 $estudioFaltante = DB::table('estudios')
-                    ->select('ID', 'CLAVE_INTERNA', 'CLAVE', 'ANIO', 'SERIADO', 'FECHA_RECEPCION', 'MUESTRA_TIPO_ESTUDIO', 'ESTUDIO_ESTADO')
+                    ->select('ID', 'CLAVE_INTERNA', 'CLAVE', 'ANIO', 'SERIADO', 'FECHA_RECEPCION', 'MUESTRA_TIPO_ESTUDIO', 'ESTUDIO_ESTADO', 'MUESTRA_ESTADO')
                     ->where('CLAVE', $clave)
                     ->where('ANIO', $anio)
                     ->where('SERIADO', $seriadoFaltante)
