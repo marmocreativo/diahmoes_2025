@@ -10,6 +10,7 @@ use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\EnviosCorreosController;
 use App\Http\Controllers\InsumoController;
 use App\Http\Controllers\InsumoLoteController;
+use App\Http\Controllers\PlantillaInsumoController;
 use App\Http\Controllers\EstudioInsumoController;
 use App\Http\Controllers\DashboardExportController;
 use Illuminate\Support\Facades\Route;
@@ -248,6 +249,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Rutas para insumos de un estudio específico
     Route::prefix('estudios/{estudio:ID}')->group(function () {
+
+        // Rutas para plantillas de insumos
+        Route::get('/plantillas-insumos', [PlantillaInsumoController::class, 'getPlantillasRecomendadas'])
+            ->name('estudios.plantillas.recomendadas');
+        
+        Route::post('/aplicar-plantilla', [PlantillaInsumoController::class, 'aplicarPlantilla'])
+            ->name('estudios.plantillas.aplicar');
+        
+        Route::post('/validar-plantilla', [PlantillaInsumoController::class, 'validarDisponibilidadPlantilla'])
+            ->name('estudios.plantillas.validar');
         
         // Listar insumos del estudio
         Route::get('/insumos', [EstudioInsumoController::class, 'index'])
@@ -339,6 +350,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     | CRUD de Estudios
     |--------------------------------------------------------------------------
     */
+
+    Route::get('/estudios/insumos-masivos', [EstudioController::class, 'insumosListado'])
+        ->name('estudios.insumos.listado')
+        ->middleware(['auth', 'verified']);
     
     // CRUD básico de estudios
     Route::resource('estudios', EstudioController::class)
@@ -856,6 +871,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/configuracion/cache-info', [ConfiguracionController::class, 'getCacheInfo']);
     
 });
+
+Route::get('/plantillas-insumos', [PlantillaInsumoController::class, 'getPlantillas'])
+     ->name('plantillas.insumos.index');
 
 /*
 |--------------------------------------------------------------------------

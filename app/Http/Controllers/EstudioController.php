@@ -568,6 +568,67 @@ class EstudioController extends Controller
         ->with('success', 'Estudio creado exitosamente. Complete la información de recolección.')
         ->with('prefijo', $estudio->CLAVE);
     }
+
+    public function insumosListado(Request $request)
+    {
+        $request->validate([
+            'fecha_desde' => 'nullable|date',
+            'fecha_hasta' => 'nullable|date',
+            'estado' => 'nullable|string',
+            'tipo_estudio' => 'nullable|string',
+            'prefijo' => 'nullable|string'
+        ]);
+        
+        $query = Estudio::query()
+            ->with([
+                'insumos.lote.insumo',
+                'paciente',
+                'medico',
+                'institucion'
+            ]);
+        
+        // Filtros de fecha (por defecto últimos 30 días)
+        $fechaDesde = $request->fecha_desde ?: now()->subDays(30)->format('Y-m-d');
+        $fechaHasta = $request->fecha_hasta ?: now()->format('Y-m-d');
+        
+        $query->whereBetween('FECHA_RECEPCION_LABORATORIO', [
+            $fechaDesde . ' 00:00:00',
+            $fechaHasta . ' 23:59:59'
+        ]);
+        
+        // Otros filtros
+        if ($request->filled('estado')) {
+            $query->where('ESTUDIO_ESTADO', $request->estado);
+        }
+        
+        if ($request->filled('tipo_estudio')) {
+            $query->where('MUESTRA_TIPO_ESTUDIO', $request->tipo_estudio);
+        }
+        
+        if ($request->filled('prefijo')) {
+            $query->where('CLAVE', $request->prefijo);
+        }
+        
+        // Ordenar por fecha más reciente
+        $query->orderBy('FECHA_RECEPCION_LABORATORIO', 'desc');
+        
+        $estudios = $query->paginate(20)->withQueryString();
+        
+        // Obtener datos para filtros
+        $estados = Estudio::getEstados();
+        $tiposEstudio = ['Biopsia Sólida', 'Biopsia Líquida'];
+        
+        return Inertia::render('estudios/insumos-listado', [
+            'estudios' => $estudios,
+            'filters' => $request->only(['fecha_desde', 'fecha_hasta', 'estado', 'tipo_estudio', 'prefijo']),
+            'estados' => $estados,
+            'tipos_estudio' => $tiposEstudio,
+            'fechas_default' => [
+                'desde' => $fechaDesde,
+                'hasta' => $fechaHasta
+            ]
+        ]);
+    }
     
     private function manejarNuevoCliente(Request $request)
     {

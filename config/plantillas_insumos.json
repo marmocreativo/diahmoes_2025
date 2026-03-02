@@ -1,0 +1,205 @@
+{
+  "plantillas": {
+    "base_guantes": {
+      "nombre": "Solo Guantes (Base)",
+      "descripcion": "Guantes básicos para cualquier procedimiento",
+      "icono": "🧤",
+      "categoria": "base",
+      "condiciones": {},
+      "insumos": [
+        {
+          "nombre_insumo": "GUANTES NITRILO",
+          "cantidad": 1,
+          "obligatorio": true,
+          "descripcion": "Par de guantes desechables"
+        }
+      ]
+    },
+    "biopsia_solida_kras_mutado": {
+      "nombre": "Biopsia Sólida - KRAS Mutado",
+      "descripcion": "Para biopsias sólidas con resultado KRAS positivo",
+      "icono": "🧬",
+      "categoria": "biopsia_solida",
+      "condiciones": {
+        "tipo_muestra": ["Tejido", "Biopsia"],
+        "resultado_kras": ["MUTADO", "MUTADO (VER NOTAS)"]
+      },
+      "insumos": [
+        {
+          "nombre_insumo": "GUANTES NITRILO",
+          "cantidad": 1,
+          "obligatorio": true
+        },
+        {
+          "nombre_insumo": "MICROTUBO AXYGEN",
+          "cantidad": 3,
+          "obligatorio": true,
+          "descripcion": "Microtubos de 1.5 mL"
+        },
+        {
+          "nombre_insumo": "MICROPUNTAS 100",
+          "cantidad": 1,
+          "obligatorio": true,
+          "descripcion": "Micropunta 100 µL"
+        },
+        {
+          "nombre_insumo": "SOBRE PLATEADO",
+          "cantidad": 2,
+          "obligatorio": true,
+          "descripcion": "Filtros Whatman"
+        },
+        {
+          "nombre_insumo": "CARTUCHO CT KRAS",
+          "cantidad": 1,
+          "obligatorio": true,
+          "descripcion": "Cartucho biocartis KRAS"
+        }
+      ]
+    },
+    "biopsia_solida_kras_wt_nras": {
+      "nombre": "Biopsia Sólida - KRAS WT → NRAS",
+      "descripcion": "Para biopsias sólidas con KRAS no mutado que requiere análisis NRAS",
+      "icono": "🔬",
+      "categoria": "biopsia_solida",
+      "condiciones": {
+        "tipo_muestra": ["Tejido", "Biopsia"],
+        "resultado_kras": ["NO MUTADO", "NO MUTADO (VER NOTAS)"],
+        "requiere_nras": true
+      },
+      "insumos": [
+        {
+          "nombre_insumo": "GUANTES NITRILO",
+          "cantidad": 1,
+          "obligatorio": true
+        },
+        {
+          "nombre_insumo": "MICROTUBO AXYGEN",
+          "cantidad": 3,
+          "obligatorio": true,
+          "descripcion": "Microtubos de 1.5 mL"
+        },
+        {
+          "nombre_insumo": "MICROPUNTAS 100",
+          "cantidad": 2,
+          "obligatorio": true,
+          "descripcion": "2 Micropuntas 100 µL"
+        },
+        {
+          "nombre_insumo": "SOBRE PLATEADO",
+          "cantidad": 4,
+          "obligatorio": true,
+          "descripcion": "Filtros Whatman"
+        },
+        {
+          "nombre_insumo": "CARTUCHO CT-NRAS-BRAF",
+          "cantidad": 1,
+          "obligatorio": true,
+          "descripcion": "Cartucho biocartis NRAS/BRAF/EGFR"
+        }
+      ]
+    },
+    "biopsia_liquida_kras_mutado": {
+      "nombre": "Biopsia Líquida - KRAS Mutado",
+      "descripcion": "Para biopsias líquidas (sangre total) con resultado KRAS positivo",
+      "icono": "🩸",
+      "categoria": "biopsia_liquida",
+      "condiciones": {
+        "tipo_muestra": ["Sangre total"],
+        "resultado_kras": ["MUTADO", "MUTADO (VER NOTAS)"]
+      },
+      "insumos": [
+        {
+          "nombre_insumo": "GUANTES NITRILO",
+          "cantidad": 1,
+          "obligatorio": true
+        },
+        {
+          "nombre_insumo": "MICROTUBO AXYGEN",
+          "cantidad": 2,
+          "obligatorio": true,
+          "descripcion": "2 microtubos"
+        },
+        {
+          "nombre_insumo": "MICROPUNTAS 1000",
+          "cantidad": 2,
+          "obligatorio": true,
+          "descripcion": "2 micropuntas de 1000 µL"
+        },
+        {
+          "nombre_insumo": "MICROPUNTAS 100",
+          "cantidad": 1,
+          "obligatorio": true,
+          "descripcion": "1 micropunta 100 µL"
+        },
+        {
+          "nombre_insumo": "TUBO PAXGENE",
+          "cantidad": 30,
+          "obligatorio": true,
+          "descripcion": "30 µL proteinasa",
+          "unidad": "µL"
+        },
+        {
+          "nombre_insumo": "CARTUCHO CT KRAS",
+          "cantidad": 1,
+          "obligatorio": true,
+          "descripcion": "Cartucho biocartis ctKRAS"
+        }
+      ]
+    },
+    "biopsia_liquida_kras_wt_nras": {
+      "nombre": "Biopsia Líquida - KRAS WT → NRAS",
+      "descripcion": "Para biopsias líquidas con KRAS no mutado que requiere análisis NRAS",
+      "icono": "🔬🩸",
+      "categoria": "biopsia_liquida",
+      "condiciones": {
+        "tipo_muestra": ["Sangre total"],
+        "resultado_kras": ["NO MUTADO", "NO MUTADO (VER NOTAS)"],
+        "requiere_nras": true
+      },
+      "insumos": [
+        {
+          "nombre_insumo": "GUANTES NITRILO",
+          "cantidad": 1,
+          "obligatorio": true
+        },
+        {
+          "nombre_insumo": "MICROTUBO AXYGEN",
+          "cantidad": 2,
+          "obligatorio": true,
+          "descripcion": "2 microtubos"
+        },
+        {
+          "nombre_insumo": "MICROPUNTAS 1000",
+          "cantidad": 2,
+          "obligatorio": true,
+          "descripcion": "2 micropuntas de 1000 µL"
+        },
+        {
+          "nombre_insumo": "MICROPUNTAS 100",
+          "cantidad": 2,
+          "obligatorio": true,
+          "descripcion": "2 micropuntas 100 µL"
+        },
+        {
+          "nombre_insumo": "TUBO PAXGENE",
+          "cantidad": 60,
+          "obligatorio": true,
+          "descripcion": "60 µL proteinasa",
+          "unidad": "µL"
+        },
+        {
+          "nombre_insumo": "CARTUCHO CT KRAS",
+          "cantidad": 1,
+          "obligatorio": true,
+          "descripcion": "Cartucho biocartis ctKRAS"
+        },
+        {
+          "nombre_insumo": "CARTUCHO NRAS-BRAF",
+          "cantidad": 1,
+          "obligatorio": true,
+          "descripcion": "Cartucho biocartis ctNRAS"
+        }
+      ]
+    }
+  }
+}
