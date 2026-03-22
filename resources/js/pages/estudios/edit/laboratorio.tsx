@@ -266,8 +266,16 @@ export default function EditLaboratorioConCondicionales() {
     // Función para obtener fecha y hora actuales
     const getCurrentDateTime = (): { fecha: string; hora: string } => {
         const now = new Date();
-        const fecha = now.toISOString().split('T')[0];
-        const hora = now.toTimeString().slice(0, 5);
+        
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        
+        const fecha = `${year}-${month}-${day}`;
+        const hora = `${hours}:${minutes}`;
+        
         return { fecha, hora };
     };
 
