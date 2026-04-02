@@ -32,6 +32,11 @@ export default function EstudiosIndex() {
     const [muestraFolioSobre, setMuestraFolioSobre] = useState(filters?.muestra_folio_sobre || '');
     const [muestraFolioKitBl, setMuestraFolioKitBl] = useState(filters?.muestra_folio_kit_bl || '');
 
+    // Estados para cambio de destinatario
+    const [correoDestinatario, setCorreoDestinatario] = useState('');
+    const [nuevoNombreDestinatario, setNuevoNombreDestinatario] = useState('');
+    const [isChangingDestinatario, setIsChangingDestinatario] = useState(false);
+
     // Estado para manejar el dropdown
     const [showMaintenanceDropdown, setShowMaintenanceDropdown] = useState(false);
     const [isRepairing, setIsRepairing] = useState(false);
@@ -79,6 +84,48 @@ export default function EstudiosIndex() {
         }
         
         return diasContados >= diasHabiles;
+    };
+
+    const handleCambiarDestinatario = async () => {
+        if (!correoDestinatario || !nuevoNombreDestinatario) {
+            alert('Por favor completa ambos campos.');
+            return;
+        }
+
+        if (!window.confirm(`¿Cambiar el nombre de "${correoDestinatario}" a "${nuevoNombreDestinatario}" en todos los registros?`)) {
+            return;
+        }
+
+        setIsChangingDestinatario(true);
+        setShowMaintenanceDropdown(false);
+
+        try {
+            const response = await fetch('/estudios/cambiar-destinatario', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                },
+                body: JSON.stringify({
+                    correo: correoDestinatario,
+                    nuevo_nombre: nuevoNombreDestinatario,
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert(`Listo: ${data.correos_copia_actualizados} correos de copia y ${data.envios_actualizados} envíos actualizados.`);
+                setCorreoDestinatario('');
+                setNuevoNombreDestinatario('');
+            } else {
+                throw new Error(data.message || 'Error desconocido');
+            }
+        } catch (error) {
+            alert('Error: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+        } finally {
+            setIsChangingDestinatario(false);
+        }
     };
 
     // Función para verificar si han pasado más de 24 horas
@@ -995,10 +1042,55 @@ export default function EstudiosIndex() {
                                                     </div>
                                                 </div>
 
-                                                {/* Separador para futuras opciones */}
+                                                {/* Separador */}
                                                 <div className="border-t border-gray-100 my-1"></div>
-                                                
+
+                                                {/* Cambiar nombre de destinatario */}
+                                                <div className="px-4 py-3">
+                                                    <div className="flex items-start space-x-3">
+                                                        {isChangingDestinatario ? (
+                                                            <div className="h-4 w-4 mt-1 animate-spin rounded-full border-2 border-teal-500 border-t-transparent"></div>
+                                                        ) : (
+                                                            <Mail className="h-4 w-4 mt-1 text-teal-500" />
+                                                        )}
+                                                        <div className="flex-1">
+                                                            <div className="font-medium text-sm text-gray-700 mb-1">
+                                                                Cambiar Nombre de Destinatario
+                                                            </div>
+                                                            <div className="text-xs text-gray-500 mb-3">
+                                                                Actualiza el nombre asociado a un correo en todos los registros
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <input
+                                                                    type="email"
+                                                                    placeholder="Correo a buscar"
+                                                                    value={correoDestinatario}
+                                                                    onChange={(e) => setCorreoDestinatario(e.target.value)}
+                                                                    disabled={isChangingDestinatario}
+                                                                    className="w-full text-xs text-gray-900 border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                                                />
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder="Nuevo nombre"
+                                                                    value={nuevoNombreDestinatario}
+                                                                    onChange={(e) => setNuevoNombreDestinatario(e.target.value)}
+                                                                    disabled={isChangingDestinatario}
+                                                                    className="w-full text-xs text-gray-900 border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                                                />
+                                                                <button
+                                                                    onClick={handleCambiarDestinatario}
+                                                                    disabled={isChangingDestinatario || !correoDestinatario || !nuevoNombreDestinatario}
+                                                                    className="w-full text-xs bg-teal-500 text-white px-3 py-1.5 rounded hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                >
+                                                                    {isChangingDestinatario ? 'Actualizando...' : 'Actualizar Nombre'}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
                                                 {/* Placeholder para futuras opciones */}
+                                                <div className="border-t border-gray-100 mt-1"></div>
                                                 <div className="px-4 py-3 text-xs text-gray-400 italic">
                                                     Más funciones próximamente...
                                                 </div>

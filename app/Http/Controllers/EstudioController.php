@@ -1769,129 +1769,129 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
     /**
      * Enviar correo individual y registrar el envío
      */
-public function enviarCorreoIndividual(Request $request, Estudio $estudio)
-{
-    try {
-        $request->validate([
-            'nombre' => 'nullable|string|max:255',
-            'correo' => 'required|email|max:255',
-            'enviar_adjunto' => 'boolean'
-        ]);
+    public function enviarCorreoIndividual(Request $request, Estudio $estudio)
+    {
+        try {
+            $request->validate([
+                'nombre' => 'nullable|string|max:255',
+                'correo' => 'required|email|max:255',
+                'enviar_adjunto' => 'boolean'
+            ]);
 
-        \Log::info('🚀 Iniciando envío de correo individual', [
-            'estudio_id' => $estudio->ID,
-            'estado_actual' => $estudio->ESTUDIO_ESTADO,
-            'destinatario' => $request->correo,
-            'enviar_adjunto' => $request->enviar_adjunto ?? false
-        ]);
+            \Log::info('🚀 Iniciando envío de correo individual', [
+                'estudio_id' => $estudio->ID,
+                'estado_actual' => $estudio->ESTUDIO_ESTADO,
+                'destinatario' => $request->correo,
+                'enviar_adjunto' => $request->enviar_adjunto ?? false
+            ]);
 
-        // Verificar si el estudio está cancelado
-        if ($estudio->ESTUDIO_ESTADO === 'Cancelado') {
-            \Log::warning('⚠️ No se puede enviar correo de un estudio cancelado');
+            // Verificar si el estudio está cancelado
+            if ($estudio->ESTUDIO_ESTADO === 'Cancelado') {
+                \Log::warning('⚠️ No se puede enviar correo de un estudio cancelado');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede enviar correo de un estudio cancelado.'
+                ], 400);
+            }
+
+            // Procesar el nombre del destinatario
+            $nombreDestinatario = $request->nombre;
+            
+            if (empty($nombreDestinatario)) {
+                $nombreDestinatario = explode('@', $request->correo)[0];
+            }
+
+            // Cargar relaciones necesarias
+            $estudio->load(['medico', 'cliente', 'institucion']);
+
+            // Verificar que el estudio tenga información completa
+            if (!$estudio->medico || !$estudio->cliente || !$estudio->institucion) {
+                throw new \Exception('El estudio no tiene la información completa necesaria');
+            }
+
+            \Log::info('📧 Enviando correo a destinatario', [
+                'nombre_destinatario' => $nombreDestinatario,
+                'correo' => $request->correo
+            ]);
+
+            // Enviar el correo usando Mail de Laravel (método original)
+            Mail::to($request->correo)->send(new \App\Mail\EstudioReporte($estudio, $request->enviar_adjunto ?? false));
+
+            \Log::info('✅ Correo enviado exitosamente');
+
+            // Registrar el envío directamente en la base de datos (SIN usar el service por ahora)
+            $envio = \App\Models\EnvioCorreo::create([
+                'ID_ESTUDIO' => $estudio->ID,
+                'ID_MEDICO' => $estudio->ID_MEDICO,
+                'ID_USUARIO_ENVIO' => auth()->user()->ID_USUARIO ?? auth()->id(),
+                'NOMBRE_DESTINATARIO' => $nombreDestinatario,
+                'CORREO_DESTINATARIO' => $request->correo,
+                'TIPO_ENVIO' => $request->enviar_adjunto ? 'adjunto' : 'enlace',
+                'MENSAJE_HTML' => 'Correo enviado - ' . ($estudio->CLAVE_INTERNA ?? 'Sin clave'),
+                'ESTADO' => 'enviado',
+                'FECHA_ENVIO' => now()
+            ]);
+
+            \Log::info('📝 Envío registrado en base de datos', [
+                'envio_id' => $envio->id
+            ]);
+
+            // ACTUALIZAR ESTADO DEL ESTUDIO SI ES NECESARIO
+            $estadoActual = $estudio->ESTUDIO_ESTADO;
+            
+            if ($estadoActual !== 'Resultados Enviados') {
+                // Actualizar estado y fecha de envío de resultados
+                $datosActualizar = [
+                    'ESTUDIO_ESTADO' => 'Resultados Enviados',
+                    'FECHA_RESULTADOS_CORREO' => now()
+                ];
+                
+                $estudio->update($datosActualizar);
+                
+                \Log::info('🔄 Estado del estudio actualizado', [
+                    'estado_anterior' => $estadoActual,
+                    'estado_nuevo' => 'Resultados Enviados',
+                    'fecha_envio' => now()
+                ]);
+                
+                $mensajeEstado = " Estado actualizado de '{$estadoActual}' a 'Resultados Enviados'.";
+            } else {
+                \Log::info('📋 Estado ya es "Resultados Enviados", no se modifica');
+                $mensajeEstado = '';
+            }
+
+            \Log::info('🎉 Correo individual enviado y registrado exitosamente', [
+                'estudio_id' => $estudio->ID,
+                'destinatario' => $request->correo,
+                'nombre_usado' => $nombreDestinatario,
+                'envio_id' => $envio->id,
+                'estado_actualizado' => $estadoActual !== 'Resultados Enviados'
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Correo enviado exitosamente a {$nombreDestinatario}.{$mensajeEstado}",
+                'envio_id' => $envio->id,
+                'estado_actualizado' => $estadoActual !== 'Resultados Enviados',
+                'nuevo_estado' => 'Resultados Enviados'
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('❌ Error enviando correo individual', [
+                'estudio_id' => $estudio->ID ?? null,
+                'destinatario' => $request->correo ?? null,
+                'nombre_original' => $request->nombre ?? null,
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'No se puede enviar correo de un estudio cancelado.'
-            ], 400);
+                'message' => 'Error al enviar correo: ' . $e->getMessage()
+            ], 500);
         }
-
-        // Procesar el nombre del destinatario
-        $nombreDestinatario = $request->nombre;
-        
-        if (empty($nombreDestinatario)) {
-            $nombreDestinatario = explode('@', $request->correo)[0];
-        }
-
-        // Cargar relaciones necesarias
-        $estudio->load(['medico', 'cliente', 'institucion']);
-
-        // Verificar que el estudio tenga información completa
-        if (!$estudio->medico || !$estudio->cliente || !$estudio->institucion) {
-            throw new \Exception('El estudio no tiene la información completa necesaria');
-        }
-
-        \Log::info('📧 Enviando correo a destinatario', [
-            'nombre_destinatario' => $nombreDestinatario,
-            'correo' => $request->correo
-        ]);
-
-        // Enviar el correo usando Mail de Laravel (método original)
-        Mail::to($request->correo)->send(new \App\Mail\EstudioReporte($estudio, $request->enviar_adjunto ?? false));
-
-        \Log::info('✅ Correo enviado exitosamente');
-
-        // Registrar el envío directamente en la base de datos (SIN usar el service por ahora)
-        $envio = \App\Models\EnvioCorreo::create([
-            'ID_ESTUDIO' => $estudio->ID,
-            'ID_MEDICO' => $estudio->ID_MEDICO,
-            'ID_USUARIO_ENVIO' => auth()->user()->ID_USUARIO ?? auth()->id(),
-            'NOMBRE_DESTINATARIO' => $nombreDestinatario,
-            'CORREO_DESTINATARIO' => $request->correo,
-            'TIPO_ENVIO' => $request->enviar_adjunto ? 'adjunto' : 'enlace',
-            'MENSAJE_HTML' => 'Correo enviado - ' . ($estudio->CLAVE_INTERNA ?? 'Sin clave'),
-            'ESTADO' => 'enviado',
-            'FECHA_ENVIO' => now()
-        ]);
-
-        \Log::info('📝 Envío registrado en base de datos', [
-            'envio_id' => $envio->id
-        ]);
-
-        // ACTUALIZAR ESTADO DEL ESTUDIO SI ES NECESARIO
-        $estadoActual = $estudio->ESTUDIO_ESTADO;
-        
-        if ($estadoActual !== 'Resultados Enviados') {
-            // Actualizar estado y fecha de envío de resultados
-            $datosActualizar = [
-                'ESTUDIO_ESTADO' => 'Resultados Enviados',
-                'FECHA_RESULTADOS_CORREO' => now()
-            ];
-            
-            $estudio->update($datosActualizar);
-            
-            \Log::info('🔄 Estado del estudio actualizado', [
-                'estado_anterior' => $estadoActual,
-                'estado_nuevo' => 'Resultados Enviados',
-                'fecha_envio' => now()
-            ]);
-            
-            $mensajeEstado = " Estado actualizado de '{$estadoActual}' a 'Resultados Enviados'.";
-        } else {
-            \Log::info('📋 Estado ya es "Resultados Enviados", no se modifica');
-            $mensajeEstado = '';
-        }
-
-        \Log::info('🎉 Correo individual enviado y registrado exitosamente', [
-            'estudio_id' => $estudio->ID,
-            'destinatario' => $request->correo,
-            'nombre_usado' => $nombreDestinatario,
-            'envio_id' => $envio->id,
-            'estado_actualizado' => $estadoActual !== 'Resultados Enviados'
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => "Correo enviado exitosamente a {$nombreDestinatario}.{$mensajeEstado}",
-            'envio_id' => $envio->id,
-            'estado_actualizado' => $estadoActual !== 'Resultados Enviados',
-            'nuevo_estado' => 'Resultados Enviados'
-        ]);
-
-    } catch (\Exception $e) {
-        \Log::error('❌ Error enviando correo individual', [
-            'estudio_id' => $estudio->ID ?? null,
-            'destinatario' => $request->correo ?? null,
-            'nombre_original' => $request->nombre ?? null,
-            'error' => $e->getMessage(),
-            'line' => $e->getLine(),
-            'file' => $e->getFile()
-        ]);
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Error al enviar correo: ' . $e->getMessage()
-        ], 500);
     }
-}
 
     /**
      * Show the form for editing the specified resource - Vista Completa
@@ -2712,6 +2712,32 @@ private function enviarCorreosReporte(Estudio $estudio, bool $enviarAdjunto = tr
                 'reporte' => $reporte ?? []
             ], 500);
         }
+    }
+
+    public function cambiarDestinatario(Request $request)
+    {
+         \Log::info('🔵 cambiarDestinatario ejecutado', $request->all());
+        $request->validate([
+            'correo' => 'required|email|max:255',
+            'nuevo_nombre' => 'required|string|max:255',
+        ]);
+
+        $correo = $request->correo;
+        $nuevoNombre = $request->nuevo_nombre;
+
+        $correosCopia = \App\Models\CorreoCopia::where('CORREO', $correo)
+            ->update(['NOMBRE' => $nuevoNombre]);
+
+        $enviosCorreo = \DB::table('envios_correos')
+            ->where('CORREO_DESTINATARIO', $correo)
+            ->update(['NOMBRE_DESTINATARIO' => $nuevoNombre]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Nombre actualizado correctamente.",
+            'correos_copia_actualizados' => $correosCopia,
+            'envios_actualizados' => $enviosCorreo,
+        ]);
     }
 
     /**

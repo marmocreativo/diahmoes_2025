@@ -4,7 +4,6 @@ import { type Institucion, type InstitucionEditProps } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
 
-// Interfaz que extiende PageProps para usePage
 interface PageProps extends InstitucionEditProps {
     [key: string]: any;
 }
@@ -12,7 +11,6 @@ interface PageProps extends InstitucionEditProps {
 export default function Edit() {
     const { institucion, estados_mexico } = usePage<PageProps>().props;
 
-    // Verificar si los datos están disponibles
     if (!institucion) {
         return (
             <AppLayout breadcrumbs={[]}>
@@ -30,81 +28,57 @@ export default function Edit() {
     }
 
     const breadcrumbs: BreadcrumbItem[] = [
-        {
-            title: 'Dashboard',
-            href: '/dashboard',
-        },
-        {
-            title: 'Instituciones',
-            href: '/instituciones',
-        },
-        {
-            title: institucion.INSTITUCION_NOMBRE,
-            href: `/instituciones/${institucion.ID_INSTITUCION}`,
-        },
-        {
-            title: 'Editar',
-            href: `/instituciones/${institucion.ID_INSTITUCION}/edit`,
-        },
+        { title: 'Dashboard', href: '/dashboard' },
+        { title: 'Instituciones', href: '/instituciones' },
+        { title: institucion.INSTITUCION_NOMBRE, href: `/instituciones/${institucion.ID_INSTITUCION}` },
+        { title: 'Editar', href: `/instituciones/${institucion.ID_INSTITUCION}/edit` },
     ];
 
-    const { data, setData, patch, processing, errors, reset } = useForm({
-        INSTITUCION_NOMBRE: institucion.INSTITUCION_NOMBRE || '',
-        INSTITUCION_CORREO: institucion.INSTITUCION_CORREO || '',
-        INSTITUCION_TELEFONO: institucion.INSTITUCION_TELEFONO || '',
-        INSTITUCION_RFC: institucion.INSTITUCION_RFC || '',
-        INSTITUCION_RAZON_SOCIAL: institucion.INSTITUCION_RAZON_SOCIAL || '',
-        INSTITUCION_DIRECCION: institucion.INSTITUCION_DIRECCION || '',
-        INSTITUCION_NUMERO_EXT: institucion.INSTITUCION_NUMERO_EXT || '',
-        INSTITUCION_NUMERO_INT: institucion.INSTITUCION_NUMERO_INT || '',
-        INSTITUCION_COLONIA: institucion.INSTITUCION_COLONIA || '',
-        INSTITUCION_MUNICIPIO: institucion.INSTITUCION_MUNICIPIO || '',
-        INSTITUCION_CIUDAD: institucion.INSTITUCION_CIUDAD || '',
-        INSTITUCION_ESTADO: institucion.INSTITUCION_ESTADO || '',
+    const { data, setData, patch, processing, errors } = useForm({
+        INSTITUCION_NOMBRE:        institucion.INSTITUCION_NOMBRE || '',
+        INSTITUCION_CORREO:        institucion.INSTITUCION_CORREO || '',
+        INSTITUCION_TELEFONO:      institucion.INSTITUCION_TELEFONO || '',
+        INSTITUCION_RFC:           institucion.INSTITUCION_RFC || '',
+        INSTITUCION_RAZON_SOCIAL:  institucion.INSTITUCION_RAZON_SOCIAL || '',
+        INSTITUCION_DIRECCION:     institucion.INSTITUCION_DIRECCION || '',
+        INSTITUCION_NUMERO_EXT:    institucion.INSTITUCION_NUMERO_EXT || '',
+        INSTITUCION_NUMERO_INT:    institucion.INSTITUCION_NUMERO_INT || '',
+        INSTITUCION_COLONIA:       institucion.INSTITUCION_COLONIA || '',
+        INSTITUCION_MUNICIPIO:     institucion.INSTITUCION_MUNICIPIO || '',
+        INSTITUCION_CIUDAD:        institucion.INSTITUCION_CIUDAD || '',
+        INSTITUCION_ESTADO:        institucion.INSTITUCION_ESTADO || '',
         INSTITUCION_CODIGO_POSTAL: institucion.INSTITUCION_CODIGO_POSTAL || '',
-        INSTITUCION_PIN: institucion.INSTITUCION_PIN || '',
-        INSTITUCION_PROCEDENCIA: institucion.INSTITUCION_PROCEDENCIA || '',
+        INSTITUCION_PIN:           institucion.INSTITUCION_PIN || '',
+        INSTITUCION_PROCEDENCIA:   institucion.INSTITUCION_PROCEDENCIA || '',
     });
 
     const [showPinField, setShowPinField] = useState(false);
 
+    const inputClass = (field?: string) =>
+        `w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 transition-colors ${
+            field
+                ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
+                : 'border-gray-300 focus:border-[#189BAF] focus:ring-[#189BAF]'
+        }`;
+
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-
         patch(route('instituciones.update', institucion.ID_INSTITUCION), {
-            onSuccess: () => {
-                setShowPinField(false);
-            }
+            onSuccess: () => setShowPinField(false),
         });
     };
 
     const regenerarPIN = () => {
         router.patch(`/instituciones/${institucion.ID_INSTITUCION}/regenerar-pin`, {}, {
             preserveState: true,
-            onSuccess: () => {
-                // El PIN se actualizará automáticamente en la respuesta
-                setShowPinField(false);
-            }
+            onSuccess: () => setShowPinField(false),
         });
-    };
-
-    const getEstadoColor = (estado: string) => {
-        switch (estado) {
-            case 'activa':
-                return 'border-green-500 bg-green-50';
-            case 'inactiva':
-                return 'border-red-500 bg-red-50';
-            case 'suspendida':
-                return 'border-yellow-500 bg-yellow-50';
-            default:
-                return 'border-gray-300 bg-gray-50';
-        }
     };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Editar ${institucion.INSTITUCION_NOMBRE} - DIAHMOES`} />
-            
+
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-[#189BAF] to-[#157a8c] rounded-2xl p-6 text-white">
@@ -117,29 +91,24 @@ export default function Edit() {
                             </div>
                             <div>
                                 <h1 className="text-3xl font-bold mb-2">Editar Institución</h1>
-                                <p className="text-white/90 opacity-90">
-                                    Modificar información de {institucion.INSTITUCION_NOMBRE}
-                                </p>
+                                <p className="text-white/90">Modificar información de {institucion.INSTITUCION_NOMBRE}</p>
                             </div>
                         </div>
-                        <div className="flex items-center space-x-3">
-                            <Link
-                                href={`/instituciones/${institucion.ID_INSTITUCION}`}
-                                className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-white font-medium transition-colors flex items-center space-x-2"
-                            >
-                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                                <span>Ver Institución</span>
-                            </Link>
-                        </div>
+                        <Link
+                            href={`/instituciones/${institucion.ID_INSTITUCION}`}
+                            className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-white font-medium transition-colors flex items-center space-x-2"
+                        >
+                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <span>Ver Institución</span>
+                        </Link>
                     </div>
                 </div>
 
-                {/* Formulario */}
                 <form onSubmit={submit} className="space-y-6">
-                    {/* Información básica */}
+                    {/* Información Básica */}
                     <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
                         <div className="flex items-center mb-6">
                             <svg className="h-6 w-6 text-[#189BAF] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -149,20 +118,17 @@ export default function Edit() {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Nombre - ÚNICO OBLIGATORIO */}
                             <div>
                                 <label htmlFor="INSTITUCION_NOMBRE" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Nombre de la Institución *
+                                    Nombre de la Institución <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     type="text"
                                     id="INSTITUCION_NOMBRE"
                                     value={data.INSTITUCION_NOMBRE}
                                     onChange={(e) => setData('INSTITUCION_NOMBRE', e.target.value)}
-                                    className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 transition-colors ${
-                                        errors.INSTITUCION_NOMBRE 
-                                            ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
-                                            : 'border-gray-300 focus:border-[#189BAF] focus:ring-[#189BAF]'
-                                    }`}
+                                    className={inputClass(errors.INSTITUCION_NOMBRE)}
                                     placeholder="Hospital General, Clínica Santa Fe..."
                                 />
                                 {errors.INSTITUCION_NOMBRE && (
@@ -172,61 +138,43 @@ export default function Edit() {
 
                             <div>
                                 <label htmlFor="INSTITUCION_RAZON_SOCIAL" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Razón Social *
+                                    Razón Social
                                 </label>
                                 <input
                                     type="text"
                                     id="INSTITUCION_RAZON_SOCIAL"
                                     value={data.INSTITUCION_RAZON_SOCIAL}
                                     onChange={(e) => setData('INSTITUCION_RAZON_SOCIAL', e.target.value)}
-                                    className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 transition-colors ${
-                                        errors.INSTITUCION_RAZON_SOCIAL 
-                                            ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
-                                            : 'border-gray-300 focus:border-[#189BAF] focus:ring-[#189BAF]'
-                                    }`}
+                                    className={inputClass()}
                                     placeholder="Razón social completa"
                                 />
-                                {errors.INSTITUCION_RAZON_SOCIAL && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.INSTITUCION_RAZON_SOCIAL}</p>
-                                )}
                             </div>
 
                             <div>
                                 <label htmlFor="INSTITUCION_RFC" className="block text-sm font-medium text-gray-700 mb-2">
-                                    RFC *
+                                    RFC
                                 </label>
                                 <input
                                     type="text"
                                     id="INSTITUCION_RFC"
                                     value={data.INSTITUCION_RFC}
                                     onChange={(e) => setData('INSTITUCION_RFC', e.target.value.toUpperCase())}
-                                    className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 transition-colors ${
-                                        errors.INSTITUCION_RFC 
-                                            ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
-                                            : 'border-gray-300 focus:border-[#189BAF] focus:ring-[#189BAF]'
-                                    }`}
+                                    className={inputClass()}
                                     placeholder="ABC123456789"
-                                    maxLength={12}
+                                    maxLength={13}
                                 />
-                                {errors.INSTITUCION_RFC && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.INSTITUCION_RFC}</p>
-                                )}
                             </div>
 
                             <div>
                                 <label htmlFor="INSTITUCION_CORREO" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Correo Electrónico *
+                                    Correo Electrónico
                                 </label>
                                 <input
                                     type="email"
                                     id="INSTITUCION_CORREO"
                                     value={data.INSTITUCION_CORREO}
                                     onChange={(e) => setData('INSTITUCION_CORREO', e.target.value)}
-                                    className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 transition-colors ${
-                                        errors.INSTITUCION_CORREO 
-                                            ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
-                                            : 'border-gray-300 focus:border-[#189BAF] focus:ring-[#189BAF]'
-                                    }`}
+                                    className={inputClass(errors.INSTITUCION_CORREO)}
                                     placeholder="contacto@hospital.com"
                                 />
                                 {errors.INSTITUCION_CORREO && (
@@ -236,23 +184,16 @@ export default function Edit() {
 
                             <div className="md:col-span-2">
                                 <label htmlFor="INSTITUCION_TELEFONO" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Teléfono *
+                                    Teléfono
                                 </label>
                                 <input
                                     type="tel"
                                     id="INSTITUCION_TELEFONO"
                                     value={data.INSTITUCION_TELEFONO}
                                     onChange={(e) => setData('INSTITUCION_TELEFONO', e.target.value)}
-                                    className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 transition-colors ${
-                                        errors.INSTITUCION_TELEFONO 
-                                            ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
-                                            : 'border-gray-300 focus:border-[#189BAF] focus:ring-[#189BAF]'
-                                    }`}
+                                    className={inputClass()}
                                     placeholder="(33) 1234-5678"
                                 />
-                                {errors.INSTITUCION_TELEFONO && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.INSTITUCION_TELEFONO}</p>
-                                )}
                             </div>
                         </div>
                     </div>
@@ -270,44 +211,30 @@ export default function Edit() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             <div className="md:col-span-2">
                                 <label htmlFor="INSTITUCION_DIRECCION" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Calle y Número *
+                                    Calle
                                 </label>
                                 <input
                                     type="text"
                                     id="INSTITUCION_DIRECCION"
                                     value={data.INSTITUCION_DIRECCION}
                                     onChange={(e) => setData('INSTITUCION_DIRECCION', e.target.value)}
-                                    className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 transition-colors ${
-                                        errors.INSTITUCION_DIRECCION 
-                                            ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
-                                            : 'border-gray-300 focus:border-[#189BAF] focus:ring-[#189BAF]'
-                                    }`}
+                                    className={inputClass()}
                                     placeholder="Av. Principal, Calle Secundaria..."
                                 />
-                                {errors.INSTITUCION_DIRECCION && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.INSTITUCION_DIRECCION}</p>
-                                )}
                             </div>
 
                             <div>
                                 <label htmlFor="INSTITUCION_NUMERO_EXT" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Número Exterior *
+                                    Número Exterior
                                 </label>
                                 <input
                                     type="text"
                                     id="INSTITUCION_NUMERO_EXT"
                                     value={data.INSTITUCION_NUMERO_EXT}
                                     onChange={(e) => setData('INSTITUCION_NUMERO_EXT', e.target.value)}
-                                    className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 transition-colors ${
-                                        errors.INSTITUCION_NUMERO_EXT 
-                                            ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
-                                            : 'border-gray-300 focus:border-[#189BAF] focus:ring-[#189BAF]'
-                                    }`}
+                                    className={inputClass()}
                                     placeholder="123"
                                 />
-                                {errors.INSTITUCION_NUMERO_EXT && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.INSTITUCION_NUMERO_EXT}</p>
-                                )}
                             </div>
 
                             <div>
@@ -319,119 +246,85 @@ export default function Edit() {
                                     id="INSTITUCION_NUMERO_INT"
                                     value={data.INSTITUCION_NUMERO_INT}
                                     onChange={(e) => setData('INSTITUCION_NUMERO_INT', e.target.value)}
-                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF] transition-colors"
+                                    className={inputClass()}
                                     placeholder="A, B, 101..."
                                 />
                             </div>
 
                             <div>
                                 <label htmlFor="INSTITUCION_COLONIA" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Colonia *
+                                    Colonia
                                 </label>
                                 <input
                                     type="text"
                                     id="INSTITUCION_COLONIA"
                                     value={data.INSTITUCION_COLONIA}
                                     onChange={(e) => setData('INSTITUCION_COLONIA', e.target.value)}
-                                    className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 transition-colors ${
-                                        errors.INSTITUCION_COLONIA 
-                                            ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
-                                            : 'border-gray-300 focus:border-[#189BAF] focus:ring-[#189BAF]'
-                                    }`}
+                                    className={inputClass()}
                                     placeholder="Centro, Zona Norte..."
                                 />
-                                {errors.INSTITUCION_COLONIA && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.INSTITUCION_COLONIA}</p>
-                                )}
                             </div>
 
                             <div>
                                 <label htmlFor="INSTITUCION_MUNICIPIO" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Municipio *
+                                    Municipio
                                 </label>
                                 <input
                                     type="text"
                                     id="INSTITUCION_MUNICIPIO"
                                     value={data.INSTITUCION_MUNICIPIO}
                                     onChange={(e) => setData('INSTITUCION_MUNICIPIO', e.target.value)}
-                                    className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 transition-colors ${
-                                        errors.INSTITUCION_MUNICIPIO 
-                                            ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
-                                            : 'border-gray-300 focus:border-[#189BAF] focus:ring-[#189BAF]'
-                                    }`}
+                                    className={inputClass()}
                                     placeholder="Guadalajara, Zapopan..."
                                 />
-                                {errors.INSTITUCION_MUNICIPIO && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.INSTITUCION_MUNICIPIO}</p>
-                                )}
                             </div>
 
                             <div>
                                 <label htmlFor="INSTITUCION_CIUDAD" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Ciudad *
+                                    Ciudad
                                 </label>
                                 <input
                                     type="text"
                                     id="INSTITUCION_CIUDAD"
                                     value={data.INSTITUCION_CIUDAD}
                                     onChange={(e) => setData('INSTITUCION_CIUDAD', e.target.value)}
-                                    className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 transition-colors ${
-                                        errors.INSTITUCION_CIUDAD 
-                                            ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
-                                            : 'border-gray-300 focus:border-[#189BAF] focus:ring-[#189BAF]'
-                                    }`}
+                                    className={inputClass()}
                                     placeholder="Guadalajara, Ciudad de México..."
                                 />
-                                {errors.INSTITUCION_CIUDAD && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.INSTITUCION_CIUDAD}</p>
-                                )}
                             </div>
 
                             <div>
                                 <label htmlFor="INSTITUCION_ESTADO" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Estado *
+                                    Estado
                                 </label>
                                 <select
                                     id="INSTITUCION_ESTADO"
                                     value={data.INSTITUCION_ESTADO}
                                     onChange={(e) => setData('INSTITUCION_ESTADO', e.target.value)}
-                                    className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 transition-colors ${
-                                        errors.INSTITUCION_ESTADO 
-                                            ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
-                                            : 'border-gray-300 focus:border-[#189BAF] focus:ring-[#189BAF]'
-                                    }`}
+                                    className={inputClass()}
                                 >
                                     <option value="">Seleccione un estado</option>
                                     {Object.entries(estados_mexico || {}).map(([key, value]) => (
-                                        <option key={key} value={value}>{value}</option>
+                                        <option key={key} value={value as string}>{value as string}</option>
                                     ))}
                                 </select>
-                                {errors.INSTITUCION_ESTADO && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.INSTITUCION_ESTADO}</p>
-                                )}
                             </div>
 
                             <div>
                                 <label htmlFor="INSTITUCION_CODIGO_POSTAL" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Código Postal *
+                                    Código Postal
                                 </label>
                                 <input
                                     type="text"
                                     id="INSTITUCION_CODIGO_POSTAL"
                                     value={data.INSTITUCION_CODIGO_POSTAL}
                                     onChange={(e) => setData('INSTITUCION_CODIGO_POSTAL', e.target.value)}
-                                    className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 transition-colors ${
-                                        errors.INSTITUCION_CODIGO_POSTAL 
-                                            ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
-                                            : 'border-gray-300 focus:border-[#189BAF] focus:ring-[#189BAF]'
-                                    }`}
+                                    className={inputClass()}
                                     placeholder="44100"
                                     maxLength={5}
                                 />
-                                {errors.INSTITUCION_CODIGO_POSTAL && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.INSTITUCION_CODIGO_POSTAL}</p>
-                                )}
                             </div>
+
                             <div className="md:col-span-2">
                                 <label htmlFor="INSTITUCION_PROCEDENCIA" className="block text-sm font-medium text-gray-700 mb-2">
                                     Procedencia
@@ -440,11 +333,7 @@ export default function Edit() {
                                     id="INSTITUCION_PROCEDENCIA"
                                     value={data.INSTITUCION_PROCEDENCIA}
                                     onChange={(e) => setData('INSTITUCION_PROCEDENCIA', e.target.value)}
-                                    className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 transition-colors ${
-                                        errors.INSTITUCION_PROCEDENCIA 
-                                            ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
-                                            : 'border-gray-300 focus:border-[#189BAF] focus:ring-[#189BAF]'
-                                    }`}
+                                    className={inputClass()}
                                 >
                                     <option value="">No especificado</option>
                                     <option value="Privado">Privado</option>
@@ -452,9 +341,6 @@ export default function Edit() {
                                     <option value="ISSSTE">ISSSTE</option>
                                     <option value="SSA">SSA</option>
                                 </select>
-                                {errors.INSTITUCION_PROCEDENCIA && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.INSTITUCION_PROCEDENCIA}</p>
-                                )}
                             </div>
                         </div>
                     </div>
@@ -497,13 +383,9 @@ export default function Edit() {
                                         id="INSTITUCION_PIN"
                                         value={data.INSTITUCION_PIN}
                                         onChange={(e) => setData('INSTITUCION_PIN', e.target.value)}
-                                        className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 transition-colors ${
-                                            errors.INSTITUCION_PIN 
-                                                ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
-                                                : 'border-gray-300 focus:border-[#189BAF] focus:ring-[#189BAF]'
-                                        }`}
+                                        className={inputClass(errors.INSTITUCION_PIN)}
                                         placeholder="PIN de 4 dígitos"
-                                        maxLength={4}
+                                        maxLength={10}
                                     />
                                     {errors.INSTITUCION_PIN && (
                                         <p className="mt-1 text-sm text-red-600">{errors.INSTITUCION_PIN}</p>

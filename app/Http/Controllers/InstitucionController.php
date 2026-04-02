@@ -103,45 +103,27 @@ class InstitucionController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'INSTITUCION_NOMBRE' => 'required|string|max:255',
-            'INSTITUCION_CORREO' => 'required|email|unique:instituciones,INSTITUCION_CORREO|max:255',
-            'INSTITUCION_TELEFONO' => 'required|string|max:255',
-            'INSTITUCION_RFC' => 'required|string|size:12|unique:instituciones,INSTITUCION_RFC',
-            'INSTITUCION_RAZON_SOCIAL' => 'required|string|max:255',
-            'INSTITUCION_DIRECCION' => 'required|string',
-            'INSTITUCION_NUMERO_EXT' => 'required|string|max:255',
-            'INSTITUCION_NUMERO_INT' => 'nullable|string|max:255',
-            'INSTITUCION_COLONIA' => 'required|string|max:255',
-            'INSTITUCION_MUNICIPIO' => 'required|string|max:255',
-            'INSTITUCION_CIUDAD' => 'required|string|max:255',
-            'INSTITUCION_ESTADO' => 'required|string|max:255',
-            'INSTITUCION_CODIGO_POSTAL' => 'required|string|size:5',
-            'INSTITUCION_PROCEDENCIA' => 'nullable|string|max:255',
+            'INSTITUCION_NOMBRE'        => 'required|string|max:255',
+            'INSTITUCION_CORREO'        => 'nullable|email|max:255',
+            'INSTITUCION_TELEFONO'      => 'nullable|string|max:255',
+            'INSTITUCION_RFC'           => 'nullable|string|max:13',
+            'INSTITUCION_RAZON_SOCIAL'  => 'nullable|string|max:255',
+            'INSTITUCION_DIRECCION'     => 'nullable|string',
+            'INSTITUCION_NUMERO_EXT'    => 'nullable|string|max:255',
+            'INSTITUCION_NUMERO_INT'    => 'nullable|string|max:255',
+            'INSTITUCION_COLONIA'       => 'nullable|string|max:255',
+            'INSTITUCION_MUNICIPIO'     => 'nullable|string|max:255',
+            'INSTITUCION_CIUDAD'        => 'nullable|string|max:255',
+            'INSTITUCION_ESTADO'        => 'nullable|string|max:255',
+            'INSTITUCION_CODIGO_POSTAL' => 'nullable|string|max:5',
+            'INSTITUCION_PROCEDENCIA'   => 'nullable|string|max:255',
         ], [
             'INSTITUCION_NOMBRE.required' => 'El nombre de la institución es obligatorio.',
-            'INSTITUCION_CORREO.required' => 'El correo es obligatorio.',
-            'INSTITUCION_CORREO.email' => 'El correo debe tener un formato válido.',
-            'INSTITUCION_CORREO.unique' => 'Este correo ya está registrado.',
-            'INSTITUCION_TELEFONO.required' => 'El teléfono es obligatorio.',
-            'INSTITUCION_RFC.required' => 'El RFC es obligatorio.',
-            'INSTITUCION_RFC.size' => 'El RFC debe tener exactamente 12 caracteres.',
-            'INSTITUCION_RFC.unique' => 'Este RFC ya está registrado.',
-            'INSTITUCION_RAZON_SOCIAL.required' => 'La razón social es obligatoria.',
-            'INSTITUCION_DIRECCION.required' => 'La dirección es obligatoria.',
-            'INSTITUCION_NUMERO_EXT.required' => 'El número exterior es obligatorio.',
-            'INSTITUCION_COLONIA.required' => 'La colonia es obligatoria.',
-            'INSTITUCION_MUNICIPIO.required' => 'El municipio es obligatorio.',
-            'INSTITUCION_CIUDAD.required' => 'La ciudad es obligatoria.',
-            'INSTITUCION_ESTADO.required' => 'El estado es obligatorio.',
-            'INSTITUCION_CODIGO_POSTAL.required' => 'El código postal es obligatorio.',
-            'INSTITUCION_CODIGO_POSTAL.size' => 'El código postal debe tener 5 dígitos.',
-            'INSTITUCION_PROCEDENCIA.max' => 'La procedencia no puede exceder 255 caracteres.',
+            'INSTITUCION_CORREO.email'    => 'El correo debe tener un formato válido.',
         ]);
 
-        // Generar PIN automáticamente
         $validated['INSTITUCION_PIN'] = Institucion::generarPIN();
 
-        // Crear institución
         $institucion = Institucion::create($validated);
 
         return redirect()->route('instituciones.index')
@@ -249,55 +231,26 @@ class InstitucionController extends Controller
     public function update(Request $request, Institucion $institucion): RedirectResponse
     {
         $validated = $request->validate([
-            'INSTITUCION_NOMBRE' => 'required|string|max:255',
-            'INSTITUCION_CORREO' => [
-                'required',
-                'email',
-                'max:255',
-                Rule::unique('instituciones', 'INSTITUCION_CORREO')->ignore($institucion->ID_INSTITUCION, 'ID_INSTITUCION'),
-            ],
-            'INSTITUCION_TELEFONO' => 'required|string|max:255',
-            'INSTITUCION_RFC' => [
-                'required',
-                'string',
-                'size:12',
-                Rule::unique('instituciones', 'INSTITUCION_RFC')->ignore($institucion->ID_INSTITUCION, 'ID_INSTITUCION'),
-            ],
-            'INSTITUCION_RAZON_SOCIAL' => 'required|string|max:255',
-            'INSTITUCION_DIRECCION' => 'required|string',
-            'INSTITUCION_NUMERO_EXT' => 'required|string|max:255',
-            'INSTITUCION_NUMERO_INT' => 'nullable|string|max:255',
-            'INSTITUCION_COLONIA' => 'required|string|max:255',
-            'INSTITUCION_MUNICIPIO' => 'required|string|max:255',
-            'INSTITUCION_CIUDAD' => 'required|string|max:255',
-            'INSTITUCION_ESTADO' => 'required|string|max:255',
-            'INSTITUCION_CODIGO_POSTAL' => 'required|string|size:5',
-            'INSTITUCION_PIN' => 'required|string|size:4',
-            'INSTITUCION_PROCEDENCIA' => 'nullable|string|max:255',
+            'INSTITUCION_NOMBRE'        => 'required|string|max:255',
+            'INSTITUCION_CORREO'        => 'nullable|email|max:255',
+            'INSTITUCION_TELEFONO'      => 'nullable|string|max:255',
+            'INSTITUCION_RFC'           => 'nullable|string|max:13',
+            'INSTITUCION_RAZON_SOCIAL'  => 'nullable|string|max:255',
+            'INSTITUCION_DIRECCION'     => 'nullable|string',
+            'INSTITUCION_NUMERO_EXT'    => 'nullable|string|max:255',
+            'INSTITUCION_NUMERO_INT'    => 'nullable|string|max:255',
+            'INSTITUCION_COLONIA'       => 'nullable|string|max:255',
+            'INSTITUCION_MUNICIPIO'     => 'nullable|string|max:255',
+            'INSTITUCION_CIUDAD'        => 'nullable|string|max:255',
+            'INSTITUCION_ESTADO'        => 'nullable|string|max:255',
+            'INSTITUCION_CODIGO_POSTAL' => 'nullable|string|max:5',
+            'INSTITUCION_PIN'           => 'nullable|string|max:10',
+            'INSTITUCION_PROCEDENCIA'   => 'nullable|string|max:255',
         ], [
             'INSTITUCION_NOMBRE.required' => 'El nombre de la institución es obligatorio.',
-            'INSTITUCION_CORREO.required' => 'El correo es obligatorio.',
-            'INSTITUCION_CORREO.email' => 'El correo debe tener un formato válido.',
-            'INSTITUCION_CORREO.unique' => 'Este correo ya está registrado.',
-            'INSTITUCION_TELEFONO.required' => 'El teléfono es obligatorio.',
-            'INSTITUCION_RFC.required' => 'El RFC es obligatorio.',
-            'INSTITUCION_RFC.size' => 'El RFC debe tener exactamente 12 caracteres.',
-            'INSTITUCION_RFC.unique' => 'Este RFC ya está registrado.',
-            'INSTITUCION_RAZON_SOCIAL.required' => 'La razón social es obligatoria.',
-            'INSTITUCION_DIRECCION.required' => 'La dirección es obligatoria.',
-            'INSTITUCION_NUMERO_EXT.required' => 'El número exterior es obligatorio.',
-            'INSTITUCION_COLONIA.required' => 'La colonia es obligatoria.',
-            'INSTITUCION_MUNICIPIO.required' => 'El municipio es obligatorio.',
-            'INSTITUCION_CIUDAD.required' => 'La ciudad es obligatoria.',
-            'INSTITUCION_ESTADO.required' => 'El estado es obligatorio.',
-            'INSTITUCION_CODIGO_POSTAL.required' => 'El código postal es obligatorio.',
-            'INSTITUCION_CODIGO_POSTAL.size' => 'El código postal debe tener 5 dígitos.',
-            'INSTITUCION_PIN.required' => 'El PIN es obligatorio.',
-            'INSTITUCION_PIN.size' => 'El PIN debe tener 4 dígitos.',
-            'INSTITUCION_PROCEDENCIA.max' => 'La procedencia no puede exceder 255 caracteres.',
+            'INSTITUCION_CORREO.email'    => 'El correo debe tener un formato válido.',
         ]);
 
-        // Actualizar institución
         $institucion->update($validated);
 
         return redirect()->route('instituciones.index')

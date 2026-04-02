@@ -355,10 +355,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('estudios.insumos.listado')
         ->middleware(['auth', 'verified']);
     
-    // CRUD básico de estudios
-    Route::resource('estudios', EstudioController::class)
-        ->parameters(['estudios' => 'estudio:ID']);
-    
     // Rutas especializadas para edición en pasos
     Route::get('estudios/{estudio:ID}/edit/recoleccion', [EstudioController::class, 'editRecoleccion'])
         ->name('estudios.edit.recoleccion');
@@ -395,15 +391,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('estudios/{estudio:ID}/envios-correos', [EstudioController::class, 'mostrarEnviosCorreos'])
     ->name('estudios.envios-correos');
 
+    // Rutas de funciones e mantenimiento
     Route::post('estudios/reparar', [EstudioController::class, 'repararEstudios'])
     ->name('estudios.reparar');
 
     Route::post('estudios/finalizar-antiguos', [EstudioController::class, 'finalizarEstudiosAntiguos'])
     ->name('estudios.finalizar-antiguos');
+
+    Route::post('/estudios/cambiar-destinatario', [EstudioController::class, 'cambiarDestinatario'])
+    ->name('estudios.cambiar-destinatario');
     
     // Rutas para obtener datos de estudios
     Route::get('estudios/ultimo-por-institucion', [EstudioController::class, 'getUltimoEstudioInstitucion']);
     Route::get('estudios/ultimo-por-medico', [EstudioController::class, 'getUltimoEstudioMedico']);
+
+    // CRUD básico de estudios
+    Route::resource('estudios', EstudioController::class)
+        ->parameters(['estudios' => 'estudio:ID']);
     
     // API para manejar correos de copia
     Route::post('api/estudios/{estudio:ID}/correos-copia', [EstudioController::class, 'storeCorreoCopia'])
