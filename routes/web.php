@@ -13,6 +13,8 @@ use App\Http\Controllers\InsumoLoteController;
 use App\Http\Controllers\PlantillaInsumoController;
 use App\Http\Controllers\EstudioInsumoController;
 use App\Http\Controllers\DashboardExportController;
+use App\Http\Controllers\ReporteController;
+use App\Http\Controllers\ReporteAccesoController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -65,6 +67,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard/export-excel', [DashboardExportController::class, 'exportExcel'])
     ->name('dashboard.export.excel')
     ->middleware(['auth']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Gestión de accesos a reportes (solo admin)
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('reporte-accesos')->name('reporte-accesos.')->group(function () {
+        Route::get('/',                                    [ReporteAccesoController::class, 'index'])
+            ->name('index');
+        Route::post('/',                                   [ReporteAccesoController::class, 'store'])
+            ->name('store');
+        Route::patch('/{reporteAcceso}/toggle-activo',     [ReporteAccesoController::class, 'toggleActivo'])
+            ->name('toggle-activo');
+        Route::delete('/{reporteAcceso}',                  [ReporteAccesoController::class, 'destroy'])
+            ->name('destroy');
+    });
     
     /*
     |--------------------------------------------------------------------------
@@ -897,6 +915,31 @@ Route::redirect('/paqueterias', '/mensajerias')->name('paqueterias.redirect');
 Route::redirect('/customers', '/clientes')->name('customers.redirect');
 Route::redirect('/empresas', '/clientes')->name('empresas.redirect');
 Route::redirect('/companies', '/clientes')->name('companies.redirect');
+
+/*
+|--------------------------------------------------------------------------
+| Rutas de Reportes Externos
+|--------------------------------------------------------------------------
+*/
+
+// Login del reporte (sin autenticación)
+Route::get('/reportes/login', [ReporteController::class, 'loginForm'])
+    ->name('reportes.login');
+
+Route::post('/reportes/login', [ReporteController::class, 'login'])
+    ->name('reportes.login.post');
+
+Route::post('/reportes/logout', [ReporteController::class, 'logout'])
+    ->name('reportes.logout');
+
+// Reporte principal y exportación (protegidas por middleware reporte.access)
+Route::middleware(['reporte.access'])->group(function () {
+    Route::get('/reportes', [ReporteController::class, 'index'])
+        ->name('reportes.index');
+
+    Route::get('/reportes/export-excel', [ReporteController::class, 'exportExcel'])
+        ->name('reportes.export.excel');
+});
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

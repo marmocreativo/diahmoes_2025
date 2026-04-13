@@ -2,7 +2,8 @@
 
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
-use App\Http\Middleware\NoCacheMiddleware; // <-- IMPORTAR AQUÍ
+use App\Http\Middleware\NoCacheMiddleware;
+use App\Http\Middleware\ReporteAccess;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -20,7 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             HandleAppearance::class,
-            NoCacheMiddleware::class, // <-- AGREGAR ANTES DE INERTIA
+            NoCacheMiddleware::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
@@ -28,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Opción alternativa: Registrar como alias para uso selectivo
         $middleware->alias([
             'nocache' => NoCacheMiddleware::class,
+            'reporte.access' => ReporteAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
