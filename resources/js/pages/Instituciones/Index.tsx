@@ -2,7 +2,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { type Institucion, type InstitucionIndexProps } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useRef  } from 'react';
 import { Building, Plus, Users, MapPin, ChevronsUpDown, ArrowUp, ArrowDown, Eye, Edit, RotateCw, FileText } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -44,6 +44,62 @@ export default function Index() {
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
     const [selectedCiudad, setSelectedCiudad] = useState(filters?.ciudad || '');
     const [selectedEstadoGeografico, setSelectedEstadoGeografico] = useState(filters?.estado_geografico || '');
+
+    const [editingCell, setEditingCell] = useState<{id: number, campo: string} | null>(null);
+    const [editingValue, setEditingValue] = useState('');
+    const [savingCell, setSavingCell] = useState<{id: number, campo: string} | null>(null);
+    const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
+
+    const estadosMexico = [
+        'Aguascalientes','Baja California','Baja California Sur','Campeche','Chiapas',
+        'Chihuahua','Ciudad de México','Coahuila','Colima','Durango','Estado de México',
+        'Guanajuato','Guerrero','Hidalgo','Jalisco','Michoacán','Morelos','Nayarit',
+        'Nuevo León','Oaxaca','Puebla','Querétaro','Quintana Roo','San Luis Potosí',
+        'Sinaloa','Sonora','Tabasco','Tamaulipas','Tlaxcala','Veracruz','Yucatán','Zacatecas'
+    ];
+
+    const procedencias = ['Privado', 'IMSS', 'ISSSTE', 'SSA'];
+
+    const startEdit = (id: number, campo: string, valorActual: string) => {
+        setEditingCell({ id, campo });
+        setEditingValue(valorActual || '');
+    };
+
+    const cancelEdit = () => {
+        setEditingCell(null);
+        setEditingValue('');
+    };
+
+    const saveEdit = async (institucion: any) => {
+        if (!editingCell) return;
+        setSavingCell(editingCell);
+        
+        try {
+            await router.patch(
+                `/instituciones/${institucion.ID_INSTITUCION}/campo-rapido`,
+                { campo: editingCell.campo, valor: editingValue },
+                {
+                    preserveState: true,
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        setEditingCell(null);
+                        setEditingValue('');
+                        setSavingCell(null);
+                    },
+                    onError: () => {
+                        setSavingCell(null);
+                    },
+                }
+            );
+        } catch {
+            setSavingCell(null);
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent, institucion: any) => {
+        if (e.key === 'Enter') saveEdit(institucion);
+        if (e.key === 'Escape') cancelEdit();
+    };
 
     // Estadísticas calculadas - Con verificación de datos
     const stats = {
@@ -101,6 +157,79 @@ export default function Index() {
         return filters.direction === 'asc' ? 
             <ArrowUp className="h-4 w-4" /> : 
             <ArrowDown className="h-4 w-4" />;
+    };
+
+    const renderCeldaEditable = (institucion: any, campo: string, valorActual: string, esSelect: boolean, opciones?: string[]) => {
+        const isEditing = editingCell?.id === institucion.ID_INSTITUCION && editingCell?.campo === campo;
+        const isSaving = savingCell?.id === institucion.ID_INSTITUCION && savingCell?.campo === campo;
+        const tieneValor = valorActual && valorActual.trim() !== '';
+
+        if (isEditing) {
+            return (
+                <div className="flex items-center gap-1">
+                    {esSelect ? (
+                        <select
+                            autoFocus
+                            value={editingValue}
+                            onChange={(e) => setEditingValue(e.target.value)}
+                            onKeyDown={(e) => handleKeyDown(e, institucion)}
+                            className="text-xs border border-[#189BAF] rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-[#189BAF] bg-white"
+                        >
+                            <option value="">Seleccionar...</option>
+                            {opciones?.map(op => (
+                                <option key={op} value={op}>{op}</option>
+                            ))}
+                        </select>
+                    ) : (
+                        <input
+                            autoFocus
+                            type="text"
+                            value={editingValue}
+                            onChange={(e) => setEditingValue(e.target.value)}
+                            onKeyDown={(e) => handleKeyDown(e, institucion)}
+                            className="text-xs border border-[#189BAF] rounded px-1 py-0.5 w-28 focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                            placeholder="Escribir..."
+                        />
+                    )}
+                    <button
+                        onClick={() => saveEdit(institucion)}
+                        disabled={isSaving}
+                        className="text-green-600 hover:text-green-800 transition-colors"
+                        title="Guardar"
+                    >
+                        {isSaving ? (
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-green-600" />
+                        ) : (
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                        )}
+                    </button>
+                    <button
+                        onClick={cancelEdit}
+                        className="text-red-400 hover:text-red-600 transition-colors"
+                        title="Cancelar"
+                    >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            );
+        }
+
+        if (tieneValor) {
+            return <span className="text-sm text-gray-900">{valorActual}</span>;
+        }
+
+        return (
+            <button
+                onClick={() => startEdit(institucion.ID_INSTITUCION, campo, valorActual)}
+                className="text-xs text-[#189BAF] hover:text-[#157a8c] hover:underline transition-colors font-medium"
+            >
+                Editar
+            </button>
+        );
     };
 
     return (
@@ -279,9 +408,6 @@ export default function Index() {
                                         </div>
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Contacto
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Ubicación
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -293,15 +419,6 @@ export default function Index() {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Estudios
                                     </th>
-                                    <th 
-                                        onClick={() => handleSort('FECHA_REGISTRO')}
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                    >
-                                        <div className="flex items-center space-x-1">
-                                            <span>Registro</span>
-                                            {getSortIcon('FECHA_REGISTRO')}
-                                        </div>
-                                    </th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Acciones
                                     </th>
@@ -312,12 +429,12 @@ export default function Index() {
                                     <tr key={institucion.ID_INSTITUCION} className="hover:bg-gray-50">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center">
-                                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#189BAF]/10">
-                                                    <svg className="h-5 w-5 text-[#189BAF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                                    </svg>
-                                                </div>
                                                 <div className="ml-4">
+                                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#189BAF]/10">
+                                                        <svg className="h-5 w-5 text-[#189BAF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                        </svg>
+                                                    </div>
                                                     <div className="text-sm font-medium text-gray-900">
                                                         {institucion.nombre_corto || institucion.INSTITUCION_NOMBRE}
                                                     </div>
@@ -328,18 +445,36 @@ export default function Index() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900">{institucion.INSTITUCION_CORREO}</div>
-                                            <div className="text-sm text-gray-500">{institucion.INSTITUCION_TELEFONO}</div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900">{institucion.INSTITUCION_CIUDAD}</div>
-                                            <div className="text-sm text-gray-500">{institucion.INSTITUCION_ESTADO}</div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900">
-                                                {institucion.INSTITUCION_PROCEDENCIA || 'No especificado'}
+                                            <div className="flex items-center gap-1 mb-1">
+                                                <span className="text-xs text-gray-500 w-10">Ciudad:</span>
+                                                {renderCeldaEditable(
+                                                    institucion,
+                                                    'INSTITUCION_CIUDAD',
+                                                    institucion.INSTITUCION_CIUDAD || '',
+                                                    false
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <span className="text-xs text-gray-500 w-10">Estado:</span>
+                                                {renderCeldaEditable(
+                                                    institucion,
+                                                    'INSTITUCION_ESTADO',
+                                                    institucion.INSTITUCION_ESTADO || '',
+                                                    true,
+                                                    estadosMexico
+                                                )}
                                             </div>
                                         </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {renderCeldaEditable(
+                                                institucion,
+                                                'INSTITUCION_PROCEDENCIA',
+                                                institucion.INSTITUCION_PROCEDENCIA || '',
+                                                true,
+                                                procedencias
+                                            )}
+                                        </td>
+
                                         <td className="px-6 py-4 whitespace-nowrap text-center">
                                             <div className="text-sm font-medium text-gray-900">
                                                 {institucion.estadisticas?.usuarios_activos || 0}
@@ -355,9 +490,6 @@ export default function Index() {
                                             <div className="text-xs text-gray-500">
                                                 {institucion.estadisticas?.estudios_mes_actual || 0} este mes
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {institucion.FECHA_REGISTRO}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex items-center justify-end space-x-2">

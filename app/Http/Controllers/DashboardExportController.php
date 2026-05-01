@@ -131,14 +131,34 @@ class DashboardExportController extends Controller
         
         // Encabezados de columnas
         $headers = [
-            'A5' => 'CODIGO INTERNO', 'B5' => 'MU', 'C5' => 'RECEPCION LAB', 'D5' => 'ESTATUS',
-            'E5' => 'INICIALES DEL PX', 'F5' => 'SEXO PX', 'G5' => 'EDAD DEL PX', 'H5' => 'SITIO DE LESION',
-            'I5' => 'COLON/ASCEN-DESC', 'J5' => 'BLOQUE', 'K5' => 'LAMINILLA', 'L5' => 'TIPO DE MUESTRA',
-            'M5' => 'MUE', 'N5' => 'REPORTE DEL DIAGNOSTICO HISTOPATOLOGICO', 'O5' => 'MEDICO TRATANTE',
-            'P5' => 'HOSPITAL', 'Q5' => 'PROCEDENCIA', 'R5' => 'TELÉFONO', 'S5' => 'E-MAIL',
-            'T5' => 'CIUDAD', 'U5' => 'ESTADO', 'V5' => 'FECHA DE ANALISIS', 'W5' => 'RESULTADOS KRAS',
-            'X5' => 'RESULTADOS NRAS', 'Y5' => 'INTERPRETACION RESULTADOS', 'Z5' => 'BRAF',
-            'AA5' => 'FECHA ENVIO REPORTE E-MAIL'
+            'A5' => 'CODIGO INTERNO',
+            'B5' => 'MU',
+            'C5' => 'RECEPCION LAB',
+            'D5' => 'ESTATUS',
+            'E5' => 'INICIALES DEL PX',
+            'F5' => 'SEXO PX',
+            'G5' => 'EDAD DEL PX',
+            'H5' => 'SITIO DE LESION',
+            'I5' => 'COLON/ASCEN-DESC',
+            'J5' => 'BLOQUE',
+            'K5' => 'LAMINILLA',
+            'L5' => 'TIPO DE MUESTRA',
+            'M5' => 'MUE',
+            'N5' => 'REPORTE DEL DIAGNOSTICO HISTOPATOLOGICO',
+            'O5' => 'MEDICO TRATANTE',
+            'P5' => 'HOSPITAL',
+            'Q5' => 'PROCEDENCIA',
+            'R5' => 'TELÉFONO',
+            'S5' => 'E-MAIL',
+            'T5' => 'CIUDAD',
+            'U5' => 'ESTADO',
+            'V5' => 'FECHA DE ANALISIS',
+            'W5' => 'NOTAS ESPECIALES',
+            'X5' => 'RESULTADOS KRAS',
+            'Y5' => 'RESULTADOS NRAS',
+            'Z5' => 'INTERPRETACION RESULTADOS',
+            'AA5' => 'BRAF',
+            'AB5' => 'FECHA ENVIO REPORTE E-MAIL'
         ];
         
         foreach ($headers as $cell => $value) {
@@ -186,26 +206,27 @@ class DashboardExportController extends Controller
             $sheet->setCellValue('T' . $row, $dato->MUESTRA_CIUDAD ?? '');
             $sheet->setCellValue('U' . $row, $dato->MUESTRA_ESTADO ?? '');
             $sheet->setCellValue('V' . $row, $fechaRecepcionLab ? $fechaRecepcionLab->format('Y-m-d') : '');
-            $sheet->setCellValue('W' . $row, $resultadosKras ?: '');
-            $sheet->setCellValue('X' . $row, $resultadosNras ?: '');
-            $sheet->setCellValue('Y' . $row, $dato->R_INTERPRETACION ?? '');
-            $sheet->setCellValue('Z' . $row, $resultadosBraf ?: '');
-            $sheet->setCellValue('AA' . $row, $fechaEnvioCorreo ? $fechaEnvioCorreo->format('Y-m-d') : '');
+            $sheet->setCellValue('W' . $row, $dato->R_NOTAS_ESPECIALES ?? '');
+            $sheet->setCellValue('X' . $row, $resultadosKras ?: '');
+            $sheet->setCellValue('Y' . $row, $resultadosNras ?: '');
+            $sheet->setCellValue('Z' . $row, $dato->R_INTERPRETACION ?? '');
+            $sheet->setCellValue('AA' . $row, $resultadosBraf ?: '');
+            $sheet->setCellValue('AB' . $row, $fechaEnvioCorreo ? $fechaEnvioCorreo->format('Y-m-d') : '');
             
             $row++;
         }
         
         // Aplicar formato
-        $sheet->getStyle('A1:AA1')->getFont()->setBold(true)->setSize(14);
-        $sheet->getStyle('A5:AA5')->getFont()->setBold(true);
-        $sheet->getStyle('A5:AA5')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-            ->getStartColor()->setARGB('FFE2E8F0');
+        $sheet->getStyle('A1:AB1')->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A5:AB5')->getFont()->setBold(true);
+        $sheet->getStyle('A5:AB5')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFE2E8F0');
             
         // Autoajustar columnas
         foreach (range('A', 'Z') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
         $sheet->getColumnDimension('AA')->setAutoSize(true);
+        $sheet->getColumnDimension('AB')->setAutoSize(true);
     }
     
     private function getDataGeneral($filters)
@@ -260,6 +281,8 @@ class DashboardExportController extends Controller
             ->leftJoin('instituciones as i', 'e.ID_INSTITUCION', '=', 'i.ID_INSTITUCION')
             ->select(
                 'e.CLAVE_INTERNA',
+                'e.FOLIO_MERCK',
+                'e.MUESTRA_CLAVE',
                 'e.FECHA_RECEPCION_LABORATORIO',
                 'e.ESTUDIO_ESTADO',
                 'e.MUESTRA_INICIALES',
@@ -278,6 +301,7 @@ class DashboardExportController extends Controller
                 'e.MUESTRA_CIUDAD',
                 'e.MUESTRA_ESTADO',
                 'e.FECHA_ENTREGA_PROCESAMIENTO',
+                'e.R_NOTAS_ESPECIALES',
                 'e.R_ESTATUS_KRAS',
                 'e.R_GENOTIPO_KRAS',
                 'e.R_ESTATUS_NRAS',

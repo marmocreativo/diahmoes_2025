@@ -76,7 +76,9 @@ class HojaDetalladaExport implements FromCollection, WithHeadings, WithTitle, Wi
             $query->where('e.CLAVE', $this->filters['prefijo']);
         }
 
-        return $query->get();
+        $results = $query->get();
+        \Log::info('primer row', (array) $results->first());
+        return $results;
     }
 
     public function map($row): array

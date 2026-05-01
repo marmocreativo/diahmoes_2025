@@ -89,6 +89,7 @@ class Estudio extends Model
         'R_RESULTADO_HISTOPATOLOGICO',
         'R_INTERPRETACION',
         'R_COMPLETOS',
+        'R_NOTAS_ESPECIALES',
         'FECHA_SOLICITUD_RECOLECCION',
         'FECHA_RECOLECCION',
         'FECHA_RECEPCION',

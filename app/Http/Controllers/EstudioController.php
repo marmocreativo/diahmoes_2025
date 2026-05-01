@@ -1287,6 +1287,7 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
                 'R_GENOTIPO_BRAF' => 'nullable|string|max:255',
                 // Otros resultados
                 'R_RESULTADO_HISTOPATOLOGICO' => 'nullable|string',
+                'R_NOTAS_ESPECIALES' => 'nullable|string',
                 'R_COMPLETOS' => 'nullable|string',
                 'ESTUDIO_NOTAS' => 'nullable|string',
                 'ESTUDIO_COMENTARIOS' => 'nullable|string',
@@ -1330,6 +1331,7 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
                 'R_ESTATUS_BRAF',
                 'R_GENOTIPO_BRAF',
                 'R_RESULTADO_HISTOPATOLOGICO',
+                'R_NOTAS_ESPECIALES',
                 'R_COMPLETOS',
                 'ESTUDIO_NOTAS',
                 'ESTUDIO_COMENTARIOS'

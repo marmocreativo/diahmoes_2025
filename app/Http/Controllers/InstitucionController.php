@@ -392,4 +392,21 @@ class InstitucionController extends Controller
     {
         return 'ID_INSTITUCION';
     }
+
+    /**
+     * Actualizar campos rápidos desde el listado
+     */
+    public function updateCampoRapido(Request $request, Institucion $institucion): \Illuminate\Http\RedirectResponse
+    {
+        $validated = $request->validate([
+            'campo' => 'required|in:INSTITUCION_CIUDAD,INSTITUCION_ESTADO,INSTITUCION_PROCEDENCIA',
+            'valor' => 'nullable|string|max:255',
+        ]);
+
+        $institucion->update([
+            $validated['campo'] => $validated['valor'],
+        ]);
+
+        return back();
+    }
 }

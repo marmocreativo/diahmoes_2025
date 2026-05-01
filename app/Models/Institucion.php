@@ -35,7 +35,8 @@ class Institucion extends Model
         'INSTITUCION_COLONIA',
         'INSTITUCION_MUNICIPIO',
         'INSTITUCION_CIUDAD',
-        'INSTITUCION_ESTADO',
+        'INSTITUCION_ESTADO', 
+        'INSTITUCION_PROCEDENCIA',
         'INSTITUCION_CODIGO_POSTAL',
         'INSTITUCION_PIN',
     ];

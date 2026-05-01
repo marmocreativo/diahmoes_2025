@@ -33,6 +33,7 @@ interface EditLaboratorioProps {
         R_ENRIQUECIMIENTO?: string;
         R_RAZON_ADECUADO_PROCESAMIENTO?: string;
         R_RESULTADO_HISTOPATOLOGICO?: string;
+        R_NOTAS_ESPECIALES?: string;
         ESTUDIO_NOTAS?: string;
         ESTUDIO_COMENTARIOS?: string;
         FECHA_RECEPCION_LABORATORIO?: string;
@@ -1256,7 +1257,7 @@ export default function EditLaboratorioConCondicionales() {
 
                                 {/* Notas del estudio */}
                                 <div>
-                                    <label className={labelClass}>Notas (Visibles en el reporte)</label>
+                                    <label className={labelClass}>Notas (Visibles en el reporte PDF para el médico)</label>
                                     <div className="border border-gray-300 rounded-md">
                                         <ReactQuill
                                             theme="snow"
@@ -1273,6 +1274,8 @@ export default function EditLaboratorioConCondicionales() {
                                     </div>
                                 </div>
 
+                                
+
                                 {/* Comentarios del estudio */}
                                 <div>
                                     <label className={labelClass}>Comentarios (Visible solo para cliente)</label>
@@ -1282,6 +1285,21 @@ export default function EditLaboratorioConCondicionales() {
                                         rows={12}
                                         defaultValue={estudio.ESTUDIO_COMENTARIOS || ''}
                                         placeholder="Ingrese comentarios del estudio..."
+                                    />
+                                </div>
+
+                                {/* Notas Especiales */}
+                                <div className="border border-teal-300 rounded-lg p-4 bg-teal-50">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <label className={labelClass}>Notas Especiales (Visible en el reporte)</label>
+                                        <span className="text-xs font-semibold text-white bg-teal-500 px-2 py-0.5 rounded-full">NUEVO</span>
+                                    </div>
+                                    <textarea
+                                        name="R_NOTAS_ESPECIALES"
+                                        className={textareaClass}
+                                        rows={6}
+                                        defaultValue={estudio.R_NOTAS_ESPECIALES || ''}
+                                        placeholder="Ingrese notas especiales del estudio..."
                                     />
                                 </div>
 

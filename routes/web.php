@@ -105,10 +105,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     */
     
     // CRUD básico de instituciones
-    Route::resource('instituciones', InstitucionController::class)
-        ->parameters(['instituciones' => 'institucion:ID_INSTITUCION']);
+    Route::patch('instituciones/{institucion:ID_INSTITUCION}/campo-rapido', [InstitucionController::class, 'updateCampoRapido'])
+    ->name('instituciones.campo-rapido');
 
-    // Regenerar PIN de seguridad
+     // Regenerar PIN de seguridad
     Route::patch('instituciones/{institucion:ID_INSTITUCION}/regenerar-pin', [InstitucionController::class, 'regenerarPIN'])
         ->name('instituciones.regenerar-pin');
     
@@ -116,6 +116,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('instituciones-estadisticas', [InstitucionController::class, 'estadisticas'])
         ->name('instituciones.estadisticas');
     
+
+    Route::resource('instituciones', InstitucionController::class)
+        ->parameters(['instituciones' => 'institucion:ID_INSTITUCION']);
+
+   
     /*
     |--------------------------------------------------------------------------
     | CRUD de Mensajerías
