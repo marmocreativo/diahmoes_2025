@@ -18,13 +18,8 @@ class ReporteController extends Controller
     // LOGIN
     // -------------------------------------------------------------------------
 
-    /**
-     * Mostrar página de login del reporte.
-     * Si ya tiene acceso, redirigir directamente al reporte.
-     */
     public function loginForm(Request $request)
     {
-        // Si ya está autenticado como admin del sistema
         if (Auth::check()) {
             $usuario = \App\Models\Usuario::where('USUARIO_CORREO', Auth::user()->email)
                 ->where('USUARIO_TIPO', 'admin')
@@ -37,7 +32,6 @@ class ReporteController extends Controller
             }
         }
 
-        // Si ya tiene sesión de reporte activa
         if ($request->session()->get('reporte_autenticado') === true) {
             return redirect()->route('reportes.index');
         }
@@ -45,9 +39,6 @@ class ReporteController extends Controller
         return Inertia::render('Reportes/Login');
     }
 
-    /**
-     * Procesar el login del reporte.
-     */
     public function login(Request $request)
     {
         $request->validate([
@@ -55,7 +46,6 @@ class ReporteController extends Controller
             'password' => 'required|string',
         ]);
 
-        // Buscar en tabla reporte_accesos
         $acceso = ReporteAcceso::where('email', $request->email)
             ->where('activo', 1)
             ->first();
@@ -66,22 +56,17 @@ class ReporteController extends Controller
             ]);
         }
 
-        // Establecer sesión
         $request->session()->put('reporte_autenticado', true);
         $request->session()->put('reporte_acceso_id', $acceso->id);
         $request->session()->put('reporte_user_id', null);
         $request->session()->put('reporte_nombre', $acceso->nombre);
         $request->session()->put('reporte_tipo', 'externo');
 
-        // Registrar log de login
         ReporteLog::registrar($request, 'login', "Inicio de sesión: {$acceso->nombre} ({$acceso->email})");
 
         return redirect()->route('reportes.index');
     }
 
-    /**
-     * Cerrar sesión del reporte.
-     */
     public function logout(Request $request)
     {
         $request->session()->forget([
@@ -99,12 +84,8 @@ class ReporteController extends Controller
     // REPORTE PRINCIPAL
     // -------------------------------------------------------------------------
 
-    /**
-     * Mostrar el reporte principal con los datos del dashboard.
-     */
     public function index(Request $request)
     {
-        // Si entra como admin del sistema, asegurar que la sesión esté establecida
         if (Auth::check() && ! $request->session()->has('reporte_autenticado')) {
             $this->establecerSesionAdmin($request, Auth::user());
         }
@@ -116,7 +97,6 @@ class ReporteController extends Controller
         $prefijo       = 'PRM';
         $institucion   = $request->get('institucion');
 
-        // Registrar log de filtro solo si vienen parámetros en la request
         if ($request->hasAny(['fecha_desde', 'fecha_hasta', 'muestra_estado', 'tipo_estudio', 'institucion'])) {
             $descripcion = "Filtros aplicados — Desde: {$fechaDesde}, Hasta: {$fechaHasta}";
             if ($muestraEstado) $descripcion .= ", Estado: {$muestraEstado}";
@@ -144,8 +124,8 @@ class ReporteController extends Controller
         ];
 
         return Inertia::render('Reportes/Index', [
-            'filtros'       => $filtros,
-            'datos'         => $datos,
+            'filtros'        => $filtros,
+            'datos'          => $datos,
             'filtrosActivos' => [
                 'fecha_desde'    => $fechaDesde,
                 'fecha_hasta'    => $fechaHasta,
@@ -164,14 +144,10 @@ class ReporteController extends Controller
     // EXPORTACIÓN EXCEL
     // -------------------------------------------------------------------------
 
-    /**
-     * Exportar el reporte a Excel.
-     */
     public function exportExcel(Request $request)
     {
         $filters = $request->all();
 
-        // Registrar log de exportación
         $descripcion = "Exportación Excel — Desde: " . ($filters['fecha_inicio'] ?? 'N/A') . ", Hasta: " . ($filters['fecha_fin'] ?? 'N/A');
         if (! empty($filters['muestra_estado'])) $descripcion .= ", Estado: {$filters['muestra_estado']}";
         if (! empty($filters['tipo_estudio']))   $descripcion .= ", Tipo: {$filters['tipo_estudio']}";
@@ -197,12 +173,6 @@ class ReporteController extends Controller
     // HELPERS DE SESIÓN
     // -------------------------------------------------------------------------
 
-    /**
-     * Establece los datos de sesión para un admin del sistema Laravel.
-     *
-     * @param  Request   $request
-     * @param  \App\Models\User  $user
-     */
     private function establecerSesionAdmin(Request $request, $user): void
     {
         $request->session()->put('reporte_autenticado', true);
@@ -368,8 +338,8 @@ class ReporteController extends Controller
             ->map(function ($item) {
                 $fecha = Carbon::createFromDate($item->anio, $item->mes, 1);
                 return [
-                    'mes'           => $fecha->format('M Y'),
-                    'total'         => $item->total,
+                    'mes'            => $fecha->format('M Y'),
+                    'total'          => $item->total,
                     'fecha_completa' => $fecha->format('Y-m'),
                 ];
             });
@@ -469,12 +439,12 @@ class ReporteController extends Controller
     {
         $actual = $this->getQueryBase($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)->count();
 
-        $fd1 = Carbon::parse($fechaDesde)->subYear()->format('Y-m-d');
-        $fh1 = Carbon::parse($fechaHasta)->subYear()->format('Y-m-d');
+        $fd1   = Carbon::parse($fechaDesde)->subYear()->format('Y-m-d');
+        $fh1   = Carbon::parse($fechaHasta)->subYear()->format('Y-m-d');
         $hace1 = $this->getQueryBase($fd1, $fh1, $muestraEstado, $tipoEstudio, $prefijo)->count();
 
-        $fd2 = Carbon::parse($fechaDesde)->subYears(2)->format('Y-m-d');
-        $fh2 = Carbon::parse($fechaHasta)->subYears(2)->format('Y-m-d');
+        $fd2   = Carbon::parse($fechaDesde)->subYears(2)->format('Y-m-d');
+        $fh2   = Carbon::parse($fechaHasta)->subYears(2)->format('Y-m-d');
         $hace2 = $this->getQueryBase($fd2, $fh2, $muestraEstado, $tipoEstudio, $prefijo)->count();
 
         return [
@@ -489,10 +459,10 @@ class ReporteController extends Controller
 
     private function getComparacionMensual3Periodos($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo): array
     {
-        $fechaInicio  = Carbon::parse($fechaDesde);
-        $fechaFin     = Carbon::parse($fechaHasta);
-        $meses        = [];
-        $fechaActual  = $fechaInicio->copy();
+        $fechaInicio = Carbon::parse($fechaDesde);
+        $fechaFin    = Carbon::parse($fechaHasta);
+        $meses       = [];
+        $fechaActual = $fechaInicio->copy();
 
         while ($fechaActual->lte($fechaFin)) {
             $ini = $fechaActual->copy()->startOfMonth();
@@ -550,12 +520,12 @@ class ReporteController extends Controller
             ->orderBy('CLAVE')->orderBy('ANIO')->orderBy('SERIADO')
             ->get();
 
-        $gruposClave    = $estudiosEncontrados->groupBy(fn($e) => $e->CLAVE . '_' . $e->ANIO);
+        $gruposClave       = $estudiosEncontrados->groupBy(fn($e) => $e->CLAVE . '_' . $e->ANIO);
         $estudiosFaltantes = [];
 
         foreach ($gruposClave as $grupoKey => $estudios) {
-            [$clave, $anio] = explode('_', $grupoKey);
-            $seriados        = $estudios->pluck('SERIADO')->toArray();
+            [$clave, $anio]    = explode('_', $grupoKey);
+            $seriados          = $estudios->pluck('SERIADO')->toArray();
             $seriadosFaltantes = array_diff(range(min($seriados), max($seriados)), $seriados);
 
             foreach ($seriadosFaltantes as $seriado) {
@@ -566,16 +536,16 @@ class ReporteController extends Controller
 
                 if ($e) {
                     $estudiosFaltantes[] = [
-                        'id'             => $e->ID,
-                        'clave_interna'  => $e->CLAVE_INTERNA,
-                        'clave'          => $e->CLAVE,
-                        'anio'           => $e->ANIO,
-                        'seriado'        => $e->SERIADO,
+                        'id'              => $e->ID,
+                        'clave_interna'   => $e->CLAVE_INTERNA,
+                        'clave'           => $e->CLAVE,
+                        'anio'            => $e->ANIO,
+                        'seriado'         => $e->SERIADO,
                         'fecha_recepcion' => $e->FECHA_RECEPCION,
-                        'tipo_estudio'   => $e->MUESTRA_TIPO_ESTUDIO ?: 'N/D',
-                        'estado'         => $e->ESTUDIO_ESTADO ?: 'Sin estado',
-                        'url'            => "/estudios/{$e->ID}",
-                        'razon_faltante' => $this->determinarRazonFaltante($e, $fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
+                        'tipo_estudio'    => $e->MUESTRA_TIPO_ESTUDIO ?: 'N/D',
+                        'estado'          => $e->ESTUDIO_ESTADO ?: 'Sin estado',
+                        'url'             => "/estudios/{$e->ID}",
+                        'razon_faltante'  => $this->determinarRazonFaltante($e, $fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
                     ];
                 }
             }
@@ -609,7 +579,7 @@ class ReporteController extends Controller
     }
 
     // -------------------------------------------------------------------------
-    // EXCEL — copiado del DashboardExportController
+    // EXCEL
     // -------------------------------------------------------------------------
 
     private function createHojaGeneral($spreadsheet, $filters): void
@@ -677,86 +647,90 @@ class ReporteController extends Controller
         $sheet = $spreadsheet->createSheet();
         $sheet->setTitle('Reporte Detallado');
 
-        $fechaInicio = $filters['fecha_inicio'] ?? 'No especificada';
-        $fechaFin    = $filters['fecha_fin'] ?? 'No especificada';
-
-        $sheet->setCellValue('A1', 'REPORTE DETALLADO DE ESTUDIOS');
-        $sheet->setCellValue('A2', "Periodo: {$fechaInicio} al {$fechaFin}");
-        $sheet->setCellValue('A3', 'Este reporte muestra información detallada de los resultados y análisis de los estudios procesados');
-
+        // SIN títulos — encabezados directamente en fila 1
         $headers = [
-            'A5' => 'CODIGO INTERNO', 'B5' => 'MU', 'C5' => 'RECEPCION LAB', 'D5' => 'ESTATUS',
-            'E5' => 'INICIALES DEL PX', 'F5' => 'SEXO PX', 'G5' => 'EDAD DEL PX', 'H5' => 'SITIO DE LESION',
-            'I5' => 'COLON/ASCEN-DESC', 'J5' => 'BLOQUE', 'K5' => 'LAMINILLA', 'L5' => 'TIPO DE MUESTRA',
-            'M5' => 'MUE', 'N5' => 'REPORTE DEL DIAGNOSTICO HISTOPATOLOGICO', 'O5' => 'MEDICO TRATANTE',
-            'P5' => 'HOSPITAL', 'Q5' => 'PROCEDENCIA', 'R5' => 'TELÉFONO', 'S5' => 'E-MAIL',
-            'T5' => 'CIUDAD', 'U5' => 'ESTADO', 'V5' => 'FECHA DE ANALISIS', 'W5' => 'RESULTADOS KRAS',
-            'X5' => 'RESULTADOS NRAS', 'Y5' => 'INTERPRETACION RESULTADOS', 'Z5' => 'BRAF',
-            'AA5' => 'FECHA ENVIO REPORTE E-MAIL',
+            'A1' => 'CODIGO INTERNO',
+            'B1' => 'MU',
+            'C1' => 'RECEPCION LAB',
+            'D1' => 'ESTATUS',
+            'E1' => 'SITIO DE LESION',
+            'F1' => 'COLON/ASCEN-DESC',
+            'G1' => 'BLOQUE',
+            'H1' => 'LAMINILLA',
+            'I1' => 'TIPO DE MUESTRA',
+            'J1' => 'MUE',
+            'K1' => 'REPORTE DEL DIAGNOSTICO HISTOPATOLOGICO',
+            'L1' => 'MEDICO TRATANTE',
+            'M1' => 'HOSPITAL',
+            'N1' => 'PROCEDENCIA',
+            'O1' => 'TELÉFONO',
+            'P1' => 'E-MAIL',
+            'Q1' => 'CIUDAD',
+            'R1' => 'ESTADO',
+            'S1' => 'FECHA DE ANALISIS',
+            'T1' => 'RESULTADOS KRAS',
+            'U1' => 'RESULTADOS NRAS',
+            'V1' => 'INTERPRETACION RESULTADOS',
+            'W1' => 'BRAF',
+            'X1' => 'FECHA ENVIO REPORTE E-MAIL',
         ];
 
         foreach ($headers as $cell => $value) {
             $sheet->setCellValue($cell, $value);
         }
 
-        $row = 6;
+        $row = 2;
         foreach ($this->getDataDetallada($filters) as $dato) {
             $frl = $dato->FECHA_RECEPCION_LABORATORIO ? Carbon::parse($dato->FECHA_RECEPCION_LABORATORIO) : null;
-            $fa  = $dato->FECHA_ENTREGA_PROCESAMIENTO  ? Carbon::parse($dato->FECHA_ENTREGA_PROCESAMIENTO) : null;
-            $fe  = $dato->FECHA_RESULTADOS_CORREO       ? Carbon::parse($dato->FECHA_RESULTADOS_CORREO) : null;
+            $fe  = $dato->FECHA_RESULTADOS_CORREO      ? Carbon::parse($dato->FECHA_RESULTADOS_CORREO) : null;
 
             $kras = trim(($dato->R_ESTATUS_KRAS ?? '') . ' ' . ($dato->R_GENOTIPO_KRAS ?? ''));
             $nras = trim(($dato->R_ESTATUS_NRAS ?? '') . ' ' . ($dato->R_GENOTIPO_NRAS ?? ''));
             $braf = trim(($dato->R_ESTATUS_BRAF ?? '') . ' ' . ($dato->R_GENOTIPO_BRAF ?? ''));
 
-            $sitio = strtoupper(trim($dato->MUESTRA_SITIO_LESION ?? ''));
+            $sitio    = strtoupper(trim($dato->MUESTRA_SITIO_LESION ?? ''));
             $colonCol = match ($sitio) {
                 'COLON DESCENDENTE' => 'DESC',
                 'COLON ASCENDENTE'  => 'ASC',
                 'COLON'             => 'ND',
-                default             => '',
+                default             => 'ND',
             };
 
             $sheet->setCellValue('A' . $row, $dato->CLAVE_INTERNA ?? '');
             $sheet->setCellValue('B' . $row, $dato->FOLIO_MERCK ?? '');
             $sheet->setCellValue('C' . $row, $frl ? $frl->format('Y-m-d') : '');
             $sheet->setCellValue('D' . $row, $dato->ESTUDIO_ESTADO ?? '');
-            $sheet->setCellValue('E' . $row, $dato->MUESTRA_INICIALES ?? '');
-            $sheet->setCellValue('F' . $row, $dato->MUESTRA_GENERO ?? '');
-            $sheet->setCellValue('G' . $row, $dato->MUESTRA_EDAD ?? '');
-            $sheet->setCellValue('H' . $row, $dato->MUESTRA_SITIO_LESION ?? '');
-            $sheet->setCellValue('I' . $row, $colonCol);
-            $sheet->setCellValue('J' . $row, $dato->MUESTRA_BLOQUES ?? '');
-            $sheet->setCellValue('K' . $row, $dato->MUESTRA_LAMINILLAS ?? '');
-            $sheet->setCellValue('L' . $row, $dato->MUESTRA_TIPO_ESTUDIO ?? '');
-            $sheet->setCellValue('M' . $row, $dato->MUESTRA_CLAVE ?? '');
-            $sheet->setCellValue('N' . $row, $dato->MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA ?? '');
-            $sheet->setCellValue('O' . $row, $dato->medico_completo ?? '');
-            $sheet->setCellValue('P' . $row, $dato->INSTITUCION_NOMBRE ?? '');
-            $sheet->setCellValue('Q' . $row, $dato->INSTITUCION_PROCEDENCIA ?? '');
-            $sheet->setCellValue('R' . $row, $dato->USUARIO_TELEFONO ?? '');
-            $sheet->setCellValue('S' . $row, $dato->USUARIO_CORREO ?? '');
-            $sheet->setCellValue('T' . $row, $dato->MUESTRA_CIUDAD ?? '');
-            $sheet->setCellValue('U' . $row, $dato->MUESTRA_ESTADO ?? '');
-            $sheet->setCellValue('V' . $row, $frl ? $frl->format('Y-m-d') : '');
-            $sheet->setCellValue('W' . $row, $kras ?: '');
-            $sheet->setCellValue('X' . $row, $nras ?: '');
-            $sheet->setCellValue('Y' . $row, $dato->R_INTERPRETACION ?? '');
-            $sheet->setCellValue('Z' . $row, $braf ?: '');
-            $sheet->setCellValue('AA' . $row, $fe ? $fe->format('Y-m-d') : '');
+            $sheet->setCellValue('E' . $row, $dato->MUESTRA_SITIO_LESION ?? '');
+            $sheet->setCellValue('F' . $row, $colonCol);
+            $sheet->setCellValue('G' . $row, $dato->MUESTRA_BLOQUES ?? '');
+            $sheet->setCellValue('H' . $row, $dato->MUESTRA_LAMINILLAS ?? '');
+            $sheet->setCellValue('I' . $row, $dato->MUESTRA_TIPO_ESTUDIO ?? '');
+            $sheet->setCellValue('J' . $row, $dato->MUESTRA_CLAVE ?? '');
+            $sheet->setCellValue('K' . $row, $dato->MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA ?? '');
+            $sheet->setCellValue('L' . $row, $dato->medico_completo ?? '');
+            $sheet->setCellValue('M' . $row, $dato->INSTITUCION_NOMBRE ?? '');
+            $sheet->setCellValue('N' . $row, $dato->INSTITUCION_PROCEDENCIA ?? '');
+            $sheet->setCellValue('O' . $row, $dato->USUARIO_TELEFONO ?? '');
+            $sheet->setCellValue('P' . $row, $dato->USUARIO_CORREO ?? '');
+            $sheet->setCellValue('Q' . $row, $dato->MUESTRA_CIUDAD ?? '');
+            $sheet->setCellValue('R' . $row, $dato->MUESTRA_ESTADO ?? '');
+            $sheet->setCellValue('S' . $row, $frl ? $frl->format('Y-m-d') : '');
+            $sheet->setCellValue('T' . $row, $kras ?: '');
+            $sheet->setCellValue('U' . $row, $nras ?: '');
+            $sheet->setCellValue('V' . $row, $dato->R_INTERPRETACION ?? '');
+            $sheet->setCellValue('W' . $row, $braf ?: '');
+            $sheet->setCellValue('X' . $row, $fe ? $fe->format('Y-m-d') : '');
             $row++;
         }
 
-        $sheet->getStyle('A1:AA1')->getFont()->setBold(true)->setSize(14);
-        $sheet->getStyle('A5:AA5')->getFont()->setBold(true);
-        $sheet->getStyle('A5:AA5')->getFill()
+        $sheet->getStyle('A1:X1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:X1')->getFill()
             ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()->setARGB('FFE2E8F0');
 
-        foreach (range('A', 'Z') as $col) {
+        foreach (range('A', 'X') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
-        $sheet->getColumnDimension('AA')->setAutoSize(true);
     }
 
     private function getDataGeneral($filters)
@@ -773,11 +747,11 @@ class ReporteController extends Controller
                 'e.FECHA_RECOLECCION', 'e.FOLIO_MERCK'
             );
 
-        if (! empty($filters['fecha_inicio'])) $query->where('e.FECHA_RECEPCION', '>=', $filters['fecha_inicio']);
-        if (! empty($filters['fecha_fin']))    $query->where('e.FECHA_RECEPCION', '<=', $filters['fecha_fin']);
-        if (! empty($filters['muestra_estado'])) $query->where('e.MUESTRA_ESTADO', $filters['muestra_estado']);
-        if (! empty($filters['tipo_estudio']))   $query->where('e.MUESTRA_TIPO_ESTUDIO', $filters['tipo_estudio']);
-        if (! empty($filters['prefijo']))        $query->where('e.CLAVE', $filters['prefijo']);
+        if (! empty($filters['fecha_inicio']))    $query->where('e.FECHA_RECEPCION', '>=', $filters['fecha_inicio']);
+        if (! empty($filters['fecha_fin']))        $query->where('e.FECHA_RECEPCION', '<=', $filters['fecha_fin']);
+        if (! empty($filters['muestra_estado']))   $query->where('e.MUESTRA_ESTADO', $filters['muestra_estado']);
+        if (! empty($filters['tipo_estudio']))     $query->where('e.MUESTRA_TIPO_ESTUDIO', $filters['tipo_estudio']);
+        if (! empty($filters['prefijo']))          $query->where('e.CLAVE', $filters['prefijo']);
 
         return $query->get();
     }
@@ -788,30 +762,30 @@ class ReporteController extends Controller
             ->leftJoin('usuarios as u', 'e.ID_MEDICO', '=', 'u.ID_USUARIO')
             ->leftJoin('instituciones as i', 'e.ID_INSTITUCION', '=', 'i.ID_INSTITUCION')
             ->select(
-                'e.CLAVE_INTERNA', 'e.FOLIO_MERCK', 'e.FECHA_RECEPCION_LABORATORIO',
-                'e.ESTUDIO_ESTADO', 'e.MUESTRA_INICIALES', 'e.MUESTRA_GENERO', 'e.MUESTRA_EDAD',
+                'e.CLAVE_INTERNA', 'e.FOLIO_MERCK', 'e.MUESTRA_CLAVE',
+                'e.FECHA_RECEPCION_LABORATORIO', 'e.ESTUDIO_ESTADO',
                 'e.MUESTRA_SITIO_LESION', 'e.MUESTRA_BLOQUES', 'e.MUESTRA_LAMINILLAS',
-                'e.MUESTRA_TIPO_ESTUDIO', 'e.MUESTRA_CLAVE', 'e.MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA',
+                'e.MUESTRA_TIPO_ESTUDIO', 'e.MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA',
                 DB::raw('CONCAT(u.USUARIO_NOMBRE, " ", u.USUARIO_APELLIDOS) as medico_completo'),
                 'i.INSTITUCION_NOMBRE', 'i.INSTITUCION_PROCEDENCIA',
                 'u.USUARIO_TELEFONO', 'u.USUARIO_CORREO',
-                'e.MUESTRA_CIUDAD', 'e.MUESTRA_ESTADO', 'e.FECHA_ENTREGA_PROCESAMIENTO',
-                'e.R_ESTATUS_KRAS', 'e.R_GENOTIPO_KRAS', 'e.R_ESTATUS_NRAS', 'e.R_GENOTIPO_NRAS',
-                'e.R_INTERPRETACION', 'e.R_ESTATUS_BRAF', 'e.R_GENOTIPO_BRAF', 'e.FECHA_RESULTADOS_CORREO'
+                'e.MUESTRA_CIUDAD', 'e.MUESTRA_ESTADO',
+                'e.R_ESTATUS_KRAS', 'e.R_GENOTIPO_KRAS',
+                'e.R_ESTATUS_NRAS', 'e.R_GENOTIPO_NRAS',
+                'e.R_INTERPRETACION',
+                'e.R_ESTATUS_BRAF', 'e.R_GENOTIPO_BRAF',
+                'e.FECHA_RESULTADOS_CORREO'
             );
 
-        if (! empty($filters['fecha_inicio'])) $query->where('e.FECHA_RECEPCION', '>=', $filters['fecha_inicio']);
-        if (! empty($filters['fecha_fin']))    $query->where('e.FECHA_RECEPCION', '<=', $filters['fecha_fin']);
-        if (! empty($filters['muestra_estado'])) $query->where('e.MUESTRA_ESTADO', $filters['muestra_estado']);
-        if (! empty($filters['tipo_estudio']))   $query->where('e.MUESTRA_TIPO_ESTUDIO', $filters['tipo_estudio']);
-        if (! empty($filters['prefijo']))        $query->where('e.CLAVE', $filters['prefijo']);
+        if (! empty($filters['fecha_inicio']))    $query->where('e.FECHA_RECEPCION', '>=', $filters['fecha_inicio']);
+        if (! empty($filters['fecha_fin']))        $query->where('e.FECHA_RECEPCION', '<=', $filters['fecha_fin']);
+        if (! empty($filters['muestra_estado']))   $query->where('e.MUESTRA_ESTADO', $filters['muestra_estado']);
+        if (! empty($filters['tipo_estudio']))     $query->where('e.MUESTRA_TIPO_ESTUDIO', $filters['tipo_estudio']);
+        if (! empty($filters['prefijo']))          $query->where('e.CLAVE', $filters['prefijo']);
 
         return $query->get();
     }
 
-    /**
-     * Agrupa ítems con porcentaje menor al 5% en "Otros".
-     */
     private function agruparPorcentajesBajos($coleccion)
     {
         $total = $coleccion->sum('value');

@@ -193,6 +193,6 @@ class HojaDetalladaExport implements FromCollection, WithHeadings, WithTitle, Wi
             return 'ND';
         }
         
-        return ''; // Cualquier otra respuesta queda vacío
+        return 'ND'; // Cualquier otra respuesta queda vacío
     }
 }

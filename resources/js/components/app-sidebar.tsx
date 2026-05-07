@@ -223,6 +223,21 @@ export function AppSidebar() {
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton 
+                            asChild
+                            className={`hover:bg-[#189BAF]/5 hover:text-[#189BAF] transition-colors ${
+                                url === '/reporte-accesos' 
+                                    ? 'bg-[#189BAF]/10 text-[#189BAF] font-medium border-r-2 border-[#189BAF]' 
+                                    : 'text-gray-700'
+                            }`}
+                        >
+                            <Link href="/reporte-accesos" prefetch className="flex items-center gap-3">
+                                <Shield className="!size-4" />
+                                <span className="font-medium">Accesos Reportes</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarGroup>
         </SidebarContent>

@@ -117,67 +117,56 @@ class DashboardExportController extends Controller
     
     private function createHojaDetallada($spreadsheet, $filters)
     {
-        // Crear segunda hoja
         $sheet = $spreadsheet->createSheet();
         $sheet->setTitle('Reporte Detallado');
-        
-        // Encabezados informativos
-        $fechaInicio = $filters['fecha_inicio'] ?? 'No especificada';
-        $fechaFin = $filters['fecha_fin'] ?? 'No especificada';
-        
-        $sheet->setCellValue('A1', 'REPORTE DETALLADO DE ESTUDIOS');
-        $sheet->setCellValue('A2', 'Periodo: ' . $fechaInicio . ' al ' . $fechaFin);
-        $sheet->setCellValue('A3', 'Este reporte muestra información detallada de los resultados y análisis de los estudios procesados');
-        
-        // Encabezados de columnas
+
         $headers = [
-            'A5' => 'CODIGO INTERNO',
-            'B5' => 'MU',
-            'C5' => 'RECEPCION LAB',
-            'D5' => 'ESTATUS',
-            'E5' => 'INICIALES DEL PX',
-            'F5' => 'SEXO PX',
-            'G5' => 'EDAD DEL PX',
-            'H5' => 'SITIO DE LESION',
-            'I5' => 'COLON/ASCEN-DESC',
-            'J5' => 'BLOQUE',
-            'K5' => 'LAMINILLA',
-            'L5' => 'TIPO DE MUESTRA',
-            'M5' => 'MUE',
-            'N5' => 'REPORTE DEL DIAGNOSTICO HISTOPATOLOGICO',
-            'O5' => 'MEDICO TRATANTE',
-            'P5' => 'HOSPITAL',
-            'Q5' => 'PROCEDENCIA',
-            'R5' => 'TELÉFONO',
-            'S5' => 'E-MAIL',
-            'T5' => 'CIUDAD',
-            'U5' => 'ESTADO',
-            'V5' => 'FECHA DE ANALISIS',
-            'W5' => 'NOTAS ESPECIALES',
-            'X5' => 'RESULTADOS KRAS',
-            'Y5' => 'RESULTADOS NRAS',
-            'Z5' => 'INTERPRETACION RESULTADOS',
-            'AA5' => 'BRAF',
-            'AB5' => 'FECHA ENVIO REPORTE E-MAIL'
+            'A1' => 'CODIGO INTERNO',
+            'B1' => 'MU',
+            'C1' => 'RECEPCION LAB',
+            'D1' => 'ESTATUS',
+            'E1' => 'INICIALES DEL PX',
+            'F1' => 'SEXO PX',
+            'G1' => 'EDAD DEL PX',
+            'H1' => 'SITIO DE LESION',
+            'I1' => 'COLON/ASCEN-DESC',
+            'J1' => 'BLOQUE',
+            'K1' => 'LAMINILLA',
+            'L1' => 'TIPO DE MUESTRA',
+            'M1' => 'MUE',
+            'N1' => 'REPORTE DEL DIAGNOSTICO HISTOPATOLOGICO',
+            'O1' => 'MEDICO TRATANTE',
+            'P1' => 'HOSPITAL',
+            'Q1' => 'PROCEDENCIA',
+            'R1' => 'TELÉFONO',
+            'S1' => 'E-MAIL',
+            'T1' => 'CIUDAD',
+            'U1' => 'ESTADO',
+            'V1' => 'FECHA DE ANALISIS',
+            'W1' => 'NOTAS ESPECIALES',
+            'X1' => 'RESULTADOS KRAS',
+            'Y1' => 'RESULTADOS NRAS',
+            'Z1' => 'INTERPRETACION RESULTADOS',
+            'AA1' => 'BRAF',
+            'AB1' => 'FECHA ENVIO REPORTE E-MAIL'
         ];
-        
+
         foreach ($headers as $cell => $value) {
             $sheet->setCellValue($cell, $value);
         }
-        
-        // Obtener y insertar datos (implementar getDataDetallada similar a getDataGeneral)
+
         $datos = $this->getDataDetallada($filters);
-        
-        $row = 6;
+
+        $row = 2;
         foreach ($datos as $dato) {
             $fechaRecepcionLab = $dato->FECHA_RECEPCION_LABORATORIO ? Carbon::parse($dato->FECHA_RECEPCION_LABORATORIO) : null;
             $fechaAnalisis = $dato->FECHA_ENTREGA_PROCESAMIENTO ? Carbon::parse($dato->FECHA_ENTREGA_PROCESAMIENTO) : null;
             $fechaEnvioCorreo = $dato->FECHA_RESULTADOS_CORREO ? Carbon::parse($dato->FECHA_RESULTADOS_CORREO) : null;
-            
+
             $resultadosKras = trim(($dato->R_ESTATUS_KRAS ?? '') . ' ' . ($dato->R_GENOTIPO_KRAS ?? ''));
             $resultadosNras = trim(($dato->R_ESTATUS_NRAS ?? '') . ' ' . ($dato->R_GENOTIPO_NRAS ?? ''));
             $resultadosBraf = trim(($dato->R_ESTATUS_BRAF ?? '') . ' ' . ($dato->R_GENOTIPO_BRAF ?? ''));
-            
+
             $sheet->setCellValue('A' . $row, $dato->CLAVE_INTERNA ?? '');
             $sheet->setCellValue('B' . $row, $dato->FOLIO_MERCK ?? '');
             $sheet->setCellValue('C' . $row, $fechaRecepcionLab ? $fechaRecepcionLab->format('Y-m-d') : '');
@@ -212,16 +201,14 @@ class DashboardExportController extends Controller
             $sheet->setCellValue('Z' . $row, $dato->R_INTERPRETACION ?? '');
             $sheet->setCellValue('AA' . $row, $resultadosBraf ?: '');
             $sheet->setCellValue('AB' . $row, $fechaEnvioCorreo ? $fechaEnvioCorreo->format('Y-m-d') : '');
-            
+
             $row++;
         }
-        
-        // Aplicar formato
-        $sheet->getStyle('A1:AB1')->getFont()->setBold(true)->setSize(14);
-        $sheet->getStyle('A5:AB5')->getFont()->setBold(true);
-        $sheet->getStyle('A5:AB5')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFE2E8F0');
-            
-        // Autoajustar columnas
+
+        $sheet->getStyle('A1:AB1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:AB1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFE2E8F0');
+
         foreach (range('A', 'Z') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
