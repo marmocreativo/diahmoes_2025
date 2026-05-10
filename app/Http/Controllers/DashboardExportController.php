@@ -134,21 +134,23 @@ class DashboardExportController extends Controller
             'K1' => 'LAMINILLA',
             'L1' => 'TIPO DE MUESTRA',
             'M1' => 'MUE',
-            'N1' => 'REPORTE DEL DIAGNOSTICO HISTOPATOLOGICO',
-            'O1' => 'MEDICO TRATANTE',
-            'P1' => 'HOSPITAL',
-            'Q1' => 'PROCEDENCIA',
-            'R1' => 'TELÉFONO',
-            'S1' => 'E-MAIL',
-            'T1' => 'CIUDAD',
-            'U1' => 'ESTADO',
-            'V1' => 'FECHA DE ANALISIS',
-            'W1' => 'NOTAS ESPECIALES',
-            'X1' => 'RESULTADOS KRAS',
-            'Y1' => 'RESULTADOS NRAS',
-            'Z1' => 'INTERPRETACION RESULTADOS',
-            'AA1' => 'BRAF',
-            'AB1' => 'FECHA ENVIO REPORTE E-MAIL'
+            'N1' => 'REQUIERE LAB AUXILIAR',
+            'O1' => 'NOMBRE LAB AUXILIAR',
+            'P1' => 'REPORTE DEL DIAGNOSTICO HISTOPATOLOGICO',
+            'Q1' => 'MEDICO TRATANTE',
+            'R1' => 'HOSPITAL',
+            'S1' => 'PROCEDENCIA',
+            'T1' => 'TELÉFONO',
+            'U1' => 'E-MAIL',
+            'V1' => 'CIUDAD',
+            'W1' => 'ESTADO',
+            'X1' => 'FECHA DE ANALISIS',
+            'Y1' => 'NOTAS ESPECIALES',
+            'Z1' => 'RESULTADOS KRAS',
+            'AA1' => 'RESULTADOS NRAS',
+            'AB1' => 'INTERPRETACION RESULTADOS',
+            'AC1' => 'BRAF',
+            'AD1' => 'FECHA ENVIO REPORTE E-MAIL'
         ];
 
         foreach ($headers as $cell => $value) {
@@ -186,27 +188,29 @@ class DashboardExportController extends Controller
             $sheet->setCellValue('K' . $row, $dato->MUESTRA_LAMINILLAS ?? '');
             $sheet->setCellValue('L' . $row, $dato->MUESTRA_TIPO_ESTUDIO ?? '');
             $sheet->setCellValue('M' . $row, $dato->MUESTRA_CLAVE ?? '');
-            $sheet->setCellValue('N' . $row, $dato->MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA ?? '');
-            $sheet->setCellValue('O' . $row, $dato->medico_completo ?? '');
-            $sheet->setCellValue('P' . $row, $dato->INSTITUCION_NOMBRE ?? '');
-            $sheet->setCellValue('Q' . $row, $dato->INSTITUCION_PROCEDENCIA ?? '');
-            $sheet->setCellValue('R' . $row, $dato->USUARIO_TELEFONO ?? '');
-            $sheet->setCellValue('S' . $row, $dato->USUARIO_CORREO ?? '');
-            $sheet->setCellValue('T' . $row, $dato->MUESTRA_CIUDAD ?? '');
-            $sheet->setCellValue('U' . $row, $dato->MUESTRA_ESTADO ?? '');
-            $sheet->setCellValue('V' . $row, $fechaRecepcionLab ? $fechaRecepcionLab->format('Y-m-d') : '');
-            $sheet->setCellValue('W' . $row, $dato->R_NOTAS_ESPECIALES ?? '');
-            $sheet->setCellValue('X' . $row, $resultadosKras ?: '');
-            $sheet->setCellValue('Y' . $row, $resultadosNras ?: '');
-            $sheet->setCellValue('Z' . $row, $dato->R_INTERPRETACION ?? '');
-            $sheet->setCellValue('AA' . $row, $resultadosBraf ?: '');
-            $sheet->setCellValue('AB' . $row, $fechaEnvioCorreo ? $fechaEnvioCorreo->format('Y-m-d') : '');
+            $sheet->setCellValue('N' . $row, $dato->MUESTRA_REQUIERE_LABORATORIO_AUX ?? '');
+            $sheet->setCellValue('O' . $row, $dato->MUESTRA_NOMBRE_LABORATORIO_AUX ?? '');
+            $sheet->setCellValue('P' . $row, $dato->MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA ?? '');
+            $sheet->setCellValue('Q' . $row, $dato->medico_completo ?? '');
+            $sheet->setCellValue('R' . $row, $dato->INSTITUCION_NOMBRE ?? '');
+            $sheet->setCellValue('S' . $row, $dato->INSTITUCION_PROCEDENCIA ?? '');
+            $sheet->setCellValue('T' . $row, $dato->USUARIO_TELEFONO ?? '');
+            $sheet->setCellValue('U' . $row, $dato->USUARIO_CORREO ?? '');
+            $sheet->setCellValue('V' . $row, $dato->MUESTRA_CIUDAD ?? '');
+            $sheet->setCellValue('W' . $row, $dato->MUESTRA_ESTADO ?? '');
+            $sheet->setCellValue('X' . $row, $fechaRecepcionLab ? $fechaRecepcionLab->format('Y-m-d') : '');
+            $sheet->setCellValue('Y' . $row, $dato->R_NOTAS_ESPECIALES ?? '');
+            $sheet->setCellValue('Z' . $row, $resultadosKras ?: '');
+            $sheet->setCellValue('AA' . $row, $resultadosNras ?: '');
+            $sheet->setCellValue('AB' . $row, $dato->R_INTERPRETACION ?? '');
+            $sheet->setCellValue('AC' . $row, $resultadosBraf ?: '');
+            $sheet->setCellValue('AD' . $row, $fechaEnvioCorreo ? $fechaEnvioCorreo->format('Y-m-d') : '');
 
             $row++;
         }
 
-        $sheet->getStyle('A1:AB1')->getFont()->setBold(true);
-        $sheet->getStyle('A1:AB1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+        $sheet->getStyle('A1:AD1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:AD1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()->setARGB('FFE2E8F0');
 
         foreach (range('A', 'Z') as $col) {
@@ -214,6 +218,8 @@ class DashboardExportController extends Controller
         }
         $sheet->getColumnDimension('AA')->setAutoSize(true);
         $sheet->getColumnDimension('AB')->setAutoSize(true);
+        $sheet->getColumnDimension('AC')->setAutoSize(true);
+        $sheet->getColumnDimension('AD')->setAutoSize(true);
     }
     
     private function getDataGeneral($filters)
@@ -296,7 +302,9 @@ class DashboardExportController extends Controller
                 'e.R_INTERPRETACION',
                 'e.R_ESTATUS_BRAF',
                 'e.R_GENOTIPO_BRAF',
-                'e.FECHA_RESULTADOS_CORREO'
+                'e.FECHA_RESULTADOS_CORREO',
+                'e.MUESTRA_REQUIERE_LABORATORIO_AUX',
+                'e.MUESTRA_NOMBRE_LABORATORIO_AUX'
             );
 
         // Aplicar los mismos filtros

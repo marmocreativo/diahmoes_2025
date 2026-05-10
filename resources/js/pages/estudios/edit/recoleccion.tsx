@@ -1032,7 +1032,34 @@ export default function EditRecoleccionOptimized() {
                                                 placeholder="Ejemplo: Lunes a Viernes de 9:00 a 18:00"
                                             />
                                         </div>
+                                        <hr/>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                ¿Requiere laboratorio auxiliar?
+                                            </label>
+                                            <select
+                                                name="MUESTRA_REQUIERE_LABORATORIO_AUX"
+                                                defaultValue={estudio.MUESTRA_REQUIERE_LABORATORIO_AUX || ''}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                            >
+                                                <option value="">Sin especificar</option>
+                                                <option value="si">Sí</option>
+                                                <option value="no">No</option>
+                                            </select>
+                                        </div>
 
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Nombre del laboratorio auxiliar
+                                            </label>
+                                            <input
+                                                type="text"
+                                                name="MUESTRA_NOMBRE_LABORATORIO_AUX"
+                                                defaultValue={estudio.MUESTRA_NOMBRE_LABORATORIO_AUX || ''}
+                                                placeholder="Nombre del laboratorio auxiliar (si aplica)"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                            />
+                                        </div>
                                     </div>
                                 )}
                             </div>

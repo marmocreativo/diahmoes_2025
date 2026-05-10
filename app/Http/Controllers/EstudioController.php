@@ -802,7 +802,8 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
             'MUESTRA_LIQ_CONDICION_PRESENCIA', 'MUESTRA_LIQ_CANTIDAD_ADECUADA', 'MUESTRA_LIQ_CANTIDAD_ML',
             'MUESTRA_LIQ_HEMOLISIS', 'MUESTRA_LIQ_AMP_INDICACION', 'MUESTRA_LIQ_AMP_RAZON', 'ESTUDIO_COMENTARIOS',
             'MUESTRA_GENERO', 'MUESTRA_EDAD', 'MUESTRA_CLAVE', 'MUESTRA_INICIALES', 'MUESTRA_SITIO_LESION',
-            'MUESTRA_TIPO_ESTUDIO', 'MUESTRA_TIPO', 'MUESTRA_DIAGNOSTICO_CLINICO', 'MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA'
+            'MUESTRA_TIPO_ESTUDIO', 'MUESTRA_TIPO', 'MUESTRA_DIAGNOSTICO_CLINICO', 'MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA',
+            'MUESTRA_REQUIERE_LABORATORIO_AUX','MUESTRA_NOMBRE_LABORATORIO_AUX',
         ])->with([
             'medico:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
             'paciente:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
@@ -966,6 +967,8 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
             'MUESTRA_ENVIO_TIPO' => 'nullable|string',
             'MUESTRA_CODIGO_POSTAL' => 'nullable|string',
             'MUESTRA_HORARIOS' => 'nullable|string',
+            'MUESTRA_REQUIERE_LABORATORIO_AUX' => 'nullable|in:si,no',
+            'MUESTRA_NOMBRE_LABORATORIO_AUX'   => 'nullable|string|max:255',
             'NO_APLICA' => 'nullable|boolean',
             
             // ===== AGREGAR VALIDACIONES PARA NUEVOS REGISTROS =====
@@ -1005,7 +1008,9 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
             'MUESTRA_ESTADO',
             'MUESTRA_ENVIO_TIPO',
             'MUESTRA_CODIGO_POSTAL',
-            'MUESTRA_HORARIOS'
+            'MUESTRA_HORARIOS',
+            'MUESTRA_REQUIERE_LABORATORIO_AUX',
+            'MUESTRA_NOMBRE_LABORATORIO_AUX',
         ];
 
         $dataToUpdate = $request->only($fieldsToUpdate);
@@ -1076,6 +1081,8 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
                 'MUESTRA_LAMINILLAS' => 'nullable|string|max:255',
                 'MUESTRA_DIAGNOSTICO_CLINICO' => 'nullable|string|max:500',
                 'MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA' => 'nullable|string',
+                'MUESTRA_REQUIERE_LABORATORIO_AUX' => 'nullable|in:si,no',
+                'MUESTRA_NOMBRE_LABORATORIO_AUX'   => 'nullable|string|max:255',
                 '_next' => 'nullable|string'
             ];
 
@@ -1127,7 +1134,9 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
                 'MUESTRA_BLOQUES',
                 'MUESTRA_LAMINILLAS',
                 'MUESTRA_DIAGNOSTICO_CLINICO',
-                'MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA'
+                'MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA',
+                'MUESTRA_REQUIERE_LABORATORIO_AUX',
+                'MUESTRA_NOMBRE_LABORATORIO_AUX',
             ];
 
             $datosActualizar = $request->only($camposActualizar);
