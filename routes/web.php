@@ -89,6 +89,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     | CRUD de Usuarios
     |--------------------------------------------------------------------------
     */
+    Route::patch('/usuarios/{usuario}/rapido', [UsuarioController::class, 'updateRapido']);
     
     // CRUD básico de usuarios
     Route::resource('usuarios', UsuarioController::class)
@@ -103,6 +104,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     | CRUD de Instituciones
     |--------------------------------------------------------------------------
     */
+    Route::patch('/instituciones/{institucion}/rapido', [InstitucionController::class, 'updateRapido']);
     
     // CRUD básico de instituciones
     Route::patch('instituciones/{institucion:ID_INSTITUCION}/campo-rapido', [InstitucionController::class, 'updateCampoRapido'])

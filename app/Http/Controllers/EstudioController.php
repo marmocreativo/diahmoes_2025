@@ -438,6 +438,8 @@ class EstudioController extends Controller
             'IdMedico' => 'required|integer|min:0',
             'IdInstitucion' => 'required|integer|min:0',
             'NoAplica' => 'nullable|boolean',
+            'MuestraRequiereLaboratorioAux' => 'nullable|in:si,no',
+            'MuestraNombreLaboratorioAux'   => 'nullable|string|max:255',
             
             // Campos de nuevos registros (si aplica)
             'NombreCliente' => 'nullable|string|max:255',
@@ -499,6 +501,8 @@ class EstudioController extends Controller
         $noAplica = $request->has('NoAplica') && $request->NoAplica;
         $estudio->MUESTRA_ENVIO_TIPO = $noAplica ? 'no aplica' : 'aplica';
         $estudio->MUESTRA_HORARIOS = $request->NoAplica ? '' : ($request->MuestraHorarios ?: '');
+        $estudio->MUESTRA_REQUIERE_LABORATORIO_AUX = $request->MuestraRequiereLaboratorioAux ?: '';
+        $estudio->MUESTRA_NOMBRE_LABORATORIO_AUX = $request->MuestraNombreLaboratorioAux ?: '';
         
         // Establecer estado inicial y campos requeridos
         $estudio->ESTUDIO_ESTADO = Estudio::ESTADO_PENDIENTE;
@@ -705,8 +709,8 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
         $institucion->INSTITUCION_NUMERO_INT = '';
         $institucion->INSTITUCION_COLONIA = '';
         $institucion->INSTITUCION_MUNICIPIO = '';
-        $institucion->INSTITUCION_CIUDAD = '';
-        $institucion->INSTITUCION_ESTADO = '';
+        $institucion->INSTITUCION_ESTADO = $request->INSTITUCION_ESTADO ?: '';
+        $institucion->INSTITUCION_CIUDAD = $request->INSTITUCION_CIUDAD ?: '';
         $institucion->INSTITUCION_CODIGO_POSTAL = '';
         $institucion->INSTITUCION_PIN = rand(1000, 9999);
         $institucion->FECHA_REGISTRO = now();
@@ -2987,6 +2991,7 @@ private function enviarCorreosReporte(Estudio $estudio, bool $enviarAdjunto = tr
             \Log::info('👨‍⚕️ Creando nuevo médico');
             
             $nuevoMedico = Usuario::create([
+                'PREFIJO' => $request->PrefijoUsuario ?: null,
                 'USUARIO_NOMBRE' => $request->NombreUsuario,
                 'USUARIO_APELLIDOS' => $request->ApellidosUsuario,
                 'USUARIO_CORREO' => $request->CorreoUsuario ?: 'sin_correo_' . time() . '@temp.com',
@@ -3025,6 +3030,8 @@ private function enviarCorreosReporte(Estudio $estudio, bool $enviarAdjunto = tr
                 'INSTITUCION_NOMBRE' => $request->NombreInstitucion,
                 'INSTITUCION_CORREO' => $request->CorreoInstitucion ?: 'sin_correo_' . time() . '@temp.com',
                 'INSTITUCION_TELEFONO' => $request->TelefonoInstitucion ?: '',
+                'INSTITUCION_ESTADO' => $request->EstadoInstitucion ?: '',
+                'INSTITUCION_CIUDAD' => $request->CiudadInstitucion ?: '',
                 'INSTITUCION_RFC' => '',
                 'INSTITUCION_RAZON_SOCIAL' => $request->NombreInstitucion,
                 'INSTITUCION_DIRECCION' => '',

@@ -25,6 +25,7 @@ class Usuario extends Model
      * Los campos que se pueden asignar masivamente.
      */
     protected $fillable = [
+        'PREFIJO',
         'USUARIO_NOMBRE',
         'USUARIO_APELLIDOS',
         'USUARIO_CORREO',

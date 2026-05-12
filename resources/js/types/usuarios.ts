@@ -5,6 +5,7 @@ import { BaseFilters, PaginatedData } from './index';
 // Usuario del sistema DIAHMOES (tabla usuarios)
 export interface Usuario {
     ID_USUARIO: number;
+    PREFIJO?: string;
     USUARIO_NOMBRE: string;
     USUARIO_APELLIDOS: string;
     USUARIO_CORREO: string;
@@ -51,6 +52,7 @@ export type UsuarioEstado = 'activo' | 'inactivo';
 export interface UsuarioForm {
     USUARIO_NOMBRE: string;
     USUARIO_APELLIDOS: string;
+    PREFIJO?: string;
     USUARIO_CORREO: string;
     USUARIO_TELEFONO?: string;
     USUARIO_PASS?: string;

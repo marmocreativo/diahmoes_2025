@@ -29,6 +29,7 @@ export default function Create() {
     const { tipos_usuario, estados, instituciones } = usePage<PageProps>().props;
 
     const { data, setData, post, processing, errors, reset } = useForm({
+        PREFIJO: '',
         USUARIO_NOMBRE: '',
         USUARIO_APELLIDOS: '',
         USUARIO_CORREO: '',
@@ -151,6 +152,21 @@ export default function Create() {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label htmlFor="PREFIJO" className="block text-sm font-medium text-gray-700 mb-2">
+                                    Prefijo
+                                </label>
+                                <select
+                                    id="PREFIJO"
+                                    value={data.PREFIJO}
+                                    onChange={(e) => setData('PREFIJO', e.target.value)}
+                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF] transition-colors"
+                                >
+                                    <option value="">Sin prefijo</option>
+                                    <option value="Dr.">Dr.</option>
+                                    <option value="Dra.">Dra.</option>
+                                </select>
+                            </div>
                             <div>
                                 <label htmlFor="USUARIO_NOMBRE" className="block text-sm font-medium text-gray-700 mb-2">
                                     Nombre <span className="text-red-500">*</span>
@@ -319,7 +335,7 @@ export default function Create() {
 
                             <div>
                                 <label htmlFor="ID_INSTITUCION" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Institución <span className="text-red-500">*</span>
+                                    Institución
                                 </label>
                                 <select
                                     id="ID_INSTITUCION"

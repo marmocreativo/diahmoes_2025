@@ -261,7 +261,7 @@
             <tr>
                 <td class="small">
                     <p><b>Médico Solicitante:</b><br> 
-                    {{ $medico->USUARIO_NOMBRE ?? 'N/A' }} {{ $medico->USUARIO_APELLIDOS ?? '' }}</p>
+                    {{ $medico->PREFIJO ?? '' }} {{ $medico->USUARIO_NOMBRE ?? 'N/A' }} {{ $medico->USUARIO_APELLIDOS ?? '' }}
                 </td>
                 <td class="small">
                     <p><b>Institución:</b><br> 

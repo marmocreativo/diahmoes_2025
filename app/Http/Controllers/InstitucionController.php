@@ -257,6 +257,29 @@ class InstitucionController extends Controller
             ->with('success', 'Institución actualizada exitosamente.');
     }
 
+    public function updateRapido(Request $request, Institucion $institucion): \Illuminate\Http\JsonResponse
+    {
+        $request->validate([
+            'INSTITUCION_NOMBRE'      => 'required|string|max:255',
+            'INSTITUCION_CORREO'      => 'nullable|email|max:255',
+            'INSTITUCION_TELEFONO'    => 'nullable|string|max:255',
+            'INSTITUCION_ESTADO'      => 'nullable|string|max:255',
+            'INSTITUCION_CIUDAD'      => 'nullable|string|max:255',
+            'INSTITUCION_PROCEDENCIA' => 'nullable|string|max:255',
+        ]);
+
+        $institucion->update($request->only([
+            'INSTITUCION_NOMBRE',
+            'INSTITUCION_CORREO',
+            'INSTITUCION_TELEFONO',
+            'INSTITUCION_ESTADO',
+            'INSTITUCION_CIUDAD',
+            'INSTITUCION_PROCEDENCIA',
+        ]));
+
+        return response()->json(['success' => true]);
+    }
+
     /**
      * Eliminar institución
      */

@@ -38,9 +38,10 @@ export default function EditRecepcionOptimized() {
 
     // Referencias para inputs simples - no causan re-renders
     const formRef = useRef<HTMLFormElement>(null);
-    const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const muestraClaveRef = useRef<HTMLInputElement>(null);
     const muestraTipoRef = useRef<HTMLSelectElement>(null);
+    const pacienteSearchInputRef = useRef<HTMLInputElement>(null);
     
     // Estado mínimo para campos dependientes
     const [dependentFields, setDependentFields] = useState({
@@ -65,6 +66,13 @@ export default function EditRecepcionOptimized() {
     const [apellidosPaciente, setApellidosPaciente] = useState(estudio.USUARIO_APELLIDOS || '');
     const [pacienteEncontrado, setPacienteEncontrado] = useState<PacienteEncontrado | null>(null);
     const [buscandoPaciente, setBuscandoPaciente] = useState(false);
+    const [showPacienteEditForm, setShowPacienteEditForm] = useState(false);
+    const [pacienteEditData, setPacienteEditData] = useState({
+        USUARIO_NOMBRE: '',
+        USUARIO_APELLIDOS: '',
+        USUARIO_CORREO: '',
+        USUARIO_TELEFONO: '',
+    });
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
@@ -681,6 +689,7 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                             type="text"
                             list="pacientes-list"
                             name="PACIENTE_SEARCH"
+                            ref={pacienteSearchInputRef}
                             placeholder="Buscar paciente existente..."
                             defaultValue={(() => {
                                 // Buscar el paciente actual en la lista de pacientes
@@ -729,33 +738,110 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                     </p>
                 </div>
 
-                {/* Botón para cambiar a modo "nuevo paciente" */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <div className="flex items-center justify-between">
-                        <span className="text-blue-700 text-sm">
-                            ¿Quieres crear un nuevo paciente en lugar de usar uno existente?
-                        </span>
+                {/* Botón editar paciente */}
+                {(() => {
+                    const pacienteActual = pacientes.find(p => p.ID_USUARIO === estudio.ID_PACIENTE);
+                    return pacienteActual ? (
+                        <div className="flex gap-2 mt-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setPacienteEditData({
+                                        USUARIO_NOMBRE: pacienteActual.USUARIO_NOMBRE || '',
+                                        USUARIO_APELLIDOS: pacienteActual.USUARIO_APELLIDOS || '',
+                                        USUARIO_CORREO: pacienteActual.USUARIO_CORREO || '',
+                                        USUARIO_TELEFONO: pacienteActual.USUARIO_TELEFONO || '',
+                                    });
+                                    setShowPacienteEditForm(!showPacienteEditForm);
+                                }}
+                                className="text-sm px-3 py-1 border border-[#189BAF] text-[#189BAF] rounded-md hover:bg-[#189BAF]/10 transition-colors"
+                            >
+                                {showPacienteEditForm ? 'Cancelar edición' : 'Editar paciente'}
+                            </button>
+                        </div>
+                    ) : null;
+                })()}
+
+                {/* Formulario de edición de paciente */}
+                {showPacienteEditForm && (
+                    <div className="space-y-4 p-4 bg-blue-50 rounded-md border border-blue-200 mt-4">
+                        <h4 className="font-medium text-gray-800">Editar datos del paciente</h4>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Nombre *</label>
+                                <input
+                                    type="text"
+                                    value={pacienteEditData.USUARIO_NOMBRE}
+                                    onChange={(e) => setPacienteEditData({...pacienteEditData, USUARIO_NOMBRE: e.target.value})}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF]"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Apellidos *</label>
+                                <input
+                                    type="text"
+                                    value={pacienteEditData.USUARIO_APELLIDOS}
+                                    onChange={(e) => setPacienteEditData({...pacienteEditData, USUARIO_APELLIDOS: e.target.value})}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF]"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Correo</label>
+                            <input
+                                type="email"
+                                value={pacienteEditData.USUARIO_CORREO}
+                                onChange={(e) => setPacienteEditData({...pacienteEditData, USUARIO_CORREO: e.target.value})}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF]"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Teléfono</label>
+                            <input
+                                type="tel"
+                                value={pacienteEditData.USUARIO_TELEFONO}
+                                onChange={(e) => setPacienteEditData({...pacienteEditData, USUARIO_TELEFONO: e.target.value})}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF]"
+                            />
+                        </div>
+
                         <button
                             type="button"
-                            onClick={() => {
-                                // Resetear el campo hidden a 0
-                                const hiddenInput = document.querySelector('input[name="ID_PACIENTE"]') as HTMLInputElement;
-                                if (hiddenInput) {
-                                    hiddenInput.value = '0';
+                            onClick={async () => {
+                                try {
+                                    const response = await fetch(`/usuarios/${estudio.ID_PACIENTE}/rapido`, {
+                                        method: 'PATCH',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-Requested-With': 'XMLHttpRequest',
+                                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                                            'Accept': 'application/json',
+                                        },
+                                        body: JSON.stringify(pacienteEditData)
+                                    });
+                                    if (response.ok) {
+                                        setShowPacienteEditForm(false);
+                                        if (pacienteSearchInputRef.current) {
+                                            pacienteSearchInputRef.current.value = `${pacienteEditData.USUARIO_NOMBRE} ${pacienteEditData.USUARIO_APELLIDOS}`;
+                                        }
+                                        alert('Paciente actualizado correctamente');
+                                    } else {
+                                        alert('Error al actualizar el paciente');
+                                    }
+                                } catch (e) {
+                                    alert('Error de conexión');
                                 }
-                                // Limpiar campos
-                                setNombrePaciente('');
-                                setApellidosPaciente('');
-                                setPacienteEncontrado(null);
-                                // Forzar re-render
-                                window.location.reload();
                             }}
-                            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                            className="w-full px-4 py-2 bg-[#189BAF] text-white rounded-md hover:bg-[#157a8c] transition-colors"
                         >
-                            Nuevo Paciente
+                            Guardar cambios del paciente
                         </button>
                     </div>
-                </div>
+                )}
+                
             </>
         ) : (
             <>

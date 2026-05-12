@@ -55,6 +55,7 @@ class UsuarioController extends Controller
         $usuarios->through(function ($usuario) {
             return [
                 'ID_USUARIO' => $usuario->ID_USUARIO,
+                'PREFIJO' => $usuario->PREFIJO,
                 'USUARIO_NOMBRE' => $usuario->USUARIO_NOMBRE,
                 'USUARIO_APELLIDOS' => $usuario->USUARIO_APELLIDOS,
                 'USUARIO_CORREO' => $usuario->USUARIO_CORREO,
@@ -106,13 +107,14 @@ class UsuarioController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
+            'PREFIJO' => 'nullable|in:Dr.,Dra.',
             'USUARIO_NOMBRE' => 'required|string|max:255',
             'USUARIO_APELLIDOS' => 'required|string|max:255',
             'USUARIO_CORREO' => 'required|email|unique:usuarios,USUARIO_CORREO|max:255',
             'USUARIO_TELEFONO' => 'nullable|string|max:255',
             'USUARIO_PASS' => 'required|string|min:6|confirmed',
             'USUARIO_TIPO' => ['required', Rule::in(array_keys(Usuario::getTiposUsuario()))],
-            'ID_INSTITUCION' => 'required|integer|exists:instituciones,ID_INSTITUCION',
+            'ID_INSTITUCION' => 'nullable|integer|exists:instituciones,ID_INSTITUCION',
             'USUARIO_ESTADO' => ['required', Rule::in(array_keys(Usuario::getEstados()))],
         ], [
             'USUARIO_NOMBRE.required' => 'El nombre es obligatorio.',
@@ -125,8 +127,6 @@ class UsuarioController extends Controller
             'USUARIO_PASS.confirmed' => 'Las contraseñas no coinciden.',
             'USUARIO_TIPO.required' => 'El tipo de usuario es obligatorio.',
             'USUARIO_TIPO.in' => 'El tipo de usuario seleccionado no es válido.',
-            'ID_INSTITUCION.required' => 'La institución es obligatoria.',
-            'ID_INSTITUCION.exists' => 'La institución seleccionada no existe.',
             'USUARIO_ESTADO.required' => 'El estado es obligatorio.',
             'USUARIO_ESTADO.in' => 'El estado seleccionado no es válido.',
         ]);
@@ -179,6 +179,7 @@ class UsuarioController extends Controller
         return Inertia::render('Usuarios/Edit', [
             'usuario' => [
                 'ID_USUARIO' => $usuario->ID_USUARIO,
+                'PREFIJO' => $usuario->PREFIJO,
                 'USUARIO_NOMBRE' => $usuario->USUARIO_NOMBRE,
                 'USUARIO_APELLIDOS' => $usuario->USUARIO_APELLIDOS,
                 'USUARIO_CORREO' => $usuario->USUARIO_CORREO,
@@ -198,9 +199,10 @@ class UsuarioController extends Controller
     /**
      * Actualizar usuario
      */
-    public function update(Request $request, Usuario $usuario): RedirectResponse
+    public function update(Request $request, Usuario $usuario): RedirectResponse|\Illuminate\Http\JsonResponse
     {
         $validated = $request->validate([
+            'PREFIJO' => 'nullable|in:Dr.,Dra.',
             'USUARIO_NOMBRE' => 'required|string|max:255',
             'USUARIO_APELLIDOS' => 'required|string|max:255',
             'USUARIO_CORREO' => [
@@ -212,7 +214,7 @@ class UsuarioController extends Controller
             'USUARIO_TELEFONO' => 'nullable|string|max:255',
             'USUARIO_PASS' => 'nullable|string|min:6|confirmed',
             'USUARIO_TIPO' => ['required', Rule::in(array_keys(Usuario::getTiposUsuario()))],
-            'ID_INSTITUCION' => 'required|integer|exists:instituciones,ID_INSTITUCION',
+            'ID_INSTITUCION' => 'nullable|integer|exists:instituciones,ID_INSTITUCION',
             'USUARIO_ESTADO' => ['required', Rule::in(array_keys(Usuario::getEstados()))],
         ], [
             'USUARIO_NOMBRE.required' => 'El nombre es obligatorio.',
@@ -224,8 +226,6 @@ class UsuarioController extends Controller
             'USUARIO_PASS.confirmed' => 'Las contraseñas no coinciden.',
             'USUARIO_TIPO.required' => 'El tipo de usuario es obligatorio.',
             'USUARIO_TIPO.in' => 'El tipo de usuario seleccionado no es válido.',
-            'ID_INSTITUCION.required' => 'La institución es obligatoria.',
-            'ID_INSTITUCION.exists' => 'La institución seleccionada no existe.',
             'USUARIO_ESTADO.required' => 'El estado es obligatorio.',
             'USUARIO_ESTADO.in' => 'El estado seleccionado no es válido.',
         ]);
@@ -240,8 +240,40 @@ class UsuarioController extends Controller
         // Actualizar usuario
         $usuario->update($validated);
 
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true]);
+        }
+
         return redirect()->route('usuarios.index')
             ->with('success', 'Usuario actualizado exitosamente.');
+    }
+
+    public function updateRapido(Request $request, Usuario $usuario): \Illuminate\Http\JsonResponse
+    {
+        $request->validate([
+            'PREFIJO'           => 'nullable|in:Dr.,Dra.',
+            'USUARIO_NOMBRE'    => 'required|string|max:255',
+            'USUARIO_APELLIDOS' => 'required|string|max:255',
+            'USUARIO_CORREO'    => 'nullable|email|max:255',
+            'USUARIO_TELEFONO'  => 'nullable|string|max:255',
+        ]);
+
+        $datos = $request->only([
+            'PREFIJO',
+            'USUARIO_NOMBRE',
+            'USUARIO_APELLIDOS',
+            'USUARIO_CORREO',
+            'USUARIO_TELEFONO',
+        ]);
+
+        // Si el correo viene vacío o null, generar uno genérico
+        if (empty($datos['USUARIO_CORREO'])) {
+            $datos['USUARIO_CORREO'] = 'sin-correo-' . time() . '@medico.com';
+        }
+
+        $usuario->update($datos);
+
+        return response()->json(['success' => true]);
     }
 
     /**

@@ -29,6 +29,7 @@ interface InstitucionDataState {
             MUESTRA_ENVIO_TIPO?: string;
             MUESTRA_CODIGO_POSTAL?: string;
             MUESTRA_HORARIOS?: string;
+            MUESTRA_CIUDAD?: string;
         };
         medico?: any;
         paciente?: any;
@@ -66,7 +67,14 @@ export default function EditRecoleccionOptimized() {
     const [medicoSearch, setMedicoSearch] = useState<{
         isOpen: boolean;
         searchText: string;
-        selectedMedico: { ID_USUARIO: number; USUARIO_NOMBRE: string; USUARIO_APELLIDOS: string; USUARIO_CORREO: string; } | null;
+        selectedMedico: { 
+            ID_USUARIO: number; 
+            USUARIO_NOMBRE: string; 
+            USUARIO_APELLIDOS: string; 
+            USUARIO_CORREO: string;
+            USUARIO_TELEFONO?: string;  // ← AGREGAR
+            PREFIJO?: string;           // ← AGREGAR
+        } | null;
     }>({
         isOpen: false,
         searchText: '',
@@ -76,7 +84,15 @@ export default function EditRecoleccionOptimized() {
     const [institucionSearch, setInstitucionSearch] = useState<{
         isOpen: boolean;
         searchText: string;
-        selectedInstitucion: { ID_INSTITUCION: number; INSTITUCION_NOMBRE: string; } | null;
+        selectedInstitucion: { 
+            ID_INSTITUCION: number; 
+            INSTITUCION_NOMBRE: string;
+            INSTITUCION_CORREO?: string;      // ← AGREGAR
+            INSTITUCION_TELEFONO?: string;    // ← AGREGAR
+            INSTITUCION_ESTADO?: string;      // ← AGREGAR
+            INSTITUCION_CIUDAD?: string;      // ← AGREGAR
+            INSTITUCION_PROCEDENCIA?: string; // ← AGREGAR
+        } | null;
     }>({
         isOpen: false,
         searchText: '',
@@ -89,9 +105,27 @@ export default function EditRecoleccionOptimized() {
         processing: false,
         IdMedico: estudio.ID_MEDICO || 0,
         IdInstitucion: estudio.ID_INSTITUCION || 0,
-        // Nuevos campos para mostrar/ocultar secciones
         showMedicoForm: false,
         showInstitucionForm: false,
+        showMedicoEditForm: false,
+        showInstitucionEditForm: false,
+    });
+
+    const [medicoEditData, setMedicoEditData] = useState({
+        PREFIJO: '',
+        USUARIO_NOMBRE: '',
+        USUARIO_APELLIDOS: '',
+        USUARIO_CORREO: '',
+        USUARIO_TELEFONO: '',
+    });
+
+    const [institucionEditData, setInstitucionEditData] = useState({
+        INSTITUCION_NOMBRE: '',
+        INSTITUCION_CORREO: '',
+        INSTITUCION_TELEFONO: '',
+        INSTITUCION_ESTADO: '',
+        INSTITUCION_CIUDAD: '',
+        INSTITUCION_PROCEDENCIA: '',
     });
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -165,7 +199,8 @@ export default function EditRecoleccionOptimized() {
             'MUESTRA_ESTADO': estudioData.MUESTRA_ESTADO,
             'MUESTRA_ENVIO_TIPO': estudioData.MUESTRA_ENVIO_TIPO,
             'MUESTRA_CODIGO_POSTAL': estudioData.MUESTRA_CODIGO_POSTAL,
-            'MUESTRA_HORARIOS': estudioData.MUESTRA_HORARIOS
+            'MUESTRA_HORARIOS': estudioData.MUESTRA_HORARIOS,
+            'MUESTRA_CIUDAD': estudioData.MUESTRA_CIUDAD,
         };
 
         // Cargar cada campo en el formulario
@@ -488,20 +523,35 @@ export default function EditRecoleccionOptimized() {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Cambiar Médico
                                     </label>
-                                    <input
-                                        type="text"
-                                        value={medicoSearch.searchText}
-                                        onChange={(e) => {
-                                            setMedicoSearch({
-                                                ...medicoSearch,
-                                                searchText: e.target.value,
-                                                isOpen: true
-                                            });
-                                        }}
-                                        onFocus={() => setMedicoSearch({...medicoSearch, isOpen: true})}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
-                                        placeholder="Buscar médico..."
-                                    />
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={medicoSearch.searchText}
+                                            onChange={(e) => {
+                                                setMedicoSearch({
+                                                    ...medicoSearch,
+                                                    searchText: e.target.value,
+                                                    isOpen: true
+                                                });
+                                            }}
+                                            onFocus={() => setMedicoSearch({...medicoSearch, isOpen: true})}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                            placeholder="Buscar médico..."
+                                        />
+                                        {medicoSearch.searchText && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setMedicoSearch({ isOpen: false, searchText: '', selectedMedico: null });
+                                                    handleDependentFieldChange('IdMedico', 0);
+                                                }}
+                                                className="px-3 py-2 text-gray-500 hover:text-red-600 border border-gray-300 rounded-md hover:border-red-300 transition-colors"
+                                                title="Limpiar"
+                                            >
+                                                ✕
+                                            </button>
+                                        )}
+                                    </div>
                                     
                                     {/* Lista desplegable */}
                                     {medicoSearch.isOpen && (
@@ -567,12 +617,152 @@ export default function EditRecoleccionOptimized() {
                                     />
                                 </div>
 
+                                {/* Botones de acción sobre el médico seleccionado */}
+                                    {medicoSearch.selectedMedico && (
+                                        <div className="flex gap-2 mt-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const m = medicoSearch.selectedMedico!;
+                                                    setMedicoEditData({
+                                                        PREFIJO: m.PREFIJO || '',
+                                                        USUARIO_NOMBRE: m.USUARIO_NOMBRE || '',
+                                                        USUARIO_APELLIDOS: m.USUARIO_APELLIDOS || '',
+                                                        USUARIO_CORREO: m.USUARIO_CORREO || '',
+                                                        USUARIO_TELEFONO: m.USUARIO_TELEFONO || '',
+                                                    });
+                                                    handleDependentFieldChange('showMedicoEditForm', !dependentFields.showMedicoEditForm);
+                                                }}
+                                                className="text-sm px-3 py-1 border border-[#189BAF] text-[#189BAF] rounded-md hover:bg-[#189BAF]/10 transition-colors"
+                                            >
+                                                {dependentFields.showMedicoEditForm ? 'Cancelar edición' : 'Editar médico'}
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* Formulario de edición de médico */}
+                                    {dependentFields.showMedicoEditForm && medicoSearch.selectedMedico && (
+                                        <div className="space-y-4 p-4 bg-blue-50 rounded-md border border-blue-200 mt-4">
+                                            <h4 className="font-medium text-gray-800">Editar datos del médico</h4>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">Prefijo</label>
+                                                <select
+                                                    value={medicoEditData.PREFIJO}
+                                                    onChange={(e) => setMedicoEditData({...medicoEditData, PREFIJO: e.target.value})}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF]"
+                                                >
+                                                    <option value="">Sin prefijo</option>
+                                                    <option value="Dr.">Dr.</option>
+                                                    <option value="Dra.">Dra.</option>
+                                                </select>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium mb-1">Nombre *</label>
+                                                    <input
+                                                        type="text"
+                                                        value={medicoEditData.USUARIO_NOMBRE}
+                                                        onChange={(e) => setMedicoEditData({...medicoEditData, USUARIO_NOMBRE: e.target.value})}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF]"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium mb-1">Apellidos *</label>
+                                                    <input
+                                                        type="text"
+                                                        value={medicoEditData.USUARIO_APELLIDOS}
+                                                        onChange={(e) => setMedicoEditData({...medicoEditData, USUARIO_APELLIDOS: e.target.value})}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF]"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">Correo</label>
+                                                <input
+                                                    type="email"
+                                                    value={medicoEditData.USUARIO_CORREO}
+                                                    onChange={(e) => setMedicoEditData({...medicoEditData, USUARIO_CORREO: e.target.value})}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF]"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">Teléfono</label>
+                                                <input
+                                                    type="tel"
+                                                    value={medicoEditData.USUARIO_TELEFONO}
+                                                    onChange={(e) => setMedicoEditData({...medicoEditData, USUARIO_TELEFONO: e.target.value})}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF]"
+                                                />
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                disabled={dependentFields.processing}
+                                                onClick={async () => {
+                                                    if (!medicoSearch.selectedMedico) return;
+                                                    setDependentFields(prev => ({...prev, processing: true}));
+                                                    try {
+                                                        const response = await fetch(`/usuarios/${medicoSearch.selectedMedico!.ID_USUARIO}/rapido`, {
+                                                            method: 'PATCH',
+                                                            headers: {
+                                                                'Content-Type': 'application/json',
+                                                                'X-Requested-With': 'XMLHttpRequest',
+                                                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                                                                'Accept': 'application/json',
+                                                            },
+                                                            body: JSON.stringify(medicoEditData)
+                                                        });
+                                                        if (response.ok) {
+                                                            // Actualizar el texto del buscador con los nuevos datos
+                                                            setMedicoSearch(prev => ({
+                                                                ...prev,
+                                                                searchText: `${medicoEditData.USUARIO_NOMBRE} ${medicoEditData.USUARIO_APELLIDOS}`,
+                                                                selectedMedico: {
+                                                                    ...prev.selectedMedico!,
+                                                                    ...medicoEditData
+                                                                }
+                                                            }));
+                                                            handleDependentFieldChange('showMedicoEditForm', false);
+                                                            alert('Médico actualizado correctamente');
+                                                        } else {
+                                                            alert('Error al actualizar el médico');
+                                                        }
+                                                    } catch (e) {
+                                                        alert('Error de conexión');
+                                                    } finally {
+                                                        setDependentFields(prev => ({...prev, processing: false}));
+                                                    }
+                                                }}
+                                                className="w-full px-4 py-2 bg-[#189BAF] text-white rounded-md hover:bg-[#157a8c] transition-colors disabled:opacity-50"
+                                            >
+                                                {dependentFields.processing ? 'Guardando...' : 'Guardar cambios del médico'}
+                                            </button>
+                                        </div>
+                                    )}
+
                                 {/* Formulario de nuevo médico */}
                                 {dependentFields.showMedicoForm && (
                                     <div className="space-y-4 p-4 bg-gray-50 rounded-md border mt-4">
                                         <h4 className="font-medium text-gray-800">Datos del Nuevo Médico</h4>
                                         
                                         <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">
+                                                    Prefijo
+                                                </label>
+                                                <select
+                                                    name="USUARIO_PREFIJO"
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                >
+                                                    <option value="">Sin prefijo</option>
+                                                    <option value="Dr.">Dr.</option>
+                                                    <option value="Dra.">Dra.</option>
+                                                </select>
+                                            </div>
                                             <div>
                                                 <label className="block text-sm font-medium mb-1">
                                                     Nombre *
@@ -636,20 +826,35 @@ export default function EditRecoleccionOptimized() {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Cambiar Institución
                                     </label>
-                                    <input
-                                        type="text"
-                                        value={institucionSearch.searchText}
-                                        onChange={(e) => {
-                                            setInstitucionSearch({
-                                                ...institucionSearch,
-                                                searchText: e.target.value,
-                                                isOpen: true
-                                            });
-                                        }}
-                                        onFocus={() => setInstitucionSearch({...institucionSearch, isOpen: true})}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
-                                        placeholder="Buscar institución..."
-                                    />
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={institucionSearch.searchText}
+                                            onChange={(e) => {
+                                                setInstitucionSearch({
+                                                    ...institucionSearch,
+                                                    searchText: e.target.value,
+                                                    isOpen: true
+                                                });
+                                            }}
+                                            onFocus={() => setInstitucionSearch({...institucionSearch, isOpen: true})}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                            placeholder="Buscar institución..."
+                                        />
+                                        {institucionSearch.searchText && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setInstitucionSearch({ isOpen: false, searchText: '', selectedInstitucion: null });
+                                                    handleDependentFieldChange('IdInstitucion', 0);
+                                                }}
+                                                className="px-3 py-2 text-gray-500 hover:text-red-600 border border-gray-300 rounded-md hover:border-red-300 transition-colors"
+                                                title="Limpiar"
+                                            >
+                                                ✕
+                                            </button>
+                                        )}
+                                    </div>
                                     
                                     {/* Lista desplegable */}
                                     {institucionSearch.isOpen && (
@@ -718,6 +923,177 @@ export default function EditRecoleccionOptimized() {
                                     />
                                 </div>
 
+                                {/* Botón editar institución */}
+                                    {institucionSearch.selectedInstitucion && (
+                                        <div className="flex gap-2 mt-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const i = institucionSearch.selectedInstitucion!;
+                                                    setInstitucionEditData({
+                                                        INSTITUCION_NOMBRE: i.INSTITUCION_NOMBRE || '',
+                                                        INSTITUCION_CORREO: i.INSTITUCION_CORREO || '',
+                                                        INSTITUCION_TELEFONO: i.INSTITUCION_TELEFONO || '',
+                                                        INSTITUCION_ESTADO: i.INSTITUCION_ESTADO || '',
+                                                        INSTITUCION_CIUDAD: i.INSTITUCION_CIUDAD || '',
+                                                        INSTITUCION_PROCEDENCIA: i.INSTITUCION_PROCEDENCIA || '',
+                                                    });
+                                                    handleDependentFieldChange('showInstitucionEditForm', !dependentFields.showInstitucionEditForm);
+                                                }}
+                                                className="text-sm px-3 py-1 border border-[#189BAF] text-[#189BAF] rounded-md hover:bg-[#189BAF]/10 transition-colors"
+                                            >
+                                                {dependentFields.showInstitucionEditForm ? 'Cancelar edición' : 'Editar institución'}
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* Formulario de edición de institución */}
+                                    {dependentFields.showInstitucionEditForm && institucionSearch.selectedInstitucion && (
+                                        <div className="space-y-4 p-4 bg-blue-50 rounded-md border border-blue-200 mt-4">
+                                            <h4 className="font-medium text-gray-800">Editar datos de la institución</h4>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">Nombre *</label>
+                                                <input
+                                                    type="text"
+                                                    value={institucionEditData.INSTITUCION_NOMBRE}
+                                                    onChange={(e) => setInstitucionEditData({...institucionEditData, INSTITUCION_NOMBRE: e.target.value})}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF]"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">Correo</label>
+                                                <input
+                                                    type="email"
+                                                    value={institucionEditData.INSTITUCION_CORREO}
+                                                    onChange={(e) => setInstitucionEditData({...institucionEditData, INSTITUCION_CORREO: e.target.value})}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF]"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">Teléfono</label>
+                                                <input
+                                                    type="tel"
+                                                    value={institucionEditData.INSTITUCION_TELEFONO}
+                                                    onChange={(e) => setInstitucionEditData({...institucionEditData, INSTITUCION_TELEFONO: e.target.value})}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF]"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">Procedencia</label>
+                                                <select
+                                                    value={institucionEditData.INSTITUCION_PROCEDENCIA}
+                                                    onChange={(e) => setInstitucionEditData({...institucionEditData, INSTITUCION_PROCEDENCIA: e.target.value})}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF]"
+                                                >
+                                                    <option value="">No especificado</option>
+                                                    <option value="Privado">Privado</option>
+                                                    <option value="IMSS">IMSS</option>
+                                                    <option value="ISSSTE">ISSSTE</option>
+                                                    <option value="SSA">SSA</option>
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">Estado</label>
+                                                <select
+                                                    value={institucionEditData.INSTITUCION_ESTADO}
+                                                    onChange={(e) => setInstitucionEditData({...institucionEditData, INSTITUCION_ESTADO: e.target.value})}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF]"
+                                                >
+                                                    <option value="">Seleccione estado</option>
+                                                    <option value="Aguascalientes">Aguascalientes</option>
+                                                    <option value="Baja California">Baja California</option>
+                                                    <option value="Baja California Sur">Baja California Sur</option>
+                                                    <option value="Campeche">Campeche</option>
+                                                    <option value="Chiapas">Chiapas</option>
+                                                    <option value="Chihuahua">Chihuahua</option>
+                                                    <option value="Coahuila">Coahuila</option>
+                                                    <option value="Colima">Colima</option>
+                                                    <option value="Ciudad de México">Ciudad de México</option>
+                                                    <option value="Durango">Durango</option>
+                                                    <option value="Estado de México">Estado de México</option>
+                                                    <option value="Guanajuato">Guanajuato</option>
+                                                    <option value="Guerrero">Guerrero</option>
+                                                    <option value="Hidalgo">Hidalgo</option>
+                                                    <option value="Jalisco">Jalisco</option>
+                                                    <option value="Michoacán">Michoacán</option>
+                                                    <option value="Morelos">Morelos</option>
+                                                    <option value="Nayarit">Nayarit</option>
+                                                    <option value="Nuevo León">Nuevo León</option>
+                                                    <option value="Oaxaca">Oaxaca</option>
+                                                    <option value="Puebla">Puebla</option>
+                                                    <option value="Querétaro">Querétaro</option>
+                                                    <option value="Quintana Roo">Quintana Roo</option>
+                                                    <option value="San Luis Potosí">San Luis Potosí</option>
+                                                    <option value="Sinaloa">Sinaloa</option>
+                                                    <option value="Sonora">Sonora</option>
+                                                    <option value="Tabasco">Tabasco</option>
+                                                    <option value="Tamaulipas">Tamaulipas</option>
+                                                    <option value="Tlaxcala">Tlaxcala</option>
+                                                    <option value="Veracruz">Veracruz</option>
+                                                    <option value="Yucatán">Yucatán</option>
+                                                    <option value="Zacatecas">Zacatecas</option>
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">Ciudad</label>
+                                                <input
+                                                    type="text"
+                                                    value={institucionEditData.INSTITUCION_CIUDAD}
+                                                    onChange={(e) => setInstitucionEditData({...institucionEditData, INSTITUCION_CIUDAD: e.target.value})}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF]"
+                                                />
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                disabled={dependentFields.processing}
+                                                onClick={async () => {
+                                                    if (!institucionSearch.selectedInstitucion) return;
+                                                    setDependentFields(prev => ({...prev, processing: true}));
+                                                    try {
+                                                        const response = await fetch(`/instituciones/${institucionSearch.selectedInstitucion!.ID_INSTITUCION}/rapido`, {
+                                                            method: 'PATCH',
+                                                            headers: {
+                                                                'Content-Type': 'application/json',
+                                                                'X-Requested-With': 'XMLHttpRequest',
+                                                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                                                                'Accept': 'application/json',
+                                                            },
+                                                            body: JSON.stringify(institucionEditData)
+                                                        });
+                                                        if (response.ok) {
+                                                            setInstitucionSearch(prev => ({
+                                                                ...prev,
+                                                                searchText: institucionEditData.INSTITUCION_NOMBRE,
+                                                                selectedInstitucion: {
+                                                                    ...prev.selectedInstitucion!,
+                                                                    ...institucionEditData
+                                                                }
+                                                            }));
+                                                            handleDependentFieldChange('showInstitucionEditForm', false);
+                                                            alert('Institución actualizada correctamente');
+                                                        } else {
+                                                            alert('Error al actualizar la institución');
+                                                        }
+                                                    } catch (e) {
+                                                        alert('Error de conexión');
+                                                    } finally {
+                                                        setDependentFields(prev => ({...prev, processing: false}));
+                                                    }
+                                                }}
+                                                className="w-full px-4 py-2 bg-[#189BAF] text-white rounded-md hover:bg-[#157a8c] transition-colors disabled:opacity-50"
+                                            >
+                                                {dependentFields.processing ? 'Guardando...' : 'Guardar cambios de la institución'}
+                                            </button>
+                                        </div>
+                                    )}
+
                                 {/* Formulario de nueva institución */}
                                 {dependentFields.showInstitucionForm && (
                                     <div className="space-y-4 p-4 bg-gray-50 rounded-md border mt-4">
@@ -774,6 +1150,61 @@ export default function EditRecoleccionOptimized() {
                                                 <option value="ISSSTE">ISSSTE</option>
                                                 <option value="SSA">SSA</option>
                                             </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">
+                                                Estado
+                                            </label>
+                                            <select
+                                                name="INSTITUCION_ESTADO"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                            >
+                                                <option value="">Seleccione estado</option>
+                                                <option value="Aguascalientes">Aguascalientes</option>
+                                                <option value="Baja California">Baja California</option>
+                                                <option value="Baja California Sur">Baja California Sur</option>
+                                                <option value="Campeche">Campeche</option>
+                                                <option value="Chiapas">Chiapas</option>
+                                                <option value="Chihuahua">Chihuahua</option>
+                                                <option value="Coahuila">Coahuila</option>
+                                                <option value="Colima">Colima</option>
+                                                <option value="Ciudad de México">Ciudad de México</option>
+                                                <option value="Durango">Durango</option>
+                                                <option value="Estado de México">Estado de México</option>
+                                                <option value="Guanajuato">Guanajuato</option>
+                                                <option value="Guerrero">Guerrero</option>
+                                                <option value="Hidalgo">Hidalgo</option>
+                                                <option value="Jalisco">Jalisco</option>
+                                                <option value="Michoacán">Michoacán</option>
+                                                <option value="Morelos">Morelos</option>
+                                                <option value="Nayarit">Nayarit</option>
+                                                <option value="Nuevo León">Nuevo León</option>
+                                                <option value="Oaxaca">Oaxaca</option>
+                                                <option value="Puebla">Puebla</option>
+                                                <option value="Querétaro">Querétaro</option>
+                                                <option value="Quintana Roo">Quintana Roo</option>
+                                                <option value="San Luis Potosí">San Luis Potosí</option>
+                                                <option value="Sinaloa">Sinaloa</option>
+                                                <option value="Sonora">Sonora</option>
+                                                <option value="Tabasco">Tabasco</option>
+                                                <option value="Tamaulipas">Tamaulipas</option>
+                                                <option value="Tlaxcala">Tlaxcala</option>
+                                                <option value="Veracruz">Veracruz</option>
+                                                <option value="Yucatán">Yucatán</option>
+                                                <option value="Zacatecas">Zacatecas</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">
+                                                Ciudad
+                                            </label>
+                                            <input
+                                                type="text"
+                                                name="INSTITUCION_CIUDAD"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                placeholder="Ciudad"
+                                            />
                                         </div>
                                     </div>
                                 )}
