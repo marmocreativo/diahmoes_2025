@@ -43,7 +43,7 @@ class EstudioReporte extends Mailable
                   ' | PX: ' . ($this->estudio->MUESTRA_INICIALES ?: 'N/A') . 
                   ' | Diahmoes';
 
-        $email = $this->from('resultados@diahmoes.com.mx', 'Reporte Diahmoes')
+        $email = $this->from('resultados@geneticlab.mx', 'Reporte Diahmoes')
                       ->subject($subject);
 
         // Elegir vista según si se envía adjunto o no

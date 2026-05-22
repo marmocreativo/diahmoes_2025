@@ -2159,35 +2159,35 @@ private function asignarCorreosCopia($estudio)
             [
                 'ID_USUARIO' => $estudio->ID_MEDICO,
                 'ID_ESTUDIO' => $estudio->ID,
-                'NOMBRE' => '',
-                'CORREO' => 'lmaciel@geneticlab.mx',
+                'NOMBRE' => 'Dr. Héctor A. Maldonado M.',
+                'CORREO' => 'hmaldonado@diahmoes.com.mx',
                 'ENVIAR' => 'si'
             ],
             [
                 'ID_USUARIO' => $estudio->ID_MEDICO,
                 'ID_ESTUDIO' => $estudio->ID,
-                'NOMBRE' => '',
+                'NOMBRE' => 'Yentl Barrientos F.',
                 'CORREO' => 'soluciones@geneticlab.mx',
                 'ENVIAR' => 'si'
             ],
             [
                 'ID_USUARIO' => $estudio->ID_MEDICO,
                 'ID_ESTUDIO' => $estudio->ID,
-                'NOMBRE' => '',
+                'NOMBRE' => 'M. en C. Alicia López Y.',
                 'CORREO' => 'alicia.lopez@geneticlab.mx',
                 'ENVIAR' => 'si'
             ],
             [
                 'ID_USUARIO' => $estudio->ID_MEDICO,
                 'ID_ESTUDIO' => $estudio->ID,
-                'NOMBRE' => '',
+                'NOMBRE' => 'Dr. Héctor A. Maldonado M.',
                 'CORREO' => 'arzhaus@yahoo.com',
                 'ENVIAR' => 'si'
             ],
             [
                 'ID_USUARIO' => $estudio->ID_MEDICO,
                 'ID_ESTUDIO' => $estudio->ID,
-                'NOMBRE' => '',
+                'NOMBRE' => 'Q.F.B. Ana Lidia Ramos P.',
                 'CORREO' => 'laboratorio@geneticlab.mx',
                 'ENVIAR' => 'si'
             ]
