@@ -113,6 +113,10 @@ class EstudioController extends Controller
     if ($request->filled('muestra_folio_kit_bl')) {
         $query->where('MUESTRA_FOLIO_KIT_BL', 'like', "%{$request->get('muestra_folio_kit_bl')}%");
     }
+
+    if ($request->filled('muestra_tipo_estudio')) {
+        $query->where('MUESTRA_TIPO_ESTUDIO', $request->get('muestra_tipo_estudio'));
+    }
     
     // Filtros adicionales opcionales
     if ($request->filled('estado')) {
@@ -329,8 +333,9 @@ class EstudioController extends Controller
             'paciente_iniciales', 'paciente_nombre', 'paciente_apellidos',
             'medico_nombre', 'medico_apellidos',
             'institucion_id',
-            'clave_interna', 'folio_merck', 'muestra_clave', 
+            'clave_interna', 'folio_merck', 'muestra_clave',
             'muestra_folio_sobre', 'muestra_folio_kit_bl',
+            'muestra_tipo_estudio',   // agregar esta línea
             'detenidos_recepcion', 'detenidos_lab_liquida', 'detenidos_lab_solida', 'falta_enviar_resultados'
         ]),
         'estados' => $estados,
@@ -808,6 +813,7 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
             'MUESTRA_GENERO', 'MUESTRA_EDAD', 'MUESTRA_CLAVE', 'MUESTRA_INICIALES', 'MUESTRA_SITIO_LESION',
             'MUESTRA_TIPO_ESTUDIO', 'MUESTRA_TIPO', 'MUESTRA_DIAGNOSTICO_CLINICO', 'MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA',
             'MUESTRA_REQUIERE_LABORATORIO_AUX','MUESTRA_NOMBRE_LABORATORIO_AUX',
+            'MUESTRA_FOLIO_KIT_BL_CADUCIDAD','MUESTRA_COLON',
         ])->with([
             'medico:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
             'paciente:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
@@ -1076,6 +1082,8 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
                 'MUESTRA_CLAVE' => 'nullable|string|max:255',
                 'MUESTRA_FOLIO_SOBRE' => 'nullable|string|max:255',
                 'MUESTRA_FOLIO_KIT_BL' => 'nullable|string|max:255',
+                'MUESTRA_FOLIO_KIT_BL_CADUCIDAD' => 'nullable|date',
+                'MUESTRA_COLON'                  => 'nullable|in:ASC,DESC',
                 'MUESTRA_OTROS_ROTULOS' => 'nullable|string',
                 'MUESTRA_INICIALES' => 'nullable|string|max:10',
                 'MUESTRA_SITIO_LESION' => 'nullable|string|max:255',
@@ -1130,6 +1138,8 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
                 'MUESTRA_CLAVE',
                 'MUESTRA_FOLIO_SOBRE',
                 'MUESTRA_FOLIO_KIT_BL',
+                'MUESTRA_FOLIO_KIT_BL_CADUCIDAD',
+                'MUESTRA_COLON',
                 'MUESTRA_OTROS_ROTULOS',
                 'MUESTRA_INICIALES',
                 'MUESTRA_SITIO_LESION',

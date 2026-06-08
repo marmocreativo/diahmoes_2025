@@ -121,6 +121,7 @@ class ReporteController extends Controller
             'comparacion_3_periodos' => $this->getComparacion3Periodos($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo, $institucion),
             'predicciones'           => $this->getPredicciones($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo, $institucion),
             'estudios_faltantes'     => $this->getEstudiosFaltantes($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo, $institucion),
+            'estudios_periodo' => $this->getEstudiosPeriodo($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo, $institucion),
         ];
 
         return Inertia::render('Reportes/Index', [
@@ -658,16 +659,16 @@ class ReporteController extends Controller
             'G1' => 'BLOQUE',
             'H1' => 'LAMINILLA',
             'I1' => 'TIPO DE MUESTRA',
-            'J1' => 'MUE',
-            'K1' => 'REPORTE DEL DIAGNOSTICO HISTOPATOLOGICO',
-            'L1' => 'MEDICO TRATANTE',
-            'M1' => 'HOSPITAL',
-            'N1' => 'PROCEDENCIA',
-            'O1' => 'TELÉFONO',
-            'P1' => 'E-MAIL',
-            'Q1' => 'CIUDAD',
-            'R1' => 'ESTADO',
-            'S1' => 'FECHA DE ANALISIS',
+            'J1' => 'REPORTE DEL DIAGNOSTICO HISTOPATOLOGICO',
+            'K1' => 'MEDICO TRATANTE',
+            'L1' => 'HOSPITAL',
+            'M1' => 'PROCEDENCIA',
+            'N1' => 'TELÉFONO',
+            'O1' => 'E-MAIL',
+            'P1' => 'CIUDAD',
+            'Q1' => 'ESTADO',
+            'R1' => 'FECHA DE ANALISIS',
+            'S1' => 'NOTAS',
             'T1' => 'RESULTADOS KRAS',
             'U1' => 'RESULTADOS NRAS',
             'V1' => 'INTERPRETACION RESULTADOS',
@@ -705,16 +706,16 @@ class ReporteController extends Controller
             $sheet->setCellValue('G' . $row, $dato->MUESTRA_BLOQUES ?? '');
             $sheet->setCellValue('H' . $row, $dato->MUESTRA_LAMINILLAS ?? '');
             $sheet->setCellValue('I' . $row, $dato->MUESTRA_TIPO_ESTUDIO ?? '');
-            $sheet->setCellValue('J' . $row, $dato->MUESTRA_CLAVE ?? '');
-            $sheet->setCellValue('K' . $row, $dato->MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA ?? '');
-            $sheet->setCellValue('L' . $row, $dato->medico_completo ?? '');
-            $sheet->setCellValue('M' . $row, $dato->INSTITUCION_NOMBRE ?? '');
-            $sheet->setCellValue('N' . $row, $dato->INSTITUCION_PROCEDENCIA ?? '');
-            $sheet->setCellValue('O' . $row, $dato->USUARIO_TELEFONO ?? '');
-            $sheet->setCellValue('P' . $row, $dato->USUARIO_CORREO ?? '');
-            $sheet->setCellValue('Q' . $row, $dato->MUESTRA_CIUDAD ?? '');
-            $sheet->setCellValue('R' . $row, $dato->MUESTRA_ESTADO ?? '');
-            $sheet->setCellValue('S' . $row, $frl ? $frl->format('Y-m-d') : '');
+            $sheet->setCellValue('J' . $row, $dato->MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA ?? '');
+            $sheet->setCellValue('K' . $row, $dato->medico_completo ?? '');
+            $sheet->setCellValue('L' . $row, $dato->INSTITUCION_NOMBRE ?? '');
+            $sheet->setCellValue('M' . $row, $dato->INSTITUCION_PROCEDENCIA ?? '');
+            $sheet->setCellValue('N' . $row, $dato->USUARIO_TELEFONO ?? '');
+            $sheet->setCellValue('O' . $row, $dato->USUARIO_CORREO ?? '');
+            $sheet->setCellValue('P' . $row, $dato->MUESTRA_CIUDAD ?? '');
+            $sheet->setCellValue('Q' . $row, $dato->MUESTRA_ESTADO ?? '');
+            $sheet->setCellValue('R' . $row, $frl ? $frl->format('Y-m-d') : '');
+            $sheet->setCellValue('S' . $row, $dato->R_NOTAS_ESPECIALES ?? '');
             $sheet->setCellValue('T' . $row, $kras ?: '');
             $sheet->setCellValue('U' . $row, $nras ?: '');
             $sheet->setCellValue('V' . $row, $dato->R_INTERPRETACION ?? '');
@@ -799,5 +800,29 @@ class ReporteController extends Controller
         }
 
         return $principales->values();
+    }
+
+    private function getEstudiosPeriodo($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo, $institucion)
+    {
+        return $this->getQueryBase($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo, $institucion)
+            ->select(
+                'ID', 'CLAVE_INTERNA', 'CLAVE', 'MUESTRA_TIPO_ESTUDIO', 'ESTUDIO_ESTADO',
+                'FECHA_SOLICITUD_RECOLECCION', 'FECHA_RECEPCION', 'FECHA_RECEPCION_LABORATORIO',
+                'FECHA_OBTENCION_RESULTADOS', 'FECHA_RESULTADOS_CORREO'
+            )
+            ->orderBy('CLAVE')->orderBy('ANIO')->orderBy('SERIADO')
+            ->get()
+            ->map(fn($e) => [
+                'id'                          => $e->ID,
+                'clave_interna'               => $e->CLAVE_INTERNA,
+                'clave'                       => $e->CLAVE,
+                'tipo_estudio'                => $e->MUESTRA_TIPO_ESTUDIO ?: 'N/D',
+                'estado'                      => $e->ESTUDIO_ESTADO ?: 'Sin estado',
+                'fecha_solicitud_recoleccion' => $e->FECHA_SOLICITUD_RECOLECCION,
+                'fecha_recepcion'             => $e->FECHA_RECEPCION,
+                'fecha_recepcion_laboratorio' => $e->FECHA_RECEPCION_LABORATORIO,
+                'fecha_obtencion_resultados'  => $e->FECHA_OBTENCION_RESULTADOS,
+                'fecha_resultados_correo'     => $e->FECHA_RESULTADOS_CORREO,
+            ]);
     }
 }

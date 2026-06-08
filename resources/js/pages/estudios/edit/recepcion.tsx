@@ -3,7 +3,7 @@ import { Head, router, usePage, Link } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, ChevronLeft, Save, Eye, FileText, Trash2, Plus, ExternalLink, User } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Save, Eye, FileText, Trash2, Plus, ExternalLink, User, CheckCircle, XCircle, AlertCircle, Loader2  } from 'lucide-react';
 import { type BreadcrumbItem } from '@/types';
 
 interface EditRecepcionProps {
@@ -42,6 +42,32 @@ export default function EditRecepcionOptimized() {
     const muestraClaveRef = useRef<HTMLInputElement>(null);
     const muestraTipoRef = useRef<HTMLSelectElement>(null);
     const pacienteSearchInputRef = useRef<HTMLInputElement>(null);
+
+    // Estado para validación de folio kit
+    const [folioKitBusqueda, setFolioKitBusqueda] = useState(estudio.MUESTRA_FOLIO_KIT_BL || '');
+    const [folioKitCaducidad, setFolioKitCaducidad] = useState(
+        estudio.MUESTRA_FOLIO_KIT_BL_CADUCIDAD
+            ? estudio.MUESTRA_FOLIO_KIT_BL_CADUCIDAD.split('T')[0]
+            : ''
+    );
+    const [folioKitValidacion, setFolioKitValidacion] = useState<{
+        buscando: boolean;
+        encontrado: boolean | null;
+        id: number | null;
+        estado: string;
+        ya_asignado: boolean;
+        confirmando: boolean;
+        confirmado: boolean;
+    }>({
+        buscando:    false,
+        encontrado:  null,
+        id:          null,
+        estado:      '',
+        ya_asignado: false,
+        confirmando: false,
+        confirmado:  false,
+    });
+    const folioKitTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     
     // Estado mínimo para campos dependientes
     const [dependentFields, setDependentFields] = useState({
@@ -529,6 +555,71 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             setListaCorreos(prev => prev.filter((_, i) => i !== index));
         }
     }, [listaCorreos, estudio.ID]);
+
+    const buscarFolioKit = useCallback(async (folio: string) => {
+    if (!folio.trim()) {
+        setFolioKitValidacion({ buscando: false, encontrado: null, id: null, estado: '', ya_asignado: false, confirmando: false, confirmado: false });
+        return;
+    }
+
+    setFolioKitValidacion(prev => ({ ...prev, buscando: true, encontrado: null, confirmado: false }));
+
+    try {
+        const response = await fetch(`/folios-kits/buscar?folio=${encodeURIComponent(folio.trim())}`, {
+            headers: { 'Accept': 'application/json' },
+        });
+        const data = await response.json();
+
+        if (data.encontrado) {
+            // Auto-rellenar caducidad si existe
+            if (data.fecha_caducidad) {
+                setFolioKitCaducidad(data.fecha_caducidad);
+            }
+            setFolioKitValidacion({
+                buscando:    false,
+                encontrado:  true,
+                id:          data.id,
+                estado:      data.estado,
+                ya_asignado: data.ya_asignado,
+                confirmando: false,
+                confirmado:  false,
+            });
+        } else {
+            setFolioKitValidacion({ buscando: false, encontrado: false, id: null, estado: '', ya_asignado: false, confirmando: false, confirmado: false });
+        }
+    } catch {
+        setFolioKitValidacion({ buscando: false, encontrado: false, id: null, estado: '', ya_asignado: false, confirmando: false, confirmado: false });
+    }
+}, []);
+
+const confirmarFolioKit = useCallback(async () => {
+    if (!folioKitValidacion.id || !estudio.ID) return;
+
+    setFolioKitValidacion(prev => ({ ...prev, confirmando: true }));
+
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        const response = await fetch(`/folios-kits/${folioKitValidacion.id}/confirmar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({ id_estudio: estudio.ID }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            setFolioKitValidacion(prev => ({ ...prev, confirmando: false, confirmado: true, estado: 'retornado', ya_asignado: true }));
+        } else {
+            setFolioKitValidacion(prev => ({ ...prev, confirmando: false }));
+        }
+    } catch {
+        setFolioKitValidacion(prev => ({ ...prev, confirmando: false }));
+    }
+}, [folioKitValidacion.id, estudio.ID]);
 
     
 
@@ -1090,7 +1181,7 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                                         )}
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-3 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                                 Folio Sobre
@@ -1102,7 +1193,7 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
                                             />
                                         </div>
-                                        
+
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                                 Folio KIT BL
@@ -1110,11 +1201,96 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                                             <input
                                                 type="text"
                                                 name="MUESTRA_FOLIO_KIT_BL"
-                                                defaultValue={estudio.MUESTRA_FOLIO_KIT_BL || ''}
+                                                value={folioKitBusqueda}
+                                                onChange={e => {
+                                                    const val = e.target.value;
+                                                    setFolioKitBusqueda(val);
+                                                    // Debounce búsqueda
+                                                    if (folioKitTimeoutRef.current) clearTimeout(folioKitTimeoutRef.current);
+                                                    folioKitTimeoutRef.current = setTimeout(() => buscarFolioKit(val), 600);
+                                                }}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                                placeholder="GL-000-26"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Caducidad KIT
+                                            </label>
+                                            <input
+                                                type="date"
+                                                name="MUESTRA_FOLIO_KIT_BL_CADUCIDAD"
+                                                value={folioKitCaducidad}
+                                                onChange={e => setFolioKitCaducidad(e.target.value)}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
                                             />
                                         </div>
                                     </div>
+
+                                    {/* Validación del folio KIT BL */}
+                                    {folioKitBusqueda.trim() !== '' && (
+                                        <div className="mt-2">
+                                            {/* Buscando */}
+                                            {folioKitValidacion.buscando && (
+                                                <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                    Buscando folio en el sistema...
+                                                </div>
+                                            )}
+
+                                            {/* Confirmado */}
+                                            {folioKitValidacion.confirmado && (
+                                                <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
+                                                    <CheckCircle className="h-4 w-4 shrink-0" />
+                                                    Folio confirmado y asignado a este estudio. Estado actualizado a <strong>retornado</strong>.
+                                                </div>
+                                            )}
+
+                                            {/* Encontrado y no confirmado aún */}
+                                            {folioKitValidacion.encontrado && !folioKitValidacion.confirmado && (
+                                                <div className="bg-green-50 border border-green-200 rounded-md px-3 py-2.5 space-y-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2 text-sm text-green-700">
+                                                            <CheckCircle className="h-4 w-4 shrink-0" />
+                                                            <span>
+                                                                Folio encontrado — Estado actual:
+                                                                <span className="font-semibold ml-1 capitalize">{folioKitValidacion.estado}</span>
+                                                                {folioKitValidacion.ya_asignado && (
+                                                                    <span className="ml-2 text-amber-600 text-xs">(ya tiene estudio asignado)</span>
+                                                                )}
+                                                            </span>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={confirmarFolioKit}
+                                                            disabled={folioKitValidacion.confirmando}
+                                                            className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded transition-colors disabled:opacity-50"
+                                                        >
+                                                            {folioKitValidacion.confirmando
+                                                                ? <Loader2 className="h-3 w-3 animate-spin" />
+                                                                : <CheckCircle className="h-3 w-3" />
+                                                            }
+                                                            {folioKitValidacion.confirmando ? 'Confirmando...' : 'Confirmar folio del kit'}
+                                                        </button>
+                                                    </div>
+                                                    {folioKitValidacion.ya_asignado && (
+                                                        <p className="text-xs text-amber-600">
+                                                            Este folio ya está asignado a otro estudio. Si confirmas, se reasignará a este estudio.
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* No encontrado */}
+                                            {folioKitValidacion.encontrado === false && !folioKitValidacion.buscando && (
+                                                <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                                                    <AlertCircle className="h-4 w-4 shrink-0" />
+                                                    Folio no encontrado en el sistema. Puedes escribirlo manualmente igual.
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1128,7 +1304,7 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                                         />
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-3 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                                 Iniciales del Paciente
@@ -1140,7 +1316,7 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
                                             />
                                         </div>
-                                        
+
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                                 Sitio de la lesión
@@ -1151,6 +1327,21 @@ const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                                                 defaultValue={estudio.MUESTRA_SITIO_LESION || ''}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
                                             />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Colon
+                                            </label>
+                                            <select
+                                                name="MUESTRA_COLON"
+                                                defaultValue={estudio.MUESTRA_COLON || ''}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF] focus:border-transparent"
+                                            >
+                                                <option value="">—</option>
+                                                <option value="ASC">ASC</option>
+                                                <option value="DESC">DESC</option>
+                                            </select>
                                         </div>
                                     </div>
 

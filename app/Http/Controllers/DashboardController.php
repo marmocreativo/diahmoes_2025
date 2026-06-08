@@ -36,7 +36,8 @@ class DashboardController extends Controller
             'comparativa_mutacion' => $this->getComparativaMutacion($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
             'comparacion_3_periodos' => $this->getComparacion3Periodos($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
             'predicciones' => $this->getPredicciones($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
-            'estudios_faltantes' => $this->getEstudiosFaltantes($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo) // NUEVA LÍNEA
+            'estudios_faltantes' => $this->getEstudiosFaltantes($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
+            'estudios_periodo' => $this->getEstudiosPeriodo($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo),
         ];
         
         return Inertia::render('dashboard', [
@@ -777,5 +778,40 @@ class DashboardController extends Controller
         }
         
         return empty($razones) ? 'Datos incompletos' : implode(', ', $razones);
+    }
+
+    private function getEstudiosPeriodo($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
+    {
+        return $this->getQueryBase($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo)
+            ->select(
+                'ID',
+                'CLAVE_INTERNA',
+                'CLAVE',
+                'MUESTRA_TIPO_ESTUDIO',
+                'ESTUDIO_ESTADO',
+                'FECHA_SOLICITUD_RECOLECCION',
+                'FECHA_RECEPCION',
+                'FECHA_RECEPCION_LABORATORIO',
+                'FECHA_OBTENCION_RESULTADOS',
+                'FECHA_RESULTADOS_CORREO'
+            )
+            ->orderBy('CLAVE')
+            ->orderBy('ANIO')
+            ->orderBy('SERIADO')
+            ->get()
+            ->map(function ($e) {
+                return [
+                    'id'                          => $e->ID,
+                    'clave_interna'               => $e->CLAVE_INTERNA,
+                    'clave'                       => $e->CLAVE,
+                    'tipo_estudio'                => $e->MUESTRA_TIPO_ESTUDIO ?: 'N/D',
+                    'estado'                      => $e->ESTUDIO_ESTADO ?: 'Sin estado',
+                    'fecha_solicitud_recoleccion' => $e->FECHA_SOLICITUD_RECOLECCION,
+                    'fecha_recepcion'             => $e->FECHA_RECEPCION,
+                    'fecha_recepcion_laboratorio' => $e->FECHA_RECEPCION_LABORATORIO,
+                    'fecha_obtencion_resultados'  => $e->FECHA_OBTENCION_RESULTADOS,
+                    'fecha_resultados_correo'     => $e->FECHA_RESULTADOS_CORREO,
+                ];
+            });
     }
 }

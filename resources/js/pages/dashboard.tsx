@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp, TrendingDown, Calendar, Building2, MapPin, TestTube, Activity, Target, BarChart3, Users, Clock, CheckCircle, Download, HelpCircle, RotateCcw  } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -96,6 +97,8 @@ interface EstudioFaltante {
     razon_faltante: string;
 }
 
+
+
 interface Datos {
     metricas_principales: MetricasPrincipales;
     graficas_pie: GraficasPie;
@@ -113,7 +116,21 @@ interface Datos {
     comparacion_3_periodos: Comparacion3Periodos;
     predicciones: Predicciones;
     estudios_faltantes: EstudioFaltante[];
+    estudios_periodo: Array<{
+        id: number;
+        clave_interna: string;
+        clave: string;
+        tipo_estudio: string;
+        estado: string;
+        fecha_solicitud_recoleccion: string | null;
+        fecha_recepcion: string | null;
+        fecha_recepcion_laboratorio: string | null;
+        fecha_obtencion_resultados: string | null;
+        fecha_resultados_correo: string | null;
+    }>;
 }
+
+
 
 
 export default function Dashboard() {
@@ -142,7 +159,8 @@ export default function Dashboard() {
     const [fechaHasta, setFechaHasta] = useState(filtrosActivos.fecha_hasta);
     const [muestraEstado, setMuestraEstado] = useState<string>(filtrosActivos.muestra_estado || '');
     const [tipoEstudio, setTipoEstudio] = useState<string>(filtrosActivos.tipo_estudio || '');
-    const [prefijo, setPrefijo] = useState<string>(filtrosActivos.prefijo || '');
+    const [prefijo] = useState<string>('PRM');
+    const [showFiltrosAvanzados, setShowFiltrosAvanzados] = useState(false);
 
     const aplicarFiltros = () => {
         const params: any = {
@@ -152,7 +170,6 @@ export default function Dashboard() {
 
         if (muestraEstado) params.muestra_estado = muestraEstado;
         if (tipoEstudio) params.tipo_estudio = tipoEstudio;
-        if (prefijo) params.prefijo = prefijo;
 
         router.get('/dashboard', params, {
             preserveState: true,
@@ -170,7 +187,6 @@ export default function Dashboard() {
         setFechaHasta(fechaHastaDefault);
         setMuestraEstado('');
         setTipoEstudio('');
-        setPrefijo('');
         
         router.get('/dashboard', {
             fecha_desde: fechaDesdeDefault,
@@ -268,812 +284,919 @@ export default function Dashboard() {
                                     </p>
                                 </div>
                                 
-                                {/* Filtros en una sola fila */}
                                 <div className="lg:col-span-2">
-                                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
-                                        <div className="col-span-2 lg:col-span-1">
-                                            <Input
-                                                type="date"
-                                                value={fechaDesde}
-                                                onChange={(e) => setFechaDesde(e.target.value)}
-                                                className="bg-white text-black border-gray-300"
-                                            />
-                                        </div>
-                                        <div className="col-span-2 lg:col-span-1">
-                                            <Input
-                                                type="date"
-                                                value={fechaHasta}
-                                                onChange={(e) => setFechaHasta(e.target.value)}
-                                                className="bg-white text-black border-gray-300"
-                                            />
-                                        </div>
-                                        <div className="col-span-2 lg:col-span-1">
-                                            <Select value={muestraEstado || "todos"} onValueChange={(value) => setMuestraEstado(value === "todos" ? "" : value)}>
-                                                <SelectTrigger className="bg-white text-black border-gray-300">
-                                                    <SelectValue placeholder="Estado" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="todos">Todos los estados</SelectItem>
-                                                    {filtros.muestra_estados.map((estado) => (
-                                                        <SelectItem key={estado} value={estado}>{estado}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="col-span-2 lg:col-span-1">
-                                            <Select value={tipoEstudio || "todos"} onValueChange={(value) => setTipoEstudio(value === "todos" ? "" : value)}>
-                                                <SelectTrigger className="bg-white text-black border-gray-300">
-                                                    <SelectValue placeholder="Tipo de Estudio" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="todos">Todos los tipos</SelectItem>
-                                                    {filtros.tipos_estudio.map((tipo) => (
-                                                        <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="col-span-2 lg:col-span-1">
-                                            <Select value={prefijo || "todos"} onValueChange={(value) => setPrefijo(value === "todos" ? "" : value)}>
-                                                <SelectTrigger className="bg-white text-black border-gray-300">
-                                                    <SelectValue placeholder="Prefijo" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="todos">Todos los prefijos</SelectItem>
-                                                    {filtros.prefijos.map((pref) => (
-                                                        <SelectItem key={pref} value={pref}>{pref}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="flex flex-wrap gap-3 justify-end">
-                                        <Button onClick={aplicarFiltros} className="bg-blue-600 hover:bg-blue-700 text-white">
-                                            <Calendar className="h-4 w-4" /> Filtrar
-                                        </Button>
+                                {/* Fila principal: fechas + botones */}
+                                <div className="flex flex-wrap items-center gap-3 mb-3 justify-end">
+                                    <Input
+                                        type="date"
+                                        value={fechaDesde}
+                                        onChange={(e) => setFechaDesde(e.target.value)}
+                                        className="bg-white text-black border-gray-300 w-40"
+                                    />
+                                    <Input
+                                        type="date"
+                                        value={fechaHasta}
+                                        onChange={(e) => setFechaHasta(e.target.value)}
+                                        className="bg-white text-black border-gray-300 w-40"
+                                    />
+                                    <Button onClick={aplicarFiltros} className="bg-blue-600 hover:bg-blue-700 text-white">
+                                        <Calendar className="h-4 w-4" /> Consultar
+                                    </Button>
+                                    <Button
+                                        onClick={() => setShowFiltrosAvanzados(!showFiltrosAvanzados)}
+                                        className="bg-white/20 hover:bg-white/30 text-white border border-white/40"
+                                    >
+                                         Avanzado {showFiltrosAvanzados ? '▲' : '▼'}
+                                    </Button>
+                                    <Button onClick={handleExportExcel} className="bg-green-600 hover:bg-green-700 text-white">
+                                        <Download className="h-4 w-4" /> Exportar esta consulta
+                                    </Button>
+                                </div>
+
+                                {/* Panel desplegable: filtros avanzados */}
+                                {showFiltrosAvanzados && (
+                                    <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-white/20 justify-end">
+                                        <Select value={muestraEstado || "todos"} onValueChange={(value) => setMuestraEstado(value === "todos" ? "" : value)}>
+                                            <SelectTrigger className="bg-white text-black border-gray-300 w-48">
+                                                <SelectValue placeholder="Estado" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="todos">Todos los estados</SelectItem>
+                                                {filtros.muestra_estados.map((estado) => (
+                                                    <SelectItem key={estado} value={estado}>{estado}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+
+                                        <Select value={tipoEstudio || "todos"} onValueChange={(value) => setTipoEstudio(value === "todos" ? "" : value)}>
+                                            <SelectTrigger className="bg-white text-black border-gray-300 w-48">
+                                                <SelectValue placeholder="Tipo de Estudio" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="todos">Todos los tipos</SelectItem>
+                                                {filtros.tipos_estudio.map((tipo) => (
+                                                    <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+
                                         <Button onClick={limpiarFiltros} className="bg-gray-600 hover:bg-gray-700 text-white">
                                             <RotateCcw className="h-4 w-4" /> Reiniciar
                                         </Button>
-                                        <Button onClick={handleExportExcel} className="bg-green-600 hover:bg-green-700 text-white">
-                                            <Download className="h-4 w-4" /> Descargar reporte
-                                        </Button>
                                     </div>
-                                </div>
+                                )}
+                            </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    {/* Métricas Principales y Gráficas - Segunda fila con layout mejorado */}
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                        {/* Métricas principales en columnas más pequeñas */}
-                        <div className="lg:col-span-2">
-                            <Card className="border-2 border-blue-100 h-full">
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-sm font-medium flex items-center gap-1">
-                                        <Users className="h-4 w-4 text-blue-600" />
-                                        Total
-                                        <Tooltip>
-                                            <TooltipTrigger>
-                                                <HelpCircle className="h-3 w-3 text-gray-400" />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Total de estudios en el período</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-3xl font-bold text-blue-600">
-                                        {datos.metricas_principales.total_estudios}
-                                    </div>
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        Estudios
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        </div>
+                    <Tabs defaultValue="estadisticas">
+                        <TabsList className="w-full justify-start">
+                            <TabsTrigger value="estadisticas">📊 Estadísticas</TabsTrigger>
+                            <TabsTrigger value="estudios">🧪 Estudios del período ({datos.estudios_periodo.length})</TabsTrigger>
+                        </TabsList>
 
-                        <div className="lg:col-span-2">
-                            <Card className="border-2 border-orange-100 h-full">
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-sm font-medium flex items-center gap-1">
-                                        <Clock className="h-4 w-4 text-orange-600" />
-                                        En Laboratorio
-                                        <Tooltip>
-                                            <TooltipTrigger>
-                                                <HelpCircle className="h-3 w-3 text-gray-400" />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Estudios en proceso</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-3xl font-bold text-orange-600">
-                                        {datos.metricas_principales.pendientes}
-                                    </div>
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        En proceso
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        </div>
+                        {/* TAB 1: todo el contenido actual de estadísticas */}
+                        <TabsContent value="estadisticas" className="flex flex-col gap-6 mt-4">
+                            {/* Métricas Principales y Gráficas - Segunda fila con layout mejorado */}
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                                {/* Métricas principales en columnas más pequeñas */}
+                                <div className="lg:col-span-2">
+                                    <Card className="border-2 border-blue-100 h-full">
+                                        <CardHeader className="pb-2">
+                                            <CardTitle className="text-sm font-medium flex items-center gap-1">
+                                                <Users className="h-4 w-4 text-blue-600" />
+                                                Total
+                                                <Tooltip>
+                                                    <TooltipTrigger>
+                                                        <HelpCircle className="h-3 w-3 text-gray-400" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Total de estudios en el período</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="text-3xl font-bold text-blue-600">
+                                                {datos.metricas_principales.total_estudios}
+                                            </div>
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Estudios
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                </div>
 
-                        <div className="lg:col-span-2">
-                            <Card className="border-2 border-green-100 h-full">
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-sm font-medium flex items-center gap-1">
-                                        <CheckCircle className="h-4 w-4 text-green-600" />
-                                        Resultados Enviados
-                                        <Tooltip>
-                                            <TooltipTrigger>
-                                                <HelpCircle className="h-3 w-3 text-gray-400" />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Estudios finalizados</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-3xl font-bold text-green-600">
-                                        {datos.metricas_principales.completados}
-                                    </div>
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        Finalizados
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        </div>
+                                <div className="lg:col-span-2">
+                                    <Card className="border-2 border-orange-100 h-full">
+                                        <CardHeader className="pb-2">
+                                            <CardTitle className="text-sm font-medium flex items-center gap-1">
+                                                <Clock className="h-4 w-4 text-orange-600" />
+                                                En Laboratorio
+                                                <Tooltip>
+                                                    <TooltipTrigger>
+                                                        <HelpCircle className="h-3 w-3 text-gray-400" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Estudios en proceso</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="text-3xl font-bold text-orange-600">
+                                                {datos.metricas_principales.pendientes}
+                                            </div>
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                En proceso
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                </div>
 
-                        {/* Tipo de Estudio - Card más grande */}
-                        <div className="lg:col-span-3">
-                            <Card className="h-full">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-lg">
-                                        <Activity className="h-5 w-5" />
-                                        Tipo de Estudio
-                                        <Tooltip>
-                                            <TooltipTrigger>
-                                                <HelpCircle className="h-4 w-4 text-gray-400" />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Distribución de estudios por tipo</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    {/* Contenido existente de tipo de estudio */}
-                                    <div className="space-y-4">
-                                        <div className="w-full bg-gray-200 rounded-full h-8 flex overflow-hidden">
-                                            {datos.graficas_pie.tipo_estudio.map((tipo, index) => {
-                                                const porcentaje = (tipo.value / datos.metricas_principales.total_estudios) * 100;
-                                                return (
-                                                    <div
-                                                        key={index}
-                                                        className="h-full flex items-center justify-center text-white text-xs font-medium"
-                                                        style={{
-                                                            width: `${porcentaje}%`,
-                                                            backgroundColor: pieColors[index % pieColors.length]
-                                                        }}
-                                                        title={`${tipo.name}: ${tipo.value} (${Math.round(porcentaje)}%)`}
-                                                    >
-                                                        {porcentaje > 10 && `${Math.round(porcentaje)}%`}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                        
-                                        <div className="space-y-2">
-                                            {datos.graficas_pie.tipo_estudio.map((tipo, index) => {
-                                                const porcentaje = (tipo.value / datos.metricas_principales.total_estudios) * 100;
-                                                return (
-                                                    <div key={index} className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-2">
-                                                            <div 
-                                                                className="w-3 h-3 rounded-full"
-                                                                style={{ backgroundColor: pieColors[index % pieColors.length] }}
-                                                            />
-                                                            <span className="text-sm font-medium">{tipo.name}</span>
-                                                        </div>
-                                                        <span className="text-sm font-bold">
-                                                            {tipo.value} ({Math.round(porcentaje)}%)
-                                                        </span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
+                                <div className="lg:col-span-2">
+                                    <Card className="border-2 border-green-100 h-full">
+                                        <CardHeader className="pb-2">
+                                            <CardTitle className="text-sm font-medium flex items-center gap-1">
+                                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                                Resultados Enviados
+                                                <Tooltip>
+                                                    <TooltipTrigger>
+                                                        <HelpCircle className="h-3 w-3 text-gray-400" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Estudios finalizados</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="text-3xl font-bold text-green-600">
+                                                {datos.metricas_principales.completados}
+                                            </div>
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Finalizados
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                </div>
 
-                        {/* Estado de Mutación - Card más grande */}
-                        <div className="lg:col-span-3">
-                            <Card className="h-full">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-lg">
-                                        <TestTube className="h-5 w-5" />
-                                        Estado de Mutación
-                                        <Tooltip>
-                                            <TooltipTrigger>
-                                                <HelpCircle className="h-4 w-4 text-gray-400" />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Distribución por estado de mutación (KRAS, NRAS, BRAF)</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-4">
-                                        {/* Los datos ahora vienen directamente como totales */}
-                                        {(() => {
-                                            const total = datos.comparativa_mutacion.mutado + datos.comparativa_mutacion.no_mutado + datos.comparativa_mutacion.invalido;
-                                            
-                                            const datosGrafica = [
-                                                { name: 'Mutado', value: datos.comparativa_mutacion.mutado, color: '#EF4444' },
-                                                { name: 'No Mutado', value: datos.comparativa_mutacion.no_mutado, color: '#10B981' },
-                                                { name: 'Inválido/Sin Datos', value: datos.comparativa_mutacion.invalido, color: '#6B7280' }
-                                            ].filter(item => item.value > 0);
-
-                                            return (
-                                                <>
-                                                    <div className="w-full bg-gray-200 rounded-full h-8 flex overflow-hidden">
-                                                        {datosGrafica.map((item, index) => {
-                                                            const porcentaje = total > 0 ? (item.value / total) * 100 : 0;
-                                                            return (
-                                                                <div
-                                                                    key={index}
-                                                                    className="h-full flex items-center justify-center text-white text-xs font-medium"
-                                                                    style={{
-                                                                        width: `${porcentaje}%`,
-                                                                        backgroundColor: item.color
-                                                                    }}
-                                                                    title={`${item.name}: ${item.value} (${Math.round(porcentaje)}%)`}
-                                                                >
-                                                                    {porcentaje > 10 && `${Math.round(porcentaje)}%`}
+                                {/* Tipo de Estudio - Card más grande */}
+                                <div className="lg:col-span-3">
+                                    <Card className="h-full">
+                                        <CardHeader>
+                                            <CardTitle className="flex items-center gap-2 text-lg">
+                                                <Activity className="h-5 w-5" />
+                                                Tipo de Estudio
+                                                <Tooltip>
+                                                    <TooltipTrigger>
+                                                        <HelpCircle className="h-4 w-4 text-gray-400" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Distribución de estudios por tipo</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            {/* Contenido existente de tipo de estudio */}
+                                            <div className="space-y-4">
+                                                <div className="w-full bg-gray-200 rounded-full h-8 flex overflow-hidden">
+                                                    {datos.graficas_pie.tipo_estudio.map((tipo, index) => {
+                                                        const porcentaje = (tipo.value / datos.metricas_principales.total_estudios) * 100;
+                                                        return (
+                                                            <div
+                                                                key={index}
+                                                                className="h-full flex items-center justify-center text-white text-xs font-medium"
+                                                                style={{
+                                                                    width: `${porcentaje}%`,
+                                                                    backgroundColor: pieColors[index % pieColors.length]
+                                                                }}
+                                                                title={`${tipo.name}: ${tipo.value} (${Math.round(porcentaje)}%)`}
+                                                            >
+                                                                {porcentaje > 10 && `${Math.round(porcentaje)}%`}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                                
+                                                <div className="space-y-2">
+                                                    {datos.graficas_pie.tipo_estudio.map((tipo, index) => {
+                                                        const porcentaje = (tipo.value / datos.metricas_principales.total_estudios) * 100;
+                                                        return (
+                                                            <div key={index} className="flex items-center justify-between">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div 
+                                                                        className="w-3 h-3 rounded-full"
+                                                                        style={{ backgroundColor: pieColors[index % pieColors.length] }}
+                                                                    />
+                                                                    <span className="text-sm font-medium">{tipo.name}</span>
                                                                 </div>
-                                                            );
-                                                        })}
-                                                    </div>
+                                                                <span className="text-sm font-bold">
+                                                                    {tipo.value} ({Math.round(porcentaje)}%)
+                                                                </span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+
+                                {/* Estado de Mutación - Card más grande */}
+                                <div className="lg:col-span-3">
+                                    <Card className="h-full">
+                                        <CardHeader>
+                                            <CardTitle className="flex items-center gap-2 text-lg">
+                                                <TestTube className="h-5 w-5" />
+                                                Estado de Mutación
+                                                <Tooltip>
+                                                    <TooltipTrigger>
+                                                        <HelpCircle className="h-4 w-4 text-gray-400" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Distribución por estado de mutación (KRAS, NRAS, BRAF)</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="space-y-4">
+                                                {/* Los datos ahora vienen directamente como totales */}
+                                                {(() => {
+                                                    const total = datos.comparativa_mutacion.mutado + datos.comparativa_mutacion.no_mutado + datos.comparativa_mutacion.invalido;
                                                     
-                                                    <div className="space-y-2">
-                                                        {datosGrafica.map((item, index) => {
-                                                            const porcentaje = total > 0 ? (item.value / total) * 100 : 0;
-                                                            return (
-                                                                <div key={index} className="flex items-center justify-between">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div 
-                                                                            className="w-3 h-3 rounded-full"
-                                                                            style={{ backgroundColor: item.color }}
-                                                                        />
-                                                                        <span className="text-sm font-medium">{item.name}</span>
-                                                                    </div>
-                                                                    <span className="text-sm font-bold">
-                                                                        {item.value} ({Math.round(porcentaje)}%)
-                                                                    </span>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </>
-                                            );
-                                        })()}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-                    </div>
+                                                    const datosGrafica = [
+                                                        { name: 'Mutado', value: datos.comparativa_mutacion.mutado, color: '#EF4444' },
+                                                        { name: 'No Mutado', value: datos.comparativa_mutacion.no_mutado, color: '#10B981' },
+                                                        { name: 'Inválido/Sin Datos', value: datos.comparativa_mutacion.invalido, color: '#6B7280' }
+                                                    ].filter(item => item.value > 0);
 
-                    {/* Top 10 - Tercera fila */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Top Instituciones con tabla completa */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Building2 className="h-5 w-5" />
-                                    Top 10 Instituciones
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <HelpCircle className="h-4 w-4 text-gray-400" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Las 10 instituciones con más estudios en el período</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </CardTitle>
-                                <CardDescription>
-                                    Instituciones con mayor número de estudios
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="h-48">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={datos.top_instituciones}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis 
-                                                dataKey="name" 
-                                                angle={-45} 
-                                                textAnchor="end" 
-                                                height={80}
-                                                interval={0}
-                                                tick={{ fontSize: 10 }}
-                                            />
-                                            <YAxis />
-                                            <RechartsTooltip content={<CustomTooltip />} />
-                                            <Bar dataKey="value" fill="#3B82F6" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
+                                                    return (
+                                                        <>
+                                                            <div className="w-full bg-gray-200 rounded-full h-8 flex overflow-hidden">
+                                                                {datosGrafica.map((item, index) => {
+                                                                    const porcentaje = total > 0 ? (item.value / total) * 100 : 0;
+                                                                    return (
+                                                                        <div
+                                                                            key={index}
+                                                                            className="h-full flex items-center justify-center text-white text-xs font-medium"
+                                                                            style={{
+                                                                                width: `${porcentaje}%`,
+                                                                                backgroundColor: item.color
+                                                                            }}
+                                                                            title={`${item.name}: ${item.value} (${Math.round(porcentaje)}%)`}
+                                                                        >
+                                                                            {porcentaje > 10 && `${Math.round(porcentaje)}%`}
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                            
+                                                            <div className="space-y-2">
+                                                                {datosGrafica.map((item, index) => {
+                                                                    const porcentaje = total > 0 ? (item.value / total) * 100 : 0;
+                                                                    return (
+                                                                        <div key={index} className="flex items-center justify-between">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <div 
+                                                                                    className="w-3 h-3 rounded-full"
+                                                                                    style={{ backgroundColor: item.color }}
+                                                                                />
+                                                                                <span className="text-sm font-medium">{item.name}</span>
+                                                                            </div>
+                                                                            <span className="text-sm font-bold">
+                                                                                {item.value} ({Math.round(porcentaje)}%)
+                                                                            </span>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </>
+                                                    );
+                                                })()}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
                                 </div>
-                                
-                                {/* Tabla completa de todas las instituciones */}
-                                <div className="border rounded-lg overflow-hidden">
-                                    <div className="bg-gray-50 px-4 py-2 font-semibold text-sm">
-                                        Todas las Instituciones ({datos.todas_instituciones.length})
-                                    </div>
-                                    <div className="max-h-64 overflow-y-auto">
-                                        {datos.todas_instituciones.map((item, index) => {
-                                            const total = datos.todas_instituciones.reduce((sum, i) => sum + i.value, 0);
-                                            const porcentaje = ((item.value / total) * 100).toFixed(1);
-                                            
-                                            return (
-                                                <div key={index} className="flex justify-between items-center px-4 py-2 border-b border-gray-100 text-sm hover:bg-gray-50">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-xs font-bold min-w-[30px] text-center">
-                                                            {index + 1}
-                                                        </span>
-                                                        <span className="font-medium">{item.name}</span>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <span className="font-bold text-[#189BAF]">{item.value}</span>
-                                                        <span className="text-gray-500 text-xs ml-2">({porcentaje}%)</span>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                    <div className="bg-gray-50 px-4 py-2 font-bold text-sm">
-                                        Total: {datos.todas_instituciones.reduce((sum, item) => sum + item.value, 0)}
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Top Estados con tabla completa */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <MapPin className="h-5 w-5" />
-                                    Top 10 Estados
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <HelpCircle className="h-4 w-4 text-gray-400" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Los 10 estados con más estudios en el período</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </CardTitle>
-                                <CardDescription>
-                                    Estados con mayor número de estudios
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="h-48">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={datos.top_estados}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis 
-                                                dataKey="name" 
-                                                angle={-45} 
-                                                textAnchor="end" 
-                                                height={60}
-                                                interval={0}
-                                                tick={{ fontSize: 11 }}
-                                            />
-                                            <YAxis />
-                                            <RechartsTooltip content={<CustomTooltip />} />
-                                            <Bar dataKey="value" fill="#10B981" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                                
-                                {/* Tabla completa de todos los estados */}
-                                <div className="border rounded-lg overflow-hidden">
-                                    <div className="bg-gray-50 px-4 py-2 font-semibold text-sm">
-                                        Todos los Estados ({datos.todos_estados.length})
-                                    </div>
-                                    <div className="max-h-64 overflow-y-auto">
-                                        {datos.todos_estados.map((item, index) => {
-                                            const total = datos.todos_estados.reduce((sum, i) => sum + i.value, 0);
-                                            const porcentaje = ((item.value / total) * 100).toFixed(1);
-                                            
-                                            return (
-                                                <div key={index} className="flex justify-between items-center px-4 py-2 border-b border-gray-100 text-sm hover:bg-gray-50">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-xs font-bold min-w-[30px] text-center">
-                                                            {index + 1}
-                                                        </span>
-                                                        <span className="font-medium">{item.name}</span>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <span className="font-bold text-green-600">{item.value}</span>
-                                                        <span className="text-gray-500 text-xs ml-2">({porcentaje}%)</span>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                    <div className="bg-gray-50 px-4 py-2 font-bold text-sm">
-                                        Total: {datos.todos_estados.reduce((sum, item) => sum + item.value, 0)}
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    {/* Título para separar - Análisis Histórico */}
-                    <div className="border-t pt-6">
-                        <div className="text-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-900 mb-2">Análisis Histórico</h2>
-                            <p className="text-gray-600">Datos de los últimos 5 años con filtros aplicados</p>
-                        </div>
-                    </div>
-
-                    {/* Tendencia Histórica 5 Años - Cuarta fila */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <TrendingUp className="h-5 w-5" />
-                                Tendencia Histórica (Últimos 5 años)
-                                <Tooltip>
-                                    <TooltipTrigger>
-                                        <HelpCircle className="h-4 w-4 text-gray-400" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Evolución mensual de estudios aplicando los filtros actuales</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </CardTitle>
-                            <CardDescription>
-                                Evolución mensual de estudios aplicando los filtros actuales
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="h-80">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={datos.tendencia_5_anios}>
-                                        <defs>
-                                            <linearGradient id="colorTendencia" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
-                                                <stop offset="50%" stopColor="#3B82F6" stopOpacity={0.4}/>
-                                                <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.1}/>
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
-                                        <XAxis 
-                                            dataKey="mes" 
-                                            tick={{ fontSize: 11 }}
-                                            angle={-45}
-                                            textAnchor="end"
-                                            height={60}
-                                        />
-                                        <YAxis />
-                                        <RechartsTooltip content={<CustomTooltip />} />
-                                        <Area 
-                                            type="monotone" 
-                                            dataKey="total" 
-                                            stroke="#3B82F6" 
-                                            strokeWidth={3}
-                                            fillOpacity={1} 
-                                            fill="url(#colorTendencia)"
-                                        />
-                                    </AreaChart>
-                                </ResponsiveContainer>
                             </div>
-                        </CardContent>
-                    </Card>
 
-                    {/* Comparativa por Tipos de Estudio */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Activity className="h-5 w-5" />
-                                Comparativa por Tipos de Estudio (Últimos 5 años)
-                                <Tooltip>
-                                    <TooltipTrigger>
-                                        <HelpCircle className="h-4 w-4 text-gray-400" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Evolución mensual separada por cada tipo de estudio</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </CardTitle>
-                            <CardDescription>
-                                Evolución mensual separada por cada tipo de estudio
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="h-80">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={datos.comparativa_tipos.datos}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis 
-                                            dataKey="mes"
-                                            tick={{ fontSize: 10 }}
-                                            angle={-45}
-                                            textAnchor="end"
-                                            height={60}
-                                        />
-                                        <YAxis />
-                                        <RechartsTooltip content={<CustomTooltip />} />
-                                        <Legend />
-                                        {datos.comparativa_tipos.tipos_estudio.map((tipo, index) => (
-                                            <Line 
-                                                key={tipo}
-                                                type="monotone" 
-                                                dataKey={tipo} 
-                                                stroke={lineColors[index % lineColors.length]}
-                                                strokeWidth={2}
-                                                dot={{ r: 3 }}
-                                                name={tipo}
-                                            />
-                                        ))}
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Título para separar - Comparativa y Predicción */}
-                    <div className="border-t pt-6">
-                        <div className="text-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-900 mb-2">Posibles errores</h2>
-                            <p className="text-gray-600">Busqueda de estudios con datos no capturados</p>
-                        </div>
-                    </div>
-
-                    {/* Estudios Faltantes - Nueva sección */}
-                        {datos.estudios_faltantes && datos.estudios_faltantes.length > 0 && (
-                            <>
-                                <div className="border-t pt-6">
-                                    <div className="text-center mb-6">
-                                        <h2 className="text-2xl font-bold text-red-700 mb-2">⚠️ Estudios Faltantes Detectados</h2>
-                                        <p className="text-gray-600">
-                                            Se detectaron {datos.estudios_faltantes.length} estudios que deberían aparecer en los resultados pero fueron filtrados
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <Card className="border-red-200 bg-red-50">
+                            {/* Top 10 - Tercera fila */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {/* Top Instituciones con tabla completa */}
+                                <Card>
                                     <CardHeader>
-                                        <CardTitle className="flex items-center gap-2 text-red-700">
-                                            <Activity className="h-5 w-5" />
-                                            Estudios que no aparecen en los filtros actuales
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Building2 className="h-5 w-5" />
+                                            Top 10 Instituciones
                                             <Tooltip>
                                                 <TooltipTrigger>
-                                                    <HelpCircle className="h-4 w-4 text-red-400" />
+                                                    <HelpCircle className="h-4 w-4 text-gray-400" />
                                                 </TooltipTrigger>
                                                 <TooltipContent>
-                                                    <p>Estos estudios están en secuencias numéricas de los resultados pero no aparecen por diferencias en fechas u otros campos</p>
+                                                    <p>Las 10 instituciones con más estudios en el período</p>
                                                 </TooltipContent>
                                             </Tooltip>
                                         </CardTitle>
                                         <CardDescription>
-                                            Estudios que forman parte de la secuencia numérica pero no cumplen con los filtros aplicados
+                                            Instituciones con mayor número de estudios
                                         </CardDescription>
                                     </CardHeader>
-                                    <CardContent>
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full border-collapse">
-                                                <thead>
-                                                    <tr className="border-b border-red-200">
-                                                        <th className="text-left py-2 px-3 font-semibold text-red-700">Clave Interna</th>
-                                                        <th className="text-left py-2 px-3 font-semibold text-red-700">Prefijo</th>
-                                                        <th className="text-left py-2 px-3 font-semibold text-red-700">Año</th>
-                                                        <th className="text-left py-2 px-3 font-semibold text-red-700">Seriado</th>
-                                                        <th className="text-left py-2 px-3 font-semibold text-red-700">Fecha Recepción</th>
-                                                        <th className="text-left py-2 px-3 font-semibold text-red-700">Tipo Estudio</th>
-                                                        <th className="text-left py-2 px-3 font-semibold text-red-700">Estado</th>
-                                                        <th className="text-left py-2 px-3 font-semibold text-red-700">Razón</th>
-                                                        <th className="text-left py-2 px-3 font-semibold text-red-700">Acción</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {datos.estudios_faltantes.map((estudio, index) => (
-                                                        <tr key={index} className="border-b border-red-100 hover:bg-red-100">
-                                                            <td className="py-2 px-3 font-mono text-sm">{estudio.clave_interna}</td>
-                                                            <td className="py-2 px-3">{estudio.clave}</td>
-                                                            <td className="py-2 px-3">{estudio.anio}</td>
-                                                            <td className="py-2 px-3 font-bold">{estudio.seriado}</td>
-                                                            <td className="py-2 px-3 text-sm">
-                                                                {estudio.fecha_recepcion ? 
-                                                                    new Date(estudio.fecha_recepcion).toLocaleDateString('es-ES') : 
-                                                                    'Sin fecha'
-                                                                }
-                                                            </td>
-                                                            <td className="py-2 px-3 text-sm">{estudio.tipo_estudio}</td>
-                                                            <td className="py-2 px-3 text-sm">{estudio.estado}</td>
-                                                            <td className="py-2 px-3 text-xs text-red-600">{estudio.razon_faltante}</td>
-                                                            <td className="py-2 px-3">
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    className="border-red-300 text-red-700 hover:bg-red-100"
-                                                                    onClick={() => window.open(estudio.url, '_blank')}
-                                                                >
-                                                                    Ver Estudio
-                                                                </Button>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
+                                    <CardContent className="space-y-4">
+                                        <div className="h-48">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={datos.top_instituciones}>
+                                                    <CartesianGrid strokeDasharray="3 3" />
+                                                    <XAxis 
+                                                        dataKey="name" 
+                                                        angle={-45} 
+                                                        textAnchor="end" 
+                                                        height={80}
+                                                        interval={0}
+                                                        tick={{ fontSize: 10 }}
+                                                    />
+                                                    <YAxis />
+                                                    <RechartsTooltip content={<CustomTooltip />} />
+                                                    <Bar dataKey="value" fill="#3B82F6" />
+                                                </BarChart>
+                                            </ResponsiveContainer>
                                         </div>
                                         
-                                        <div className="mt-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
-                                            <p className="text-sm text-yellow-800">
-                                                <strong>💡 Sugerencia:</strong> Estos estudios no aparecen en los resultados actuales porque no cumplen con uno o más filtros. 
-                                                Revisa las fechas de recepción, tipos de estudio o estados para determinar si necesitan corrección.
-                                            </p>
+                                        {/* Tabla completa de todas las instituciones */}
+                                        <div className="border rounded-lg overflow-hidden">
+                                            <div className="bg-gray-50 px-4 py-2 font-semibold text-sm">
+                                                Todas las Instituciones ({datos.todas_instituciones.length})
+                                            </div>
+                                            <div className="max-h-64 overflow-y-auto">
+                                                {datos.todas_instituciones.map((item, index) => {
+                                                    const total = datos.todas_instituciones.reduce((sum, i) => sum + i.value, 0);
+                                                    const porcentaje = ((item.value / total) * 100).toFixed(1);
+                                                    
+                                                    return (
+                                                        <div key={index} className="flex justify-between items-center px-4 py-2 border-b border-gray-100 text-sm hover:bg-gray-50">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-xs font-bold min-w-[30px] text-center">
+                                                                    {index + 1}
+                                                                </span>
+                                                                <span className="font-medium">{item.name}</span>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <span className="font-bold text-[#189BAF]">{item.value}</span>
+                                                                <span className="text-gray-500 text-xs ml-2">({porcentaje}%)</span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            <div className="bg-gray-50 px-4 py-2 font-bold text-sm">
+                                                Total: {datos.todas_instituciones.reduce((sum, item) => sum + item.value, 0)}
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
-                            </>
-                        )}
 
-                    {/* Título para separar - Comparativa y Predicción */}
-                    <div className="border-t pt-6">
-                        <div className="text-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-900 mb-2">Comparativa y Predicción</h2>
-                            <p className="text-gray-600">Análisis comparativo con datos históricos y proyecciones futuras</p>
-                        </div>
-                    </div>
-
-                    {/* Comparación y Predicciones - Quinta fila */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Comparación 2 años */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <TrendingUp className="h-5 w-5" />
-                                    Comparación con hace 2 años
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <HelpCircle className="h-4 w-4 text-gray-400" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Comparación del período actual vs el mismo período hace 2 años</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </CardTitle>
-                                <CardDescription>
-                                    Comparación con el mismo período hace 2 años
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-6">
-                                    {/* Métricas principales */}
-                                    <div className="grid grid-cols-3 gap-4">
-                                        <div className="bg-blue-50 p-4 rounded-lg">
-                                            <p className="text-sm text-gray-600">Período Actual</p>
-                                            <p className="text-2xl font-bold text-blue-600">{datos.comparacion_3_periodos.actual}</p>
-                                        </div>
-                                        <div className="bg-gray-50 p-4 rounded-lg">
-                                            <p className="text-sm text-gray-600">Hace 1 año</p>
-                                            <p className="text-2xl font-bold text-gray-600">{datos.comparacion_3_periodos.hace_1_anio}</p>
-                                        </div>
-                                        <div className="bg-gray-100 p-4 rounded-lg">
-                                            <p className="text-sm text-gray-600">Hace 2 años</p>
-                                            <p className="text-2xl font-bold text-gray-700">{datos.comparacion_3_periodos.hace_2_anios}</p>
-                                        </div>
-                                    </div>
-
-                                    {/* Gráfica comparativa mensual */}
-                                    <div className="h-48">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart data={datos.comparacion_3_periodos.comparacion_mensual}>
-                                                <CartesianGrid strokeDasharray="3 3" />
-                                                <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-                                                <YAxis />
-                                                <RechartsTooltip content={<CustomTooltip />} />
-                                                <Bar dataKey="estudios_actual" fill="#3B82F6" name="Actual" />
-                                                <Bar dataKey="estudios_1_anio" fill="#10B981" name="Hace 1 año" />
-                                                <Bar dataKey="estudios_2_anios" fill="#9CA3AF" name="Hace 2 años" />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Predicciones mejoradas */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Target className="h-5 w-5" />
-                                    Análisis Predictivo
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <HelpCircle className="h-4 w-4 text-gray-400" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Predicción para el siguiente mes basada en datos históricos</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </CardTitle>
-                                <CardDescription>
-                                    Proyección para el siguiente mes basada en patrones históricos
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-6">
-                                    {/* Predicción del mes siguiente */}
-                                    <div className="bg-gradient-to-r from-[#189BAF]/10 to-[#157a8c]/10 p-6 rounded-lg border border-[#189BAF]/20">
-                                        <div className="text-center space-y-3">
-                                            <p className="text-sm text-gray-600">Predicción para</p>
-                                            <p className="text-xl font-semibold text-[#189BAF]">
-                                                {datos.predicciones.mes_siguiente}
-                                            </p>
-                                            <div className="space-y-2">
-                                                <p className="text-5xl font-bold text-[#189BAF]">
-                                                    {datos.predicciones.prediccion_mes_siguiente}
-                                                </p>
-                                                <p className="text-sm text-gray-600">
-                                                    estudios estimados
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Estadísticas del análisis */}
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="bg-purple-50 p-4 rounded-lg">
-                                            <p className="text-sm text-gray-600">Años analizados</p>
-                                            <p className="text-2xl font-bold text-purple-600">
-                                                {datos.predicciones.anios_analizados}
-                                            </p>
-                                            <p className="text-xs text-gray-500 mt-1">
-                                                Datos históricos
-                                            </p>
+                                {/* Top Estados con tabla completa */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <MapPin className="h-5 w-5" />
+                                            Top 10 Estados
+                                            <Tooltip>
+                                                <TooltipTrigger>
+                                                    <HelpCircle className="h-4 w-4 text-gray-400" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Los 10 estados con más estudios en el período</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Estados con mayor número de estudios
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="h-48">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={datos.top_estados}>
+                                                    <CartesianGrid strokeDasharray="3 3" />
+                                                    <XAxis 
+                                                        dataKey="name" 
+                                                        angle={-45} 
+                                                        textAnchor="end" 
+                                                        height={60}
+                                                        interval={0}
+                                                        tick={{ fontSize: 11 }}
+                                                    />
+                                                    <YAxis />
+                                                    <RechartsTooltip content={<CustomTooltip />} />
+                                                    <Bar dataKey="value" fill="#10B981" />
+                                                </BarChart>
+                                            </ResponsiveContainer>
                                         </div>
                                         
-                                        <div className="bg-blue-50 p-4 rounded-lg">
-                                            <p className="text-sm text-gray-600">Mes objetivo</p>
-                                            <p className="text-2xl font-bold text-blue-600">
-                                                {new Date().toLocaleDateString('es-ES', { month: 'long' }).charAt(0).toUpperCase() + 
-                                                new Date().toLocaleDateString('es-ES', { month: 'long' }).slice(1)}
-                                            </p>
-                                            <p className="text-xs text-gray-500 mt-1">
-                                                {new Date().getFullYear() + 1}
-                                            </p>
+                                        {/* Tabla completa de todos los estados */}
+                                        <div className="border rounded-lg overflow-hidden">
+                                            <div className="bg-gray-50 px-4 py-2 font-semibold text-sm">
+                                                Todos los Estados ({datos.todos_estados.length})
+                                            </div>
+                                            <div className="max-h-64 overflow-y-auto">
+                                                {datos.todos_estados.map((item, index) => {
+                                                    const total = datos.todos_estados.reduce((sum, i) => sum + i.value, 0);
+                                                    const porcentaje = ((item.value / total) * 100).toFixed(1);
+                                                    
+                                                    return (
+                                                        <div key={index} className="flex justify-between items-center px-4 py-2 border-b border-gray-100 text-sm hover:bg-gray-50">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-xs font-bold min-w-[30px] text-center">
+                                                                    {index + 1}
+                                                                </span>
+                                                                <span className="font-medium">{item.name}</span>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <span className="font-bold text-green-600">{item.value}</span>
+                                                                <span className="text-gray-500 text-xs ml-2">({porcentaje}%)</span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            <div className="bg-gray-50 px-4 py-2 font-bold text-sm">
+                                                Total: {datos.todos_estados.reduce((sum, item) => sum + item.value, 0)}
+                                            </div>
                                         </div>
-                                    </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
 
-                                    {/* Descripción del método */}
-                                    <div className="bg-gray-50 p-4 rounded-lg">
-                                        <h4 className="font-semibold text-sm mb-3">Metodología de Predicción</h4>
-                                        <div className="text-xs text-gray-700 space-y-2">
-                                            <p>• <strong>Análisis estacional:</strong> Se analizan los datos del mismo mes en años anteriores</p>
-                                            <p>• <strong>Filtros aplicados:</strong> La predicción respeta todos los filtros activos actuales</p>
-                                            <p>• <strong>Promedio histórico:</strong> Se calcula el promedio de estudios en el mes objetivo</p>
-                                            
-                                            <div className="border-t pt-2 mt-3">
-                                                <p className="text-blue-700 bg-blue-50 p-2 rounded">
-                                                    <strong>Nota:</strong> La predicción se basa en el promedio de {datos.predicciones.anios_analizados} años de datos históricos para el mes de {datos.predicciones.mes_siguiente.split(' ')[0]}.
+                            {/* Título para separar - Análisis Histórico */}
+                            <div className="border-t pt-6">
+                                <div className="text-center mb-6">
+                                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Análisis Histórico</h2>
+                                    <p className="text-gray-600">Datos de los últimos 5 años con filtros aplicados</p>
+                                </div>
+                            </div>
+
+                            {/* Tendencia Histórica 5 Años - Cuarta fila */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <TrendingUp className="h-5 w-5" />
+                                        Tendencia Histórica (Últimos 5 años)
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <HelpCircle className="h-4 w-4 text-gray-400" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Evolución mensual de estudios aplicando los filtros actuales</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Evolución mensual de estudios aplicando los filtros actuales
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="h-80">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <AreaChart data={datos.tendencia_5_anios}>
+                                                <defs>
+                                                    <linearGradient id="colorTendencia" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
+                                                        <stop offset="50%" stopColor="#3B82F6" stopOpacity={0.4}/>
+                                                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.1}/>
+                                                    </linearGradient>
+                                                </defs>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
+                                                <XAxis 
+                                                    dataKey="mes" 
+                                                    tick={{ fontSize: 11 }}
+                                                    angle={-45}
+                                                    textAnchor="end"
+                                                    height={60}
+                                                />
+                                                <YAxis />
+                                                <RechartsTooltip content={<CustomTooltip />} />
+                                                <Area 
+                                                    type="monotone" 
+                                                    dataKey="total" 
+                                                    stroke="#3B82F6" 
+                                                    strokeWidth={3}
+                                                    fillOpacity={1} 
+                                                    fill="url(#colorTendencia)"
+                                                />
+                                            </AreaChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Comparativa por Tipos de Estudio */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Activity className="h-5 w-5" />
+                                        Comparativa por Tipos de Estudio (Últimos 5 años)
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <HelpCircle className="h-4 w-4 text-gray-400" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Evolución mensual separada por cada tipo de estudio</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Evolución mensual separada por cada tipo de estudio
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="h-80">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={datos.comparativa_tipos.datos}>
+                                                <CartesianGrid strokeDasharray="3 3" />
+                                                <XAxis 
+                                                    dataKey="mes"
+                                                    tick={{ fontSize: 10 }}
+                                                    angle={-45}
+                                                    textAnchor="end"
+                                                    height={60}
+                                                />
+                                                <YAxis />
+                                                <RechartsTooltip content={<CustomTooltip />} />
+                                                <Legend />
+                                                {datos.comparativa_tipos.tipos_estudio.map((tipo, index) => (
+                                                    <Line 
+                                                        key={tipo}
+                                                        type="monotone" 
+                                                        dataKey={tipo} 
+                                                        stroke={lineColors[index % lineColors.length]}
+                                                        strokeWidth={2}
+                                                        dot={{ r: 3 }}
+                                                        name={tipo}
+                                                    />
+                                                ))}
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Título para separar - Comparativa y Predicción */}
+                            <div className="border-t pt-6">
+                                <div className="text-center mb-6">
+                                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Posibles errores</h2>
+                                    <p className="text-gray-600">Busqueda de estudios con datos no capturados</p>
+                                </div>
+                            </div>
+
+                            {/* Estudios Faltantes - Nueva sección */}
+                                {datos.estudios_faltantes && datos.estudios_faltantes.length > 0 && (
+                                    <>
+                                        <div className="border-t pt-6">
+                                            <div className="text-center mb-6">
+                                                <h2 className="text-2xl font-bold text-red-700 mb-2">⚠️ Estudios Faltantes Detectados</h2>
+                                                <p className="text-gray-600">
+                                                    Se detectaron {datos.estudios_faltantes.length} estudios que deberían aparecer en los resultados pero fueron filtrados
                                                 </p>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
 
+                                        <Card className="border-red-200 bg-red-50">
+                                            <CardHeader>
+                                                <CardTitle className="flex items-center gap-2 text-red-700">
+                                                    <Activity className="h-5 w-5" />
+                                                    Estudios que no aparecen en los filtros actuales
+                                                    <Tooltip>
+                                                        <TooltipTrigger>
+                                                            <HelpCircle className="h-4 w-4 text-red-400" />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Estos estudios están en secuencias numéricas de los resultados pero no aparecen por diferencias en fechas u otros campos</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </CardTitle>
+                                                <CardDescription>
+                                                    Estudios que forman parte de la secuencia numérica pero no cumplen con los filtros aplicados
+                                                </CardDescription>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full border-collapse text-sm">
+                                                        <thead>
+                                                            <tr className="border-b bg-gray-50">
+                                                                <th className="text-left py-2 px-3 font-semibold text-gray-700 w-6">#</th>
+                                                                <th className="text-left py-2 px-3 font-semibold text-gray-700">Clave Interna</th>
+                                                                <th className="text-left py-2 px-3 font-semibold text-gray-700">Tipo Estudio</th>
+                                                                <th className="text-left py-2 px-3 font-semibold text-gray-700">Estado</th>
+                                                                <th className="text-center py-2 px-3 font-semibold text-orange-600" title="Solicitud Recolección">📅 Solicitud</th>
+                                                                <th className="text-center py-2 px-3 font-semibold text-blue-600" title="Recepción">📦 Recepción</th>
+                                                                <th className="text-center py-2 px-3 font-semibold text-purple-600" title="Recepción Laboratorio">🧪 Lab.</th>
+                                                                <th className="text-center py-2 px-3 font-semibold text-green-600" title="Obtención Resultados">📊 Resultados</th>
+                                                                <th className="text-center py-2 px-3 font-semibold text-teal-600" title="Resultados Enviados">📧 Enviados</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {datos.estudios_periodo.map((estudio, index) => {
+                                                                const fmt = (f: string | null) =>
+                                                                    f ? f.split('T')[0].split(' ')[0] : null;
+
+                                                                const Celda = ({ fecha }: { fecha: string | null }) => {
+                                                                    const d = fmt(fecha);
+                                                                    return (
+                                                                        <td className="py-2 px-3 text-center">
+                                                                            {d ? (
+                                                                                <span className="text-xs text-gray-700">{d}</span>
+                                                                            ) : (
+                                                                                <span className="text-gray-300 text-xs">—</span>
+                                                                            )}
+                                                                        </td>
+                                                                    );
+                                                                };
+
+                                                                return (
+                                                                    <tr
+                                                                        key={estudio.id}
+                                                                        className="border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors"
+                                                                        onClick={() =>
+                                                                            window.open(
+                                                                                `/estudios?prefijo=${estudio.clave}&search=${estudio.clave_interna}`,
+                                                                                '_blank'
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <td className="py-2 px-3 text-gray-400 text-xs">{index + 1}</td>
+                                                                        <td className="py-2 px-3 font-mono font-semibold text-[#189BAF]">
+                                                                            {estudio.clave_interna}
+                                                                        </td>
+                                                                        <td className="py-2 px-3 text-gray-600 text-xs">{estudio.tipo_estudio}</td>
+                                                                        <td className="py-2 px-3">
+                                                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                                                estudio.estado === 'Resultados Enviados'
+                                                                                    ? 'bg-green-100 text-green-700'
+                                                                                    : estudio.estado === 'Sin estado'
+                                                                                    ? 'bg-gray-100 text-gray-500'
+                                                                                    : 'bg-orange-100 text-orange-700'
+                                                                            }`}>
+                                                                                {estudio.estado}
+                                                                            </span>
+                                                                        </td>
+                                                                        <Celda fecha={estudio.fecha_solicitud_recoleccion} />
+                                                                        <Celda fecha={estudio.fecha_recepcion} />
+                                                                        <Celda fecha={estudio.fecha_recepcion_laboratorio} />
+                                                                        <Celda fecha={estudio.fecha_obtencion_resultados} />
+                                                                        <Celda fecha={estudio.fecha_resultados_correo} />
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                
+                                                <div className="mt-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
+                                                    <p className="text-sm text-yellow-800">
+                                                        <strong>💡 Sugerencia:</strong> Estos estudios no aparecen en los resultados actuales porque no cumplen con uno o más filtros. 
+                                                        Revisa las fechas de recepción, tipos de estudio o estados para determinar si necesitan corrección.
+                                                    </p>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </>
+                                )}
+
+                            {/* Título para separar - Comparativa y Predicción */}
+                            <div className="border-t pt-6">
+                                <div className="text-center mb-6">
+                                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Comparativa y Predicción</h2>
+                                    <p className="text-gray-600">Análisis comparativo con datos históricos y proyecciones futuras</p>
+                                </div>
+                            </div>
+
+                            {/* Comparación y Predicciones - Quinta fila */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {/* Comparación 2 años */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <TrendingUp className="h-5 w-5" />
+                                            Comparación con hace 2 años
+                                            <Tooltip>
+                                                <TooltipTrigger>
+                                                    <HelpCircle className="h-4 w-4 text-gray-400" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Comparación del período actual vs el mismo período hace 2 años</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Comparación con el mismo período hace 2 años
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="space-y-6">
+                                            {/* Métricas principales */}
+                                            <div className="grid grid-cols-3 gap-4">
+                                                <div className="bg-blue-50 p-4 rounded-lg">
+                                                    <p className="text-sm text-gray-600">Período Actual</p>
+                                                    <p className="text-2xl font-bold text-blue-600">{datos.comparacion_3_periodos.actual}</p>
+                                                </div>
+                                                <div className="bg-gray-50 p-4 rounded-lg">
+                                                    <p className="text-sm text-gray-600">Hace 1 año</p>
+                                                    <p className="text-2xl font-bold text-gray-600">{datos.comparacion_3_periodos.hace_1_anio}</p>
+                                                </div>
+                                                <div className="bg-gray-100 p-4 rounded-lg">
+                                                    <p className="text-sm text-gray-600">Hace 2 años</p>
+                                                    <p className="text-2xl font-bold text-gray-700">{datos.comparacion_3_periodos.hace_2_anios}</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Gráfica comparativa mensual */}
+                                            <div className="h-48">
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <BarChart data={datos.comparacion_3_periodos.comparacion_mensual}>
+                                                        <CartesianGrid strokeDasharray="3 3" />
+                                                        <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
+                                                        <YAxis />
+                                                        <RechartsTooltip content={<CustomTooltip />} />
+                                                        <Bar dataKey="estudios_actual" fill="#3B82F6" name="Actual" />
+                                                        <Bar dataKey="estudios_1_anio" fill="#10B981" name="Hace 1 año" />
+                                                        <Bar dataKey="estudios_2_anios" fill="#9CA3AF" name="Hace 2 años" />
+                                                    </BarChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Predicciones mejoradas */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Target className="h-5 w-5" />
+                                            Análisis Predictivo
+                                            <Tooltip>
+                                                <TooltipTrigger>
+                                                    <HelpCircle className="h-4 w-4 text-gray-400" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Predicción para el siguiente mes basada en datos históricos</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Proyección para el siguiente mes basada en patrones históricos
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="space-y-6">
+                                            {/* Predicción del mes siguiente */}
+                                            <div className="bg-gradient-to-r from-[#189BAF]/10 to-[#157a8c]/10 p-6 rounded-lg border border-[#189BAF]/20">
+                                                <div className="text-center space-y-3">
+                                                    <p className="text-sm text-gray-600">Predicción para</p>
+                                                    <p className="text-xl font-semibold text-[#189BAF]">
+                                                        {datos.predicciones.mes_siguiente}
+                                                    </p>
+                                                    <div className="space-y-2">
+                                                        <p className="text-5xl font-bold text-[#189BAF]">
+                                                            {datos.predicciones.prediccion_mes_siguiente}
+                                                        </p>
+                                                        <p className="text-sm text-gray-600">
+                                                            estudios estimados
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Estadísticas del análisis */}
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="bg-purple-50 p-4 rounded-lg">
+                                                    <p className="text-sm text-gray-600">Años analizados</p>
+                                                    <p className="text-2xl font-bold text-purple-600">
+                                                        {datos.predicciones.anios_analizados}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500 mt-1">
+                                                        Datos históricos
+                                                    </p>
+                                                </div>
+                                                
+                                                <div className="bg-blue-50 p-4 rounded-lg">
+                                                    <p className="text-sm text-gray-600">Mes objetivo</p>
+                                                    <p className="text-2xl font-bold text-blue-600">
+                                                        {new Date().toLocaleDateString('es-ES', { month: 'long' }).charAt(0).toUpperCase() + 
+                                                        new Date().toLocaleDateString('es-ES', { month: 'long' }).slice(1)}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500 mt-1">
+                                                        {new Date().getFullYear() + 1}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {/* Descripción del método */}
+                                            <div className="bg-gray-50 p-4 rounded-lg">
+                                                <h4 className="font-semibold text-sm mb-3">Metodología de Predicción</h4>
+                                                <div className="text-xs text-gray-700 space-y-2">
+                                                    <p>• <strong>Análisis estacional:</strong> Se analizan los datos del mismo mes en años anteriores</p>
+                                                    <p>• <strong>Filtros aplicados:</strong> La predicción respeta todos los filtros activos actuales</p>
+                                                    <p>• <strong>Promedio histórico:</strong> Se calcula el promedio de estudios en el mes objetivo</p>
+                                                    
+                                                    <div className="border-t pt-2 mt-3">
+                                                        <p className="text-blue-700 bg-blue-50 p-2 rounded">
+                                                            <strong>Nota:</strong> La predicción se basa en el promedio de {datos.predicciones.anios_analizados} años de datos históricos para el mes de {datos.predicciones.mes_siguiente.split(' ')[0]}.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </TabsContent>
+
+                        {/* TAB 2: tabla de estudios */}
+                        <TabsContent value="estudios" className="mt-4">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <TestTube className="h-5 w-5" />
+                                        Estudios del período
+                                    </CardTitle>
+                                    <CardDescription>
+                                        {datos.estudios_periodo.length} estudios encontrados — haz clic en cualquier fila para verlo en el listado
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full border-collapse text-sm">
+                                            <thead>
+                                                <tr className="border-b bg-gray-50">
+                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700">#</th>
+                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700">Código Interno</th>
+                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700">Tipo de Muestra</th>
+                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700">📅 Recolección</th>
+                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700">📦 Recepción</th>
+                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700">🧪 Laboratorio</th>
+                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700">📊 Resultados</th>
+                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700">📧 Reporte</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {datos.estudios_periodo.map((estudio, index) => {
+                                                    const fmt = (f: string | null) =>
+                                                        f ? f.split('T')[0].split(' ')[0] : null;
+
+                                                    // Colores progresivos del proceso: rojo → naranja → amarillo → verde claro → verde
+                                                    const stepColors = [
+                                                        'bg-red-100 text-red-800',
+                                                        'bg-orange-100 text-orange-800',
+                                                        'bg-yellow-100 text-yellow-800',
+                                                        'bg-emerald-100 text-emerald-800',
+                                                        'bg-green-200 text-green-900',
+                                                    ];
+
+                                                    const Celda = ({ fecha, step }: { fecha: string | null; step: number }) => {
+                                                        const d = fmt(fecha);
+                                                        return d ? (
+                                                            <td className={`py-2 px-3 ${stepColors[step]}`}>
+                                                                <span className="text-xs font-medium">{d}</span>
+                                                            </td>
+                                                        ) : (
+                                                            <td className="py-2 px-3 bg-gray-50" />
+                                                        );
+                                                    };
+
+                                                    return (
+                                                        <tr
+                                                            key={estudio.id}
+                                                            className="border-b border-gray-100 hover:brightness-95 cursor-pointer transition-all"
+                                                            onClick={() =>
+                                                                window.open(
+                                                                    `/estudios?prefijo=${estudio.clave}&search=${estudio.clave_interna}`,
+                                                                    '_blank'
+                                                                )
+                                                            }
+                                                        >
+                                                            <td className="py-2 px-3 text-gray-400 text-xs">{index + 1}</td>
+                                                            <td className="py-2 px-3 font-mono font-semibold text-[#189BAF]">
+                                                                {estudio.clave_interna}
+                                                            </td>
+                                                            <td className="py-2 px-3 text-xs text-gray-600">{estudio.tipo_estudio}</td>
+                                                            <Celda fecha={estudio.fecha_solicitud_recoleccion} step={0} />
+                                                            <Celda fecha={estudio.fecha_recepcion} step={1} />
+                                                            <Celda fecha={estudio.fecha_recepcion_laboratorio} step={2} />
+                                                            <Celda fecha={estudio.fecha_obtencion_resultados} step={3} />
+                                                            <Celda fecha={estudio.fecha_resultados_correo} step={4} />
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                    </Tabs>
 
                 </div>
             </AppLayout>

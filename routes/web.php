@@ -15,6 +15,8 @@ use App\Http\Controllers\EstudioInsumoController;
 use App\Http\Controllers\DashboardExportController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\ReporteAccesoController;
+use App\Http\Controllers\GrupoFolioKitController;
+use App\Http\Controllers\FolioKitController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -368,6 +370,31 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('insumos/reporte/costos', function() {
         return Inertia::render('Insumos/Reportes/Costos');
     })->name('insumos.reporte.costos');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Folios Kits
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('folios-kits/buscar', [FolioKitController::class, 'buscar'])->name('folios-kits.buscar');
+    Route::post('folios-kits/{folioKit}/confirmar', [FolioKitController::class, 'confirmar'])->name('folios-kits.confirmar');
+
+    // Folios individuales (sin resource completo, se manejan desde la vista del grupo)
+    Route::patch('folios-kits/{folioKit}/estado', [FolioKitController::class, 'updateEstado'])
+        ->name('folios-kits.update-estado');
+    Route::post('folios-kits', [FolioKitController::class, 'store'])
+        ->name('folios-kits.store');
+    Route::patch('folios-kits/{folioKit}', [FolioKitController::class, 'update'])
+        ->name('folios-kits.update');
+    Route::delete('folios-kits/{folioKit}', [FolioKitController::class, 'destroy'])
+        ->name('folios-kits.destroy');
+    Route::get('folios-kits', [FolioKitController::class, 'index'])
+        ->name('folios-kits.index');
+
+    // Grupos de folios kits (CRUD completo)
+    Route::resource('grupos-folios-kits', GrupoFolioKitController::class)
+        ->parameters(['grupos-folios-kits' => 'grupoFolioKit']);
 
 
     /*

@@ -201,6 +201,7 @@ export interface EstudioFilters extends BaseFilters {
     muestra_clave?: string;
     muestra_folio_sobre?: string;
     muestra_folio_kit_bl?: string;
+    muestra_tipo_estudio?: string;
 }
 
 // Props para componentes de estudios

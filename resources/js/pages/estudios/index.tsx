@@ -31,6 +31,7 @@ export default function EstudiosIndex() {
     const [muestraClave, setMuestraClave] = useState(filters?.muestra_clave || '');
     const [muestraFolioSobre, setMuestraFolioSobre] = useState(filters?.muestra_folio_sobre || '');
     const [muestraFolioKitBl, setMuestraFolioKitBl] = useState(filters?.muestra_folio_kit_bl || '');
+    const [muestraTipoEstudio, setMuestraTipoEstudio] = useState(filters?.muestra_tipo_estudio || '');
 
     // Estados para cambio de destinatario
     const [correoDestinatario, setCorreoDestinatario] = useState('');
@@ -600,6 +601,7 @@ export default function EstudiosIndex() {
             if (muestraClave) searchParams.muestra_clave = muestraClave;
             if (muestraFolioSobre) searchParams.muestra_folio_sobre = muestraFolioSobre;
             if (muestraFolioKitBl) searchParams.muestra_folio_kit_bl = muestraFolioKitBl;
+            if (muestraTipoEstudio) searchParams.muestra_tipo_estudio = muestraTipoEstudio;
         }
         
         // Filtros adicionales
@@ -637,6 +639,7 @@ export default function EstudiosIndex() {
         setMuestraClave('');
         setMuestraFolioSobre('');
         setMuestraFolioKitBl('');
+        setMuestraTipoEstudio('');
         
         router.get('/estudios', { 
             prefijo: prefijo || 'PRM'
@@ -675,28 +678,32 @@ export default function EstudiosIndex() {
     };
     
     // Función para renderizar el estado de envíos
-    const renderEstadoEnvios = (estadisticas: any) => {
+    const renderEstadoEnvios = (estadisticas: any, estudio: any) => {
     if (!estadisticas || estadisticas.total === 0) {
         return (
             <div className="text-center text-gray-400">
-                <Mail className="h-4 w-4 mx-auto mb-1" />
-                <div className="text-xs">Sin envíos</div>
+                <a href={`/estudios/${estudio.ID}/envios-correos`}>
+                    <Mail className="h-4 w-4 mx-auto mb-1" />
+                    <div className="text-xs">Sin envíos</div>
+                </a>
             </div>
         );
     }
 
     return (
         <div className="text-center">
-            <div className="flex items-center justify-center space-x-1 mb-1">
-                <span className="text-sm font-medium text-blue-600">
-                    {estadisticas.total}
-                </span>
-                <Mail className="h-4 w-4 text-blue-500" />
-            </div>
-            
-            <div className="text-xs text-gray-500">
-                {estadisticas.total === 1 ? 'correo enviado' : 'correos enviados'}
-            </div>
+            <a href={`/estudios/${estudio.ID}/envios-correos`}>
+                <div className="flex items-center justify-center space-x-1 mb-1">
+                    <span className="text-sm font-medium text-blue-600">
+                        {estadisticas.total}
+                    </span>
+                    <Mail className="h-4 w-4 text-blue-500" />
+                </div>
+                
+                <div className="text-xs text-gray-500">
+                    {estadisticas.total === 1 ? 'correo enviado' : 'correos enviados'}
+                </div>
+            </a>
         </div>
     );
 };
@@ -778,7 +785,7 @@ export default function EstudiosIndex() {
 
                             {/* Estado de envíos compacto */}
                             <div className="text-xs">
-                                {renderEstadoEnvios(estudio.estadisticas_envios)}
+                                {renderEstadoEnvios(estudio.estadisticas_envios, estudio)}
                             </div>
                         </div>
                     </div>
@@ -854,11 +861,11 @@ export default function EstudiosIndex() {
                                             <span>Imprimir</span>
                                         </button>
                                         <Link
-                                            href={`/estudios/${estudio.ID}/envios-correos`}
+                                            href={`/estudios/${estudio.ID}/edit/informe`}
                                             className="w-full mb-2 flex items-center justify-center space-x-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors"
                                         >
                                             <Mail className="h-4 w-4" />
-                                            <span>Envíos</span>
+                                            <span>Reenviar</span>
                                         </Link>
                                     </div>
                                     <div>
@@ -920,7 +927,7 @@ export default function EstudiosIndex() {
     const hasActiveFilters = searchTerm || selectedEstado || fechaDesde || fechaHasta || 
     pacienteIniciales || pacienteNombre || pacienteApellidos || medicoNombre || 
     medicoApellidos || institucionId || claveInterna || folioMerck || 
-    muestraClave || muestraFolioSobre || muestraFolioKitBl;
+    muestraClave || muestraFolioSobre || muestraFolioKitBl || muestraTipoEstudio;
 
     return (
         <AppLayout>
@@ -1322,206 +1329,138 @@ export default function EstudiosIndex() {
                         </div>
                     </div>
 
-                    {/* Búsqueda Avanzada */}
                     {showAdvancedSearch && (
-                        <div className="mt-6 pt-6 border-t border-gray-200">
-                            <h3 className="text-lg font-medium text-gray-900 mb-4">Búsqueda Avanzada</h3>
-                            
-                            <div className="space-y-6">
-                                {/* Sección Paciente */}
-                                <div>
-                                    <h4 className="text-sm font-medium text-gray-700 mb-3">Paciente</h4>
-                                    <div className={`grid grid-cols-1 ${showMobileView ? 'gap-3' : 'md:grid-cols-3 gap-4'}`}>
-                                        <div>
-                                            <label className="block text-xs text-gray-600 mb-1">Iniciales</label>
-                                            <input
-                                                type="text"
-                                                value={pacienteIniciales}
-                                                onChange={(e) => setPacienteIniciales(e.target.value)}
-                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                                                placeholder="ej: ABC"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-gray-600 mb-1">Nombre</label>
-                                            <input
-                                                type="text"
-                                                value={pacienteNombre}
-                                                onChange={(e) => setPacienteNombre(e.target.value)}
-                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                                                placeholder="Nombre del paciente"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-gray-600 mb-1">Apellidos</label>
-                                            <input
-                                                type="text"
-                                                value={pacienteApellidos}
-                                                onChange={(e) => setPacienteApellidos(e.target.value)}
-                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                                                placeholder="Apellidos del paciente"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
 
-                                {/* Sección Médico */}
-                                <div>
-                                    <h4 className="text-sm font-medium text-gray-700 mb-3">Médico</h4>
-                                    <div className={`grid grid-cols-1 ${showMobileView ? 'gap-3' : 'md:grid-cols-2 gap-4'}`}>
-                                        <div>
-                                            <label className="block text-xs text-gray-600 mb-1">Nombre</label>
-                                            <input
-                                                type="text"
-                                                value={medicoNombre}
-                                                onChange={(e) => setMedicoNombre(e.target.value)}
-                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                                                placeholder="Nombre del médico"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-gray-600 mb-1">Apellidos</label>
-                                            <input
-                                                type="text"
-                                                value={medicoApellidos}
-                                                onChange={(e) => setMedicoApellidos(e.target.value)}
-                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                                                placeholder="Apellidos del médico"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
+                            {/* Paciente */}
+                            <input
+                                type="text"
+                                value={pacienteIniciales}
+                                onChange={(e) => setPacienteIniciales(e.target.value)}
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                placeholder="Iniciales paciente"
+                            />
+                            <input
+                                type="text"
+                                value={pacienteNombre}
+                                onChange={(e) => setPacienteNombre(e.target.value)}
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                placeholder="Nombre paciente"
+                            />
+                            <input
+                                type="text"
+                                value={pacienteApellidos}
+                                onChange={(e) => setPacienteApellidos(e.target.value)}
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                placeholder="Apellidos paciente"
+                            />
+                            <input
+                                type="text"
+                                value={medicoNombre}
+                                onChange={(e) => setMedicoNombre(e.target.value)}
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                placeholder="Nombre médico"
+                            />
+                            <input
+                                type="text"
+                                value={medicoApellidos}
+                                onChange={(e) => setMedicoApellidos(e.target.value)}
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                placeholder="Apellidos médico"
+                            />
+                            <select
+                                value={institucionId}
+                                onChange={(e) => setInstitucionId(e.target.value)}
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                            >
+                                <option value="">Institución</option>
+                                {instituciones?.map((i) => (
+                                    <option key={i.ID_INSTITUCION} value={i.ID_INSTITUCION}>{i.INSTITUCION_NOMBRE}</option>
+                                ))}
+                            </select>
 
-                                {/* Sección Institución */}
-                                <div>
-                                    <h4 className="text-sm font-medium text-gray-700 mb-3">Institución</h4>
-                                    <div className={`grid grid-cols-1 ${showMobileView ? 'gap-3' : 'md:grid-cols-1 gap-4'}`}>
-                                        <div>
-                                            <label className="block text-xs text-gray-600 mb-1">Institución</label>
-                                            <select
-                                                value={institucionId}
-                                                onChange={(e) => setInstitucionId(e.target.value)}
-                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                                            >
-                                                <option value="">Todas las instituciones</option>
-                                                {instituciones?.map((institucion) => (
-                                                    <option key={institucion.ID_INSTITUCION} value={institucion.ID_INSTITUCION}>
-                                                        {institucion.INSTITUCION_NOMBRE}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
+                            <input
+                                type="text"
+                                value={claveInterna}
+                                onChange={(e) => setClaveInterna(e.target.value)}
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                placeholder="Clave interna"
+                            />
+                            <input
+                                type="text"
+                                value={folioMerck}
+                                onChange={(e) => setFolioMerck(e.target.value)}
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                placeholder="Folio Merck"
+                            />
+                            <input
+                                type="text"
+                                value={muestraClave}
+                                onChange={(e) => setMuestraClave(e.target.value)}
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                placeholder="Clave muestra"
+                            />
+                            <input
+                                type="text"
+                                value={muestraFolioSobre}
+                                onChange={(e) => setMuestraFolioSobre(e.target.value)}
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                placeholder="Folio sobre"
+                            />
+                            <input
+                                type="text"
+                                value={muestraFolioKitBl}
+                                onChange={(e) => setMuestraFolioKitBl(e.target.value)}
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                placeholder="Folio Kit BL"
+                            />
+                            <select
+                                value={muestraTipoEstudio}
+                                onChange={(e) => setMuestraTipoEstudio(e.target.value)}
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                            >
+                                <option value="">Tipo de estudio</option>
+                                <option value="Biopsia Sólida">Biopsia Sólida</option>
+                                <option value="Biopsia Líquida">Biopsia Líquida</option>
+                            </select>
 
-                                {/* Sección Estudio */}
-                                <div>
-                                    <h4 className="text-sm font-medium text-gray-700 mb-3">Datos del Estudio</h4>
-                                    <div className={`grid grid-cols-1 ${showMobileView ? 'gap-3' : 'md:grid-cols-3 gap-4'}`}>
-                                        <div>
-                                            <label className="block text-xs text-gray-600 mb-1">Clave Interna</label>
-                                            <input
-                                                type="text"
-                                                value={claveInterna}
-                                                onChange={(e) => setClaveInterna(e.target.value)}
-                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                                                placeholder="Clave interna"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-gray-600 mb-1">Folio Merck</label>
-                                            <input
-                                                type="text"
-                                                value={folioMerck}
-                                                onChange={(e) => setFolioMerck(e.target.value)}
-                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                                                placeholder="Folio Merck"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-gray-600 mb-1">Clave Muestra</label>
-                                            <input
-                                                type="text"
-                                                value={muestraClave}
-                                                onChange={(e) => setMuestraClave(e.target.value)}
-                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                                                placeholder="Clave de muestra"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-gray-600 mb-1">Folio Sobre</label>
-                                            <input
-                                                type="text"
-                                                value={muestraFolioSobre}
-                                                onChange={(e) => setMuestraFolioSobre(e.target.value)}
-                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                                                placeholder="Folio del sobre"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-gray-600 mb-1">Folio Kit BL</label>
-                                            <input
-                                                type="text"
-                                                value={muestraFolioKitBl}
-                                                onChange={(e) => setMuestraFolioKitBl(e.target.value)}
-                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                                                placeholder="Folio Kit BL"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
+                            <select
+                                value={selectedEstado}
+                                onChange={(e) => setSelectedEstado(e.target.value)}
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                            >
+                                <option value="">Estado</option>
+                                {Object.entries(estados || {}).map(([key, value]) => (
+                                    <option key={key} value={key}>{value}</option>
+                                ))}
+                            </select>
+                            <input
+                                type="date"
+                                value={fechaDesde}
+                                onChange={(e) => setFechaDesde(e.target.value)}
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                title="Fecha desde"
+                            />
+                            <input
+                                type="date"
+                                value={fechaHasta}
+                                onChange={(e) => setFechaHasta(e.target.value)}
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
+                                title="Fecha hasta"
+                            />
 
-                                {/* Filtros adicionales (fechas y estado) */}
-                                <div>
-                                    <h4 className="text-sm font-medium text-gray-700 mb-3">Filtros Adicionales</h4>
-                                    <div className={`grid grid-cols-1 ${showMobileView ? 'gap-3' : 'md:grid-cols-3 gap-4'}`}>
-                                        <div>
-                                            <label className="block text-xs text-gray-600 mb-1">Estado</label>
-                                            <select
-                                                value={selectedEstado}
-                                                onChange={(e) => setSelectedEstado(e.target.value)}
-                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                                            >
-                                                <option value="">Todos los estados</option>
-                                                {Object.entries(estados || {}).map(([key, value]) => (
-                                                    <option key={key} value={key}>{value}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-gray-600 mb-1">Fecha Desde</label>
-                                            <input
-                                                type="date"
-                                                value={fechaDesde}
-                                                onChange={(e) => setFechaDesde(e.target.value)}
-                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-gray-600 mb-1">Fecha Hasta</label>
-                                            <input
-                                                type="date"
-                                                value={fechaHasta}
-                                                onChange={(e) => setFechaHasta(e.target.value)}
-                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#189BAF] focus:outline-none focus:ring-1 focus:ring-[#189BAF]"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Botones de acción de búsqueda avanzada */}
-                                <div className="flex justify-end space-x-2 pt-4 border-t border-gray-200">
-                                    <button
-                                        onClick={() => handleSearch(true)}
-                                        disabled={isSearching}
-                                        className="bg-[#189BAF] hover:bg-[#157a8c] text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {isSearching ? 'Buscando...' : 'Buscar con Filtros'}
-                                    </button>
-                                </div>
-                            </div>
+                            {/* Botón buscar ocupa el espacio restante */}
+                            <button
+                                onClick={() => handleSearch(true)}
+                                disabled={isSearching}
+                                className="col-span-2 bg-[#189BAF] hover:bg-[#157a8c] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isSearching ? 'Buscando...' : 'Buscar con filtros'}
+                            </button>
                         </div>
-                    )}
+                    </div>
+                )}
                 </div>
 
                 {/* Resultados - Vista Condicional */}
@@ -1696,7 +1635,7 @@ export default function EstudiosIndex() {
 
                                             {/* Estado de Envíos */}
                                             <td className="px-3 py-3 text-center">
-                                                {renderEstadoEnvios(estudio.estadisticas_envios)}
+                                                {renderEstadoEnvios(estudio.estadisticas_envios, estudio)}
                                             </td>
 
                                             {/* Acciones - EN DOS FILAS */}
@@ -1737,9 +1676,9 @@ export default function EstudiosIndex() {
                                                         </button>
                                                         
                                                         <Link
-                                                            href={`/estudios/${estudio.ID}/envios-correos`}
+                                                            href={`/estudios/${estudio.ID}/edit/informe`}
                                                             className="text-blue-600 hover:text-blue-700 transition-colors p-1"
-                                                            title="Ver envíos de correos"
+                                                            title="Reenviar reporte"
                                                         >
                                                             <Mail className="h-4 w-4" />
                                                         </Link>

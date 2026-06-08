@@ -107,7 +107,9 @@ class Estudio extends Model
         'ESTUDIO_FACTURADO',
         'ESTUDIO_NOTAS',
         'ESTUDIO_COMENTARIOS',
-        'ESTUDIO_ESTADO'
+        'ESTUDIO_ESTADO',
+        'MUESTRA_FOLIO_KIT_BL_CADUCIDAD',
+        'MUESTRA_COLON',
     ];
 
     protected $casts = [
@@ -123,6 +125,7 @@ class Estudio extends Model
         'FECHA_RETORNO_MATERIAL' => 'datetime',
         'FECHA_RECEPCION_RESULTADOS_FISICOS' => 'datetime',
         'FECHA_FIN_PROCESO' => 'datetime',
+        'MUESTRA_FOLIO_KIT_BL_CADUCIDAD' => 'date',
     ];
 
     // Constantes para tipos de muestra

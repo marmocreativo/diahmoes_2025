@@ -1,5 +1,4 @@
 import { NavFooter } from '@/components/nav-footer';
-import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarGroup } from '@/components/ui/sidebar';
 import { type NavGroup } from '@/types';
@@ -33,26 +32,9 @@ import {
     Truck,
     Package,
     CheckCircle,
-    XCircle
+    XCircle,
+    Tag
 } from 'lucide-react';
-
-const navGroups: NavGroup[] = [
-    {
-        title: 'Estudios',
-        items: [
-            {
-                title: 'Estudios PRM',
-                href: '/estudios?prefijo=PRM',
-                icon: TestTube,
-            },
-            {
-                title: 'Estudios PRV', 
-                href: '/estudios?prefijo=PRV',
-                icon: TestTube,
-            }
-        ]
-    },
-];
 
 const footerNavItems = [
     {
@@ -122,8 +104,21 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarGroup>
 
-            {/* Estudios - Desplegable */}
-            <NavMain groups={navGroups} />
+            <SidebarMenuItem>
+                <SidebarMenuButton 
+                    asChild
+                    className={`hover:bg-[#189BAF]/5 hover:text-[#189BAF] transition-colors ${
+                        url.includes('/estudios')
+                            ? 'bg-[#189BAF]/10 text-[#189BAF] font-medium border-r-2 border-[#189BAF]' 
+                            : 'text-gray-700'
+                    }`}
+                >
+                    <Link href="/estudios?prefijo=PRM" prefetch className="flex items-center gap-3">
+                        <TestTube className="!size-4" />
+                        <span className="font-medium">Estudios</span>
+                    </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
 
             {/* Enlaces individuales */}
             <SidebarGroup>
@@ -220,6 +215,21 @@ export function AppSidebar() {
                             <Link href="/mensajerias" prefetch className="flex items-center gap-3">
                                 <Truck className="!size-4" />
                                 <span className="font-medium">Mensajerías</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton 
+                            asChild
+                            className={`hover:bg-[#189BAF]/5 hover:text-[#189BAF] transition-colors ${
+                                url.includes('/grupos-folios-kits') || url.includes('/folios-kits')
+                                    ? 'bg-[#189BAF]/10 text-[#189BAF] font-medium border-r-2 border-[#189BAF]' 
+                                    : 'text-gray-700'
+                            }`}
+                        >
+                            <Link href="/folios-kits" prefetch className="flex items-center gap-3">
+                                <Tag className="!size-4" />
+                                <span className="font-medium">Folios Kits</span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
