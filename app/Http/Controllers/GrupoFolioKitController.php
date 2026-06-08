@@ -49,7 +49,7 @@ class GrupoFolioKitController extends Controller
         });
 
         $medicos = Usuario::where('USUARIO_TIPO', 'medico')
-            ->where('USUARIO_ESTADO', 1)
+            ->where('USUARIO_ESTADO', 'activo')
             ->orderBy('USUARIO_APELLIDOS')
             ->get(['ID_USUARIO', 'PREFIJO', 'USUARIO_NOMBRE', 'USUARIO_APELLIDOS'])
             ->map(fn($m) => [
@@ -67,7 +67,7 @@ class GrupoFolioKitController extends Controller
     public function create()
     {
         $medicos = Usuario::where('USUARIO_TIPO', 'medico')
-            ->where('USUARIO_ESTADO', 1)
+            ->where('USUARIO_ESTADO', 'activo')
             ->orderBy('USUARIO_APELLIDOS')
             ->get(['ID_USUARIO', 'PREFIJO', 'USUARIO_NOMBRE', 'USUARIO_APELLIDOS'])
             ->map(fn($m) => [
@@ -150,7 +150,7 @@ class GrupoFolioKitController extends Controller
     public function edit(GrupoFolioKit $grupoFolioKit)
     {
         $medicos = Usuario::where('USUARIO_TIPO', 'medico')
-            ->where('USUARIO_ESTADO', 1)
+            ->where('USUARIO_ESTADO', 'activo')
             ->orderBy('USUARIO_APELLIDOS')
             ->get(['ID_USUARIO', 'PREFIJO', 'USUARIO_NOMBRE', 'USUARIO_APELLIDOS'])
             ->map(fn($m) => [

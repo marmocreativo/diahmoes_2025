@@ -51,6 +51,10 @@ export default function GruposShow() {
     const [editingId, setEditingId]   = useState<number | null>(null);
     const [editEstado, setEditEstado] = useState('');
 
+    const [selectedFolioIds, setSelectedFolioIds] = useState<number[]>([]);
+    const [bulkEstado, setBulkEstado]             = useState('');
+    const [bulkLoading, setBulkLoading]           = useState(false);
+
     // Estado para agregar folio rápido
     const [nuevoFolio, setNuevoFolio] = useState('');
     const [addingFolio, setAddingFolio] = useState(false);
@@ -95,6 +99,36 @@ export default function GruposShow() {
                 preserveScroll: true,
             });
         }
+    };
+
+    const allFolioIds = grupo.folios.map(f => f.id);
+    const allFoliosSelected = allFolioIds.length > 0 && allFolioIds.every(id => selectedFolioIds.includes(id));
+
+    const toggleSelectAll = () => setSelectedFolioIds(allFoliosSelected ? [] : allFolioIds);
+
+    const toggleSelectFolio = (id: number) => setSelectedFolioIds(prev =>
+        prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+
+    const handleBulkEstado = () => {
+        if (!bulkEstado || selectedFolioIds.length === 0) return;
+        setBulkLoading(true);
+        router.post('/folios-kits/bulk-estado', { ids: selectedFolioIds, estado: bulkEstado }, {
+            preserveState: true,
+            preserveScroll: true,
+            onFinish: () => { setBulkLoading(false); setSelectedFolioIds([]); setBulkEstado(''); },
+        });
+    };
+
+    const handleBulkDelete = () => {
+        if (selectedFolioIds.length === 0) return;
+        if (!confirm(`¿Eliminar ${selectedFolioIds.length} folio(s) seleccionados?`)) return;
+        setBulkLoading(true);
+        router.post('/folios-kits/bulk-destroy', { ids: selectedFolioIds }, {
+            preserveState: true,
+            preserveScroll: true,
+            onFinish: () => { setBulkLoading(false); setSelectedFolioIds([]); },
+        });
     };
 
     return (
@@ -188,6 +222,41 @@ export default function GruposShow() {
                         </h2>
                     </div>
 
+                    {selectedFolioIds.length > 0 && (
+                    <div className="px-6 py-3 bg-[#189BAF]/10 border-b border-[#189BAF]/20 flex items-center gap-4 flex-wrap">
+                        <span className="text-sm font-semibold text-[#189BAF]">
+                            {selectedFolioIds.length} folio(s) seleccionados
+                        </span>
+                        <div className="flex items-center gap-2 ml-auto flex-wrap">
+                            <select
+                                value={bulkEstado}
+                                onChange={e => setBulkEstado(e.target.value)}
+                                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-[#189BAF] focus:outline-none"
+                            >
+                                <option value="">Cambiar estado a...</option>
+                                {(['en_inventario', 'enviado', 'retornado', 'caducado'] as const).map(e => (
+                                    <option key={e} value={e}>{e}</option>
+                                ))}
+                            </select>
+                            <button
+                                onClick={handleBulkEstado}
+                                disabled={!bulkEstado || bulkLoading}
+                                className="bg-[#189BAF] hover:bg-[#157a8c] text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                            >
+                                Aplicar estado
+                            </button>
+                            <button
+                                onClick={handleBulkDelete}
+                                disabled={bulkLoading}
+                                className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
+                            >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Eliminar seleccionados
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                     {grupo.folios.length === 0 ? (
                         <div className="p-12 text-center">
                             <Package className="h-12 w-12 text-gray-300 mx-auto mb-3" />
@@ -199,6 +268,14 @@ export default function GruposShow() {
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
+                                        <th className="px-6 py-3 w-10">
+                                            <input
+                                                type="checkbox"
+                                                checked={allFoliosSelected}
+                                                onChange={toggleSelectAll}
+                                                className="rounded border-gray-300 text-[#189BAF] focus:ring-[#189BAF]"
+                                            />
+                                        </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Folio</th>
                                         <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estudio vinculado</th>
@@ -208,6 +285,14 @@ export default function GruposShow() {
                                 <tbody className="bg-white divide-y divide-gray-200">
                                     {grupo.folios.map(folio => (
                                         <tr key={folio.id} className="hover:bg-gray-50">
+                                            <td className="px-6 py-4">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedFolioIds.includes(folio.id)}
+                                                    onChange={() => toggleSelectFolio(folio.id)}
+                                                    className="rounded border-gray-300 text-[#189BAF] focus:ring-[#189BAF]"
+                                                />
+                                            </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className="font-mono text-sm font-medium text-gray-900">{folio.folio}</span>
                                             </td>

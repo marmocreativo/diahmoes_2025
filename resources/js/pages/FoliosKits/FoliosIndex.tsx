@@ -3,7 +3,7 @@ import { type BreadcrumbItem } from '@/types';
 import { type FoliosIndexProps } from '@/types/folios-kits';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
-import { Tag, ChevronsUpDown, ArrowUp, ArrowDown, Edit, X, Check, Loader2 } from 'lucide-react';
+import { Tag, ChevronsUpDown, ArrowUp, ArrowDown, Edit, X, Check, Loader2, Trash2, Plus } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -33,6 +33,10 @@ export default function FoliosIndex() {
     const [search, setSearch]   = useState(filters?.search || '');
     const [estado, setEstado]   = useState(filters?.estado || '');
     const [idGrupo, setIdGrupo] = useState(filters?.id_grupo || '');
+
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const [bulkEstado, setBulkEstado]   = useState('');
+    const [bulkLoading, setBulkLoading] = useState(false);
 
     // Edición inline
     const [editingId, setEditingId]   = useState<number | null>(null);
@@ -109,6 +113,36 @@ export default function FoliosIndex() {
                 ? 'border-red-400 focus:ring-red-400'
                 : 'border-gray-300 focus:border-[#189BAF] focus:ring-[#189BAF]'
         }`;
+    
+    const allIds = folios?.data?.map(f => f.id) ?? [];
+    const allSelected = allIds.length > 0 && allIds.every(id => selectedIds.includes(id));
+
+    const toggleSelectAll = () => setSelectedIds(allSelected ? [] : allIds);
+
+    const toggleSelect = (id: number) => setSelectedIds(prev =>
+        prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+
+    const handleBulkEstado = () => {
+        if (!bulkEstado || selectedIds.length === 0) return;
+        setBulkLoading(true);
+        router.post('/folios-kits/bulk-estado', { ids: selectedIds, estado: bulkEstado }, {
+            preserveState: true,
+            preserveScroll: true,
+            onFinish: () => { setBulkLoading(false); setSelectedIds([]); setBulkEstado(''); },
+        });
+    };
+
+    const handleBulkDelete = () => {
+        if (selectedIds.length === 0) return;
+        if (!confirm(`¿Eliminar ${selectedIds.length} folio(s) seleccionados?`)) return;
+        setBulkLoading(true);
+        router.post('/folios-kits/bulk-destroy', { ids: selectedIds }, {
+            preserveState: true,
+            preserveScroll: true,
+            onFinish: () => { setBulkLoading(false); setSelectedIds([]); },
+        });
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -128,6 +162,10 @@ export default function FoliosIndex() {
                             </div>
                             <Link href="/grupos-folios-kits" className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-white font-medium transition-colors text-sm">
                                 Ver grupos
+                            </Link>
+                            <Link href="/grupos-folios-kits/create" className="bg-white text-[#189BAF] hover:bg-white/90 px-4 py-2 rounded-lg font-medium transition-colors text-sm flex items-center gap-2">
+                                <Plus className="h-4 w-4" />
+                                Nuevo grupo
                             </Link>
                         </div>
                     </div>
@@ -204,6 +242,41 @@ export default function FoliosIndex() {
                         </div>
                     </div>
                 </div>
+                {/* Acciones en lote */}
+                {selectedIds.length > 0 && (
+                <div className="bg-[#189BAF]/10 border border-[#189BAF]/30 rounded-xl px-5 py-3 flex items-center gap-4 flex-wrap">
+                    <span className="text-sm font-semibold text-[#189BAF]">
+                        {selectedIds.length} folio(s) seleccionados
+                    </span>
+                    <div className="flex items-center gap-2 ml-auto flex-wrap">
+                        <select
+                            value={bulkEstado}
+                            onChange={e => setBulkEstado(e.target.value)}
+                            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-[#189BAF] focus:outline-none"
+                        >
+                            <option value="">Cambiar estado a...</option>
+                            {estados.map(e => (
+                                <option key={e} value={e}>{e}</option>
+                            ))}
+                        </select>
+                        <button
+                            onClick={handleBulkEstado}
+                            disabled={!bulkEstado || bulkLoading}
+                            className="bg-[#189BAF] hover:bg-[#157a8c] text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                        >
+                            Aplicar estado
+                        </button>
+                        <button
+                            onClick={handleBulkDelete}
+                            disabled={bulkLoading}
+                            className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
+                        >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Eliminar seleccionados
+                        </button>
+                    </div>
+                </div>
+            )}
 
                 {/* Tabla */}
                 <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
@@ -211,6 +284,14 @@ export default function FoliosIndex() {
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
+                                    <th className="px-4 py-3 w-10">
+                                        <input
+                                            type="checkbox"
+                                            checked={allSelected}
+                                            onChange={toggleSelectAll}
+                                            className="rounded border-gray-300 text-[#189BAF] focus:ring-[#189BAF]"
+                                        />
+                                    </th>
                                     <th onClick={() => handleSort('folio')} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">
                                         <div className="flex items-center gap-1"><span>Folio</span>{getSortIcon('folio')}</div>
                                     </th>
@@ -233,6 +314,7 @@ export default function FoliosIndex() {
                                     if (isEditing) {
                                         return (
                                             <tr key={folio.id} className="bg-[#189BAF]/5 border-l-2 border-[#189BAF]">
+                                                <td className="px-4 py-2" />
                                                 {/* Folio editable */}
                                                 <td className="px-4 py-2">
                                                     <input
@@ -319,6 +401,14 @@ export default function FoliosIndex() {
                                     // Fila normal (solo lectura)
                                     return (
                                         <tr key={folio.id} className="hover:bg-gray-50 transition-colors">
+                                            <td className="px-4 py-3">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.includes(folio.id)}
+                                                    onChange={() => toggleSelect(folio.id)}
+                                                    className="rounded border-gray-300 text-[#189BAF] focus:ring-[#189BAF]"
+                                                />
+                                            </td>
                                             <td className="px-4 py-3 whitespace-nowrap">
                                                 <span className="font-mono text-sm font-medium text-gray-900">{folio.folio}</span>
                                             </td>

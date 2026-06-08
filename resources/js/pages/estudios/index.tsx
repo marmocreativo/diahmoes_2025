@@ -692,7 +692,7 @@ export default function EstudiosIndex() {
 
     return (
         <div className="text-center">
-            <a href={`/estudios/${estudio.ID}/envios-correos`}>
+            <a href={`/estudios/${estudio.ID}/edit/informe`}>
                 <div className="flex items-center justify-center space-x-1 mb-1">
                     <span className="text-sm font-medium text-blue-600">
                         {estadisticas.total}

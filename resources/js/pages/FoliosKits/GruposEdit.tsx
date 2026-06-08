@@ -19,6 +19,9 @@ interface PageProps {
 
 export default function GruposEdit() {
     const { grupo, medicos } = usePage<PageProps>().props;
+    const medicoActual = medicos.find(m => m.id === grupo.id_medico);
+    const [medicoSearch, setMedicoSearch] = useState(medicoActual?.nombre ?? '');
+    const [medicoOpen, setMedicoOpen]     = useState(false);
 
     const [form, setForm] = useState({
         nombre:      grupo.nombre,
@@ -79,16 +82,54 @@ export default function GruposEdit() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Médico</label>
-                            <select
-                                value={form.id_medico}
-                                onChange={e => setForm({ ...form, id_medico: e.target.value })}
-                                className={inputClass('id_medico')}
-                            >
-                                <option value="">Sin médico asignado</option>
-                                {medicos.map(m => (
-                                    <option key={m.id} value={m.id}>{m.nombre}</option>
-                                ))}
-                            </select>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={medicoSearch}
+                                    onChange={e => { setMedicoSearch(e.target.value); setMedicoOpen(true); }}
+                                    onFocus={() => setMedicoOpen(true)}
+                                    placeholder="Buscar médico..."
+                                    className={inputClass('id_medico')}
+                                />
+                                {medicoSearch && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setMedicoSearch(''); setMedicoOpen(false); setForm({ ...form, id_medico: '' }); }}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors"
+                                    >
+                                        ✕
+                                    </button>
+                                )}
+                                {medicoOpen && (
+                                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                                        <div
+                                            className="px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 cursor-pointer border-b"
+                                            onClick={() => { setMedicoSearch(''); setMedicoOpen(false); setForm({ ...form, id_medico: '' }); }}
+                                        >
+                                            Sin médico asignado
+                                        </div>
+                                        {medicos
+                                            .filter(m => m.nombre.toLowerCase().includes(medicoSearch.toLowerCase()))
+                                            .map(m => (
+                                                <div
+                                                    key={m.id}
+                                                    className="px-3 py-2 text-sm hover:bg-[#189BAF]/10 cursor-pointer"
+                                                    onClick={() => {
+                                                        setMedicoSearch(m.nombre);
+                                                        setMedicoOpen(false);
+                                                        setForm({ ...form, id_medico: String(m.id) });
+                                                    }}
+                                                >
+                                                    {m.nombre}
+                                                </div>
+                                            ))
+                                        }
+                                        {medicos.filter(m => m.nombre.toLowerCase().includes(medicoSearch.toLowerCase())).length === 0 && (
+                                            <div className="px-3 py-2 text-sm text-gray-400 italic">Sin resultados</div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de envío</label>
@@ -115,6 +156,9 @@ export default function GruposEdit() {
                         {submitting ? 'Guardando...' : 'Guardar Cambios'}
                     </button>
                 </div>
+                {medicoOpen && (
+                    <div className="fixed inset-0 z-0" onClick={() => setMedicoOpen(false)} />
+                )}
             </div>
         </AppLayout>
     );

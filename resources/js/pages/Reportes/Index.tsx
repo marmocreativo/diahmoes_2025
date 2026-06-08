@@ -790,14 +790,10 @@ export default function ReportesIndex() {
                                         <table className="w-full border-collapse text-sm">
                                             <thead>
                                                 <tr className="border-b bg-gray-50">
-                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700">#</th>
-                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700">Código Interno</th>
-                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700">Tipo de Muestra</th>
-                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700">📅 Recolección</th>
-                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700">📦 Recepción</th>
-                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700">🧪 Laboratorio</th>
-                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700">📊 Resultados</th>
-                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700">📧 Reporte</th>
+                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700 w-8">#</th>
+                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700">Código</th>
+                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700">Tipo</th>
+                                                    <th className="py-2 px-3 font-semibold text-gray-700 text-center">Progreso del estudio</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -805,40 +801,91 @@ export default function ReportesIndex() {
                                                     const fmt = (f: string | null) =>
                                                         f ? f.split('T')[0].split(' ')[0] : null;
 
-                                                    const stepColors = [
-                                                        'bg-red-100 text-red-800',
-                                                        'bg-orange-100 text-orange-800',
-                                                        'bg-yellow-100 text-yellow-800',
-                                                        'bg-emerald-100 text-emerald-800',
-                                                        'bg-green-200 text-green-900',
+                                                    const pasos = [
+                                                        { label: 'Recolección', fecha: fmt(estudio.fecha_solicitud_recoleccion) },
+                                                        { label: 'Recepción',   fecha: fmt(estudio.fecha_recepcion) },
+                                                        { label: 'Laboratorio', fecha: fmt(estudio.fecha_recepcion_laboratorio) },
+                                                        { label: 'Resultados',  fecha: fmt(estudio.fecha_obtencion_resultados) },
+                                                        { label: 'Reporte',     fecha: fmt(estudio.fecha_resultados_correo) },
                                                     ];
 
-                                                    const Celda = ({ fecha, step }: { fecha: string | null; step: number }) => {
-                                                        const d = fmt(fecha);
-                                                        return d ? (
-                                                            <td className={`py-2 px-3 ${stepColors[step]}`}>
-                                                                <span className="text-xs font-medium">{d}</span>
-                                                            </td>
-                                                        ) : (
-                                                            <td className="py-2 px-3 bg-gray-50" />
-                                                        );
-                                                    };
+                                                    let lastDone = -1;
+                                                    for (let i = 0; i < pasos.length; i++) {
+                                                        if (pasos[i].fecha) lastDone = i;
+                                                    }
+
+                                                    // Color principal según avance
+                                                    const colorConfig = [
+                                                        { circle: 'bg-red-500    border-red-500    text-white', line: 'bg-red-400',    ring: 'ring-red-200'    },
+                                                        { circle: 'bg-orange-500 border-orange-500 text-white', line: 'bg-orange-400', ring: 'ring-orange-200' },
+                                                        { circle: 'bg-yellow-400 border-yellow-400 text-white', line: 'bg-yellow-300', ring: 'ring-yellow-200' },
+                                                        { circle: 'bg-green-500  border-green-500  text-white', line: 'bg-green-400',  ring: 'ring-green-200'  },
+                                                        { circle: 'bg-[#189BAF] border-[#189BAF] text-white',   line: 'bg-[#189BAF]',  ring: 'ring-[#189BAF]/30' },
+                                                    ];
+
+                                                    const config = lastDone >= 0 ? colorConfig[lastDone] : null;
 
                                                     return (
-                                                        <tr
-                                                            key={estudio.id}
-                                                            className="border-b border-gray-100 hover:brightness-95 cursor-pointer transition-all"
-                                                        >
+                                                        <tr key={estudio.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                                                             <td className="py-2 px-3 text-gray-400 text-xs">{index + 1}</td>
-                                                            <td className="py-2 px-3 font-mono font-semibold text-[#189BAF]">
+                                                            <td className="py-2 px-3 font-mono font-semibold text-[#189BAF] whitespace-nowrap">
                                                                 {estudio.clave_interna}
                                                             </td>
-                                                            <td className="py-2 px-3 text-xs text-gray-600">{estudio.tipo_estudio}</td>
-                                                            <Celda fecha={estudio.fecha_solicitud_recoleccion} step={0} />
-                                                            <Celda fecha={estudio.fecha_recepcion} step={1} />
-                                                            <Celda fecha={estudio.fecha_recepcion_laboratorio} step={2} />
-                                                            <Celda fecha={estudio.fecha_obtencion_resultados} step={3} />
-                                                            <Celda fecha={estudio.fecha_resultados_correo} step={4} />
+                                                            <td className="py-2 px-3 text-xs text-gray-600 whitespace-nowrap">{estudio.tipo_estudio}</td>
+                                                            <td className="py-3 px-6">
+                                                                <div className="flex items-start w-full">
+                                                                    {pasos.map((paso, i) => {
+                                                                        const done      = paso.fecha !== null;
+                                                                        const isActive  = done && i === lastDone;
+                                                                        const lineAfter = i < pasos.length - 1;
+
+                                                                        return (
+                                                                            <div key={i} className="flex items-start flex-1 last:flex-none">
+                                                                                {/* Círculo + etiqueta */}
+                                                                                <div className="flex flex-col items-center min-w-[52px]">
+                                                                                    <div
+                                                                                        className={`
+                                                                                            w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 shrink-0
+                                                                                            ${done && config
+                                                                                                ? `${config.circle}${isActive ? ` ring-2 ${config.ring}` : ''}`
+                                                                                                : 'bg-white border-gray-300 text-gray-400'
+                                                                                            }
+                                                                                        `}
+                                                                                        title={paso.label + (paso.fecha ? ': ' + paso.fecha : ': Pendiente')}
+                                                                                    >
+                                                                                        {done ? (
+                                                                                            isActive ? i + 1 : (
+                                                                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                                                                </svg>
+                                                                                            )
+                                                                                        ) : (
+                                                                                            i + 1
+                                                                                        )}
+                                                                                    </div>
+                                                                                    {/* Nombre del paso siempre visible */}
+                                                                                    <span className={`text-[9px] mt-0.5 whitespace-nowrap leading-tight font-medium text-center ${done ? 'text-gray-600' : 'text-gray-400'}`}>
+                                                                                        {paso.label}
+                                                                                    </span>
+                                                                                    {/* Fecha solo si completado */}
+                                                                                    {paso.fecha && (
+                                                                                        <span className="text-[9px] text-gray-400 whitespace-nowrap leading-tight text-center">
+                                                                                            {paso.fecha}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+
+                                                                                {/* Línea conectora — centrada verticalmente con el círculo */}
+                                                                                {lineAfter && (
+                                                                                    <div className="flex-1 flex items-start pt-3.5 mx-1">
+                                                                                        <div className={`w-full h-0.5 ${i < lastDone && config ? config.line : 'bg-gray-200'}`} />
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </td>
                                                         </tr>
                                                     );
                                                 })}

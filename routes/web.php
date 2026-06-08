@@ -377,6 +377,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     |--------------------------------------------------------------------------
     */
 
+    Route::post('folios-kits/bulk-estado', [FolioKitController::class, 'bulkUpdateEstado'])
+        ->name('folios-kits.bulk-estado');
+    Route::post('folios-kits/bulk-destroy', [FolioKitController::class, 'bulkDestroy'])
+        ->name('folios-kits.bulk-destroy');
+
     Route::get('folios-kits/buscar', [FolioKitController::class, 'buscar'])->name('folios-kits.buscar');
     Route::post('folios-kits/{folioKit}/confirmar', [FolioKitController::class, 'confirmar'])->name('folios-kits.confirmar');
 

@@ -152,4 +152,30 @@ class FolioKitController extends Controller
             'message' => 'Folio confirmado correctamente.',
         ]);
     }
+
+    public function bulkUpdateEstado(Request $request)
+    {
+        $validated = $request->validate([
+            'ids'    => 'required|array|min:1',
+            'ids.*'  => 'integer|exists:folios_kits,id',
+            'estado' => 'required|in:en_inventario,enviado,retornado,caducado',
+        ]);
+
+        FolioKit::whereIn('id', $validated['ids'])
+            ->update(['estado' => $validated['estado']]);
+
+        return back()->with('success', count($validated['ids']) . ' folio(s) actualizados.');
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        $validated = $request->validate([
+            'ids'   => 'required|array|min:1',
+            'ids.*' => 'integer|exists:folios_kits,id',
+        ]);
+
+        FolioKit::whereIn('id', $validated['ids'])->delete();
+
+        return back()->with('success', count($validated['ids']) . ' folio(s) eliminados.');
+    }
 }
