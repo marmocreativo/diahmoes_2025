@@ -133,7 +133,7 @@ class DashboardExportController extends Controller
             'J1' => 'BLOQUE',
             'K1' => 'LAMINILLA',
             'L1' => 'TIPO DE MUESTRA',
-            'M1' => 'MUE',
+            'M1' => 'FOLIO MERCK',
             'N1' => 'REQUIERE LAB AUXILIAR',
             'O1' => 'NOMBRE LAB AUXILIAR',
             'P1' => 'REPORTE DEL DIAGNOSTICO HISTOPATOLOGICO',

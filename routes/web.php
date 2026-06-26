@@ -17,6 +17,7 @@ use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\ReporteAccesoController;
 use App\Http\Controllers\GrupoFolioKitController;
 use App\Http\Controllers\FolioKitController;
+use App\Http\Controllers\SolicitudClienteController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -930,6 +931,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // En routes/web.php, agregar dentro del grupo de configuración:
     Route::post('/configuracion/cache-commands', [ConfiguracionController::class, 'executeCacheCommands']);
     Route::get('/configuracion/cache-info', [ConfiguracionController::class, 'getCacheInfo']);
+
+    // Solicitudes cliente — gestión interna
+    Route::get('/solicitudes-cliente', [SolicitudClienteController::class, 'index'])
+        ->name('solicitudes-cliente.index');
+
+    Route::post('/solicitudes-cliente/{solicitud}/confirmar', [SolicitudClienteController::class, 'confirmar'])
+        ->name('solicitudes-cliente.confirmar');
+
+    Route::get('/solicitudes-cliente/{solicitud}/preview', [SolicitudClienteController::class, 'previewConvertir'])
+        ->name('solicitudes-cliente.preview');
+
+    Route::post('/solicitudes-cliente/{solicitud}/convertir', [SolicitudClienteController::class, 'convertir'])
+        ->name('solicitudes-cliente.convertir');
     
 });
 
@@ -973,6 +987,37 @@ Route::post('/reportes/logout', [ReporteController::class, 'logout'])
 
 // Reporte principal y exportación (protegidas por middleware reporte.access)
 Route::middleware(['reporte.access'])->group(function () {
+
+    // Solicitudes cliente — captura desde el portal
+    Route::post('/reportes/solicitudes', [SolicitudClienteController::class, 'store'])
+        ->name('reportes.solicitudes.store');
+
+    Route::get('/reportes/solicitudes/mias', [SolicitudClienteController::class, 'misSolicitudes'])
+        ->name('reportes.solicitudes.mias');
+
+    // API búsqueda de médicos e instituciones para el formulario del portal
+    Route::get('/reportes/api/medicos', function () {
+        $q = request('q', '');
+        return \App\Models\Usuario::where('USUARIO_TIPO', 'medico')
+            ->where('USUARIO_ESTADO', 'activo')
+            ->where(function ($query) use ($q) {
+                $query->where('USUARIO_NOMBRE', 'like', "%{$q}%")
+                    ->orWhere('USUARIO_APELLIDOS', 'like', "%{$q}%");
+            })
+            ->select('ID_USUARIO', 'USUARIO_NOMBRE', 'USUARIO_APELLIDOS', 'PREFIJO', 'USUARIO_CORREO')
+            ->limit(10)
+            ->get();
+    })->name('reportes.api.medicos');
+
+    Route::get('/reportes/api/instituciones', function () {
+        $q = request('q', '');
+        return \App\Models\Institucion::whereNotNull('INSTITUCION_NOMBRE')
+            ->where('INSTITUCION_NOMBRE', 'like', "%{$q}%")
+            ->select('ID_INSTITUCION', 'INSTITUCION_NOMBRE', 'INSTITUCION_CIUDAD')
+            ->limit(10)
+            ->get();
+    })->name('reportes.api.instituciones');
+
     Route::get('/reportes', [ReporteController::class, 'index'])
         ->name('reportes.index');
 

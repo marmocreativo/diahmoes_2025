@@ -33,7 +33,8 @@ import {
     Package,
     CheckCircle,
     XCircle,
-    Tag
+    Tag,
+    ClipboardList
 } from 'lucide-react';
 
 const footerNavItems = [
@@ -183,6 +184,22 @@ export function AppSidebar() {
                             <Link href="/clientes" prefetch className="flex items-center gap-3">
                                 <Briefcase className="!size-4" />
                                 <span className="font-medium">Clientes</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+
+                    <SidebarMenuItem>
+                        <SidebarMenuButton 
+                            asChild
+                            className={`hover:bg-[#189BAF]/5 hover:text-[#189BAF] transition-colors ${
+                                url === '/solicitudes-cliente' 
+                                    ? 'bg-[#189BAF]/10 text-[#189BAF] font-medium border-r-2 border-[#189BAF]' 
+                                    : 'text-gray-700'
+                            }`}
+                        >
+                            <Link href="/solicitudes-cliente" prefetch className="flex items-center gap-3">
+                                <ClipboardList className="!size-4" />
+                                <span className="font-medium">Solicitudes</span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>

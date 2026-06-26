@@ -1,4 +1,6 @@
 import { Head, usePage, router } from '@inertiajs/react';
+import EstudiosPeriodoTabla from './EstudiosPeriodoTabla';
+import SolicitudesClienteTabla from './SolicitudesClienteTabla';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,11 +92,25 @@ interface EstudioPeriodo {
     clave: string;
     tipo_estudio: string;
     estado: string;
+    muestra_estado: string;
     fecha_solicitud_recoleccion: string | null;
     fecha_recepcion: string | null;
     fecha_recepcion_laboratorio: string | null;
     fecha_obtencion_resultados: string | null;
     fecha_resultados_correo: string | null;
+    fecha_retorno_material: string | null;
+    folio_merck: string;
+    sitio_lesion: string;
+    bloques: string;
+    laminillas: string;
+    diagnostico: string;
+    guia: string;
+    ciudad: string;
+    kras: string;
+    nras: string;
+    braf: string;
+    interpretacion: string;
+    notas: string;
 }
 
 interface Datos {
@@ -331,6 +347,7 @@ export default function ReportesIndex() {
                         <TabsList>
                             <TabsTrigger value="estadisticas">📊 Estadísticas</TabsTrigger>
                             <TabsTrigger value="estudios">🧪 Estudios del período ({datos.estudios_periodo.length})</TabsTrigger>
+                            <TabsTrigger value="solicitudes">📋 Solicitudes</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="estadisticas" className="flex flex-col gap-6 mt-4">
@@ -775,125 +792,11 @@ export default function ReportesIndex() {
                         </TabsContent>
 
                         <TabsContent value="estudios" className="mt-4">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <TestTube className="h-5 w-5" />
-                                        Estudios del período
-                                    </CardTitle>
-                                    <CardDescription>
-                                        {datos.estudios_periodo.length} estudios encontrados
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full border-collapse text-sm">
-                                            <thead>
-                                                <tr className="border-b bg-gray-50">
-                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700 w-8">#</th>
-                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700">Código</th>
-                                                    <th className="text-left py-2 px-3 font-semibold text-gray-700">Tipo</th>
-                                                    <th className="py-2 px-3 font-semibold text-gray-700 text-center">Progreso del estudio</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {datos.estudios_periodo.map((estudio, index) => {
-                                                    const fmt = (f: string | null) =>
-                                                        f ? f.split('T')[0].split(' ')[0] : null;
+                            <EstudiosPeriodoTabla estudios={datos.estudios_periodo} />
+                        </TabsContent>
 
-                                                    const pasos = [
-                                                        { label: 'Recolección', fecha: fmt(estudio.fecha_solicitud_recoleccion) },
-                                                        { label: 'Recepción',   fecha: fmt(estudio.fecha_recepcion) },
-                                                        { label: 'Laboratorio', fecha: fmt(estudio.fecha_recepcion_laboratorio) },
-                                                        { label: 'Resultados',  fecha: fmt(estudio.fecha_obtencion_resultados) },
-                                                        { label: 'Reporte',     fecha: fmt(estudio.fecha_resultados_correo) },
-                                                    ];
-
-                                                    let lastDone = -1;
-                                                    for (let i = 0; i < pasos.length; i++) {
-                                                        if (pasos[i].fecha) lastDone = i;
-                                                    }
-
-                                                    // Color principal según avance
-                                                    const colorConfig = [
-                                                        { circle: 'bg-red-500    border-red-500    text-white', line: 'bg-red-400',    ring: 'ring-red-200'    },
-                                                        { circle: 'bg-orange-500 border-orange-500 text-white', line: 'bg-orange-400', ring: 'ring-orange-200' },
-                                                        { circle: 'bg-yellow-400 border-yellow-400 text-white', line: 'bg-yellow-300', ring: 'ring-yellow-200' },
-                                                        { circle: 'bg-green-500  border-green-500  text-white', line: 'bg-green-400',  ring: 'ring-green-200'  },
-                                                        { circle: 'bg-[#189BAF] border-[#189BAF] text-white',   line: 'bg-[#189BAF]',  ring: 'ring-[#189BAF]/30' },
-                                                    ];
-
-                                                    const config = lastDone >= 0 ? colorConfig[lastDone] : null;
-
-                                                    return (
-                                                        <tr key={estudio.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                                                            <td className="py-2 px-3 text-gray-400 text-xs">{index + 1}</td>
-                                                            <td className="py-2 px-3 font-mono font-semibold text-[#189BAF] whitespace-nowrap">
-                                                                {estudio.clave_interna}
-                                                            </td>
-                                                            <td className="py-2 px-3 text-xs text-gray-600 whitespace-nowrap">{estudio.tipo_estudio}</td>
-                                                            <td className="py-3 px-6">
-                                                                <div className="flex items-start w-full">
-                                                                    {pasos.map((paso, i) => {
-                                                                        const done      = paso.fecha !== null;
-                                                                        const isActive  = done && i === lastDone;
-                                                                        const lineAfter = i < pasos.length - 1;
-
-                                                                        return (
-                                                                            <div key={i} className="flex items-start flex-1 last:flex-none">
-                                                                                {/* Círculo + etiqueta */}
-                                                                                <div className="flex flex-col items-center min-w-[52px]">
-                                                                                    <div
-                                                                                        className={`
-                                                                                            w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 shrink-0
-                                                                                            ${done && config
-                                                                                                ? `${config.circle}${isActive ? ` ring-2 ${config.ring}` : ''}`
-                                                                                                : 'bg-white border-gray-300 text-gray-400'
-                                                                                            }
-                                                                                        `}
-                                                                                        title={paso.label + (paso.fecha ? ': ' + paso.fecha : ': Pendiente')}
-                                                                                    >
-                                                                                        {done ? (
-                                                                                            isActive ? i + 1 : (
-                                                                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                                                                </svg>
-                                                                                            )
-                                                                                        ) : (
-                                                                                            i + 1
-                                                                                        )}
-                                                                                    </div>
-                                                                                    {/* Nombre del paso siempre visible */}
-                                                                                    <span className={`text-[9px] mt-0.5 whitespace-nowrap leading-tight font-medium text-center ${done ? 'text-gray-600' : 'text-gray-400'}`}>
-                                                                                        {paso.label}
-                                                                                    </span>
-                                                                                    {/* Fecha solo si completado */}
-                                                                                    {paso.fecha && (
-                                                                                        <span className="text-[9px] text-gray-400 whitespace-nowrap leading-tight text-center">
-                                                                                            {paso.fecha}
-                                                                                        </span>
-                                                                                    )}
-                                                                                </div>
-
-                                                                                {/* Línea conectora — centrada verticalmente con el círculo */}
-                                                                                {lineAfter && (
-                                                                                    <div className="flex-1 flex items-start pt-3.5 mx-1">
-                                                                                        <div className={`w-full h-0.5 ${i < lastDone && config ? config.line : 'bg-gray-200'}`} />
-                                                                                    </div>
-                                                                                )}
-                                                                            </div>
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                        <TabsContent value="solicitudes" className="mt-4">
+                            <SolicitudesClienteTabla solicitudes={[]} />
                         </TabsContent>
                     </Tabs>
 

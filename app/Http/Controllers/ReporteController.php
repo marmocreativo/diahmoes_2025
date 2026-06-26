@@ -651,7 +651,7 @@ class ReporteController extends Controller
         // SIN títulos — encabezados directamente en fila 1
         $headers = [
             'A1' => 'CODIGO INTERNO',
-            'B1' => 'MU',
+            'B1' => 'FOLIO MERCK',
             'C1' => 'RECEPCION LAB',
             'D1' => 'ESTATUS',
             'E1' => 'SITIO DE LESION',
@@ -806,9 +806,18 @@ class ReporteController extends Controller
     {
         return $this->getQueryBase($fechaDesde, $fechaHasta, $muestraEstado, $tipoEstudio, $prefijo, $institucion)
             ->select(
-                'ID', 'CLAVE_INTERNA', 'CLAVE', 'MUESTRA_TIPO_ESTUDIO', 'ESTUDIO_ESTADO',
-                'FECHA_SOLICITUD_RECOLECCION', 'FECHA_RECEPCION', 'FECHA_RECEPCION_LABORATORIO',
-                'FECHA_OBTENCION_RESULTADOS', 'FECHA_RESULTADOS_CORREO'
+                'ID', 'CLAVE_INTERNA', 'CLAVE', 'ANIO', 'SERIADO',
+                'MUESTRA_TIPO_ESTUDIO', 'ESTUDIO_ESTADO', 'MUESTRA_ESTADO',
+                'FECHA_SOLICITUD_RECOLECCION', 'FECHA_RECEPCION',
+                'FECHA_RECEPCION_LABORATORIO', 'FECHA_OBTENCION_RESULTADOS',
+                'FECHA_RESULTADOS_CORREO', 'FECHA_RETORNO_MATERIAL',
+                'FOLIO_MERCK', 'MUESTRA_SITIO_LESION', 'MUESTRA_BLOQUES',
+                'MUESTRA_LAMINILLAS', 'MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA',
+                'MUESTRA_GUIA', 'MUESTRA_CIUDAD', 'MUESTRA_ESTADO',
+                'R_ESTATUS_KRAS', 'R_GENOTIPO_KRAS',
+                'R_ESTATUS_NRAS', 'R_GENOTIPO_NRAS',
+                'R_ESTATUS_BRAF', 'R_GENOTIPO_BRAF',
+                'R_INTERPRETACION', 'R_NOTAS_ESPECIALES'
             )
             ->orderBy('CLAVE')->orderBy('ANIO')->orderBy('SERIADO')
             ->get()
@@ -818,11 +827,25 @@ class ReporteController extends Controller
                 'clave'                       => $e->CLAVE,
                 'tipo_estudio'                => $e->MUESTRA_TIPO_ESTUDIO ?: 'N/D',
                 'estado'                      => $e->ESTUDIO_ESTADO ?: 'Sin estado',
+                'muestra_estado'              => $e->MUESTRA_ESTADO ?: '',
                 'fecha_solicitud_recoleccion' => $e->FECHA_SOLICITUD_RECOLECCION,
                 'fecha_recepcion'             => $e->FECHA_RECEPCION,
                 'fecha_recepcion_laboratorio' => $e->FECHA_RECEPCION_LABORATORIO,
                 'fecha_obtencion_resultados'  => $e->FECHA_OBTENCION_RESULTADOS,
                 'fecha_resultados_correo'     => $e->FECHA_RESULTADOS_CORREO,
+                'fecha_retorno_material'      => $e->FECHA_RETORNO_MATERIAL,
+                'folio_merck'                 => $e->FOLIO_MERCK ?: '',
+                'sitio_lesion'                => $e->MUESTRA_SITIO_LESION ?: '',
+                'bloques'                     => $e->MUESTRA_BLOQUES ?: '',
+                'laminillas'                  => $e->MUESTRA_LAMINILLAS ?: '',
+                'diagnostico'                 => $e->MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA ?: '',
+                'guia'                        => $e->MUESTRA_GUIA ?: '',
+                'ciudad'                      => $e->MUESTRA_CIUDAD ?: '',
+                'kras'                        => trim(($e->R_ESTATUS_KRAS ?? '') . ' ' . ($e->R_GENOTIPO_KRAS ?? '')),
+                'nras'                        => trim(($e->R_ESTATUS_NRAS ?? '') . ' ' . ($e->R_GENOTIPO_NRAS ?? '')),
+                'braf'                        => trim(($e->R_ESTATUS_BRAF ?? '') . ' ' . ($e->R_GENOTIPO_BRAF ?? '')),
+                'interpretacion'              => $e->R_INTERPRETACION ?: '',
+                'notas'                       => $e->R_NOTAS_ESPECIALES ?: '',
             ]);
     }
 }
