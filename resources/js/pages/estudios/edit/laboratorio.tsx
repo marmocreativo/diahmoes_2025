@@ -104,6 +104,10 @@ export default function EditLaboratorioConCondicionales() {
     const [genotipoNRAS, setGenotipoNRAS] = useState(estudio.R_GENOTIPO_NRAS || '');
     const [genotipoBRAF, setGenotipoBRAF] = useState(estudio.R_GENOTIPO_BRAF || '');
 
+    const [mostrarDialogoInsumos, setMostrarDialogoInsumos] = useState(false);
+    const [plantillaParaAplicar, setPlantillaParaAplicar] = useState<string | null>(null);
+    const [insumosRefreshTrigger, setInsumosRefreshTrigger] = useState(0);
+
 
     // Funciones para manejar insumos
     const cargarInsumosDisponibles = useCallback(async () => {
@@ -506,29 +510,58 @@ export default function EditLaboratorioConCondicionales() {
     };
 
     
-    const handleResultadosCompletosChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    const isChecked = e.target.checked;
-    setResultadosCompletos(isChecked);
-    
-    if (isChecked) {
-        const { fecha, hora } = getCurrentDateTime();
-        const form = formRef.current;
-        if (form) {
-            const fechaInput = form.querySelector('[name="FECHA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
-            const horaInput = form.querySelector('[name="HORA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
-            if (fechaInput) fechaInput.value = fecha;
-            if (horaInput) horaInput.value = hora;
+    const handleResultadosCompletosChange = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
+        const isChecked = e.target.checked;
+
+        if (isChecked) {
+            // Verificar si hay insumos aplicados
+            try {
+                const response = await fetch(`/estudios/${estudio.ID}/insumos`);
+                const data = await response.json();
+                
+                if (data.success && (!data.insumos || data.insumos.length === 0)) {
+                    // No hay insumos — buscar plantilla recomendada y mostrar diálogo
+                    const respPlantillas = await fetch(`/estudios/${estudio.ID}/plantillas-insumos`);
+                    const dataPlantillas = await respPlantillas.json();
+                    
+                    const recomendadas = dataPlantillas.plantillas_recomendadas || {};
+                    const primeraKey = Object.keys(recomendadas)[0] || null;
+                    const nombrePlantilla = primeraKey ? recomendadas[primeraKey].nombre : null;
+                    
+                    setPlantillaParaAplicar(primeraKey);
+                    setMostrarDialogoInsumos(true);
+                    
+                    // No marcar el checkbox todavía
+                    e.target.checked = false;
+                    return;
+                }
+            } catch (error) {
+                console.error('Error verificando insumos:', error);
+            }
         }
-    } else {
-        const form = formRef.current;
-        if (form) {
-            const fechaInput = form.querySelector('[name="FECHA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
-            const horaInput = form.querySelector('[name="HORA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
-            if (fechaInput) fechaInput.value = '';
-            if (horaInput) horaInput.value = '';
+
+        // Lógica original
+        setResultadosCompletos(isChecked);
+        
+        if (isChecked) {
+            const { fecha, hora } = getCurrentDateTime();
+            const form = formRef.current;
+            if (form) {
+                const fechaInput = form.querySelector('[name="FECHA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
+                const horaInput = form.querySelector('[name="HORA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
+                if (fechaInput) fechaInput.value = fecha;
+                if (horaInput) horaInput.value = hora;
+            }
+        } else {
+            const form = formRef.current;
+            if (form) {
+                const fechaInput = form.querySelector('[name="FECHA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
+                const horaInput = form.querySelector('[name="HORA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
+                if (fechaInput) fechaInput.value = '';
+                if (horaInput) horaInput.value = '';
+            }
         }
-    }
-};
+    };
 
     // Función para obtener datos del formulario
     const getFormData = useCallback((): Record<string, any> => {
@@ -1328,7 +1361,9 @@ export default function EditLaboratorioConCondicionales() {
                             <h3 className="text-lg font-semibold mb-4">Gestión de Insumos</h3>
                             
                             <PlantillasInsumos 
-                                estudiaId={estudio.ID} 
+                                estudiaId={estudio.ID}
+                                estatusKras={estatusKRAS}
+                                refreshTrigger={insumosRefreshTrigger}
                                 onPlantillaAplicada={cargarInsumosDelEstudio}
                             />
                         </div>
@@ -1561,6 +1596,94 @@ export default function EditLaboratorioConCondicionales() {
                     </div>
                 </form>
             </div>
+
+            {/* Diálogo: sin insumos al marcar resultados completos */}
+            {mostrarDialogoInsumos && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+                        <h2 className="text-lg font-bold text-gray-800 mb-2">
+                            Sin insumos registrados
+                        </h2>
+                        <p className="text-sm text-gray-600 mb-4">
+                            No se han registrado insumos para este estudio. 
+                            {plantillaParaAplicar 
+                                ? ' Se aplicará automáticamente la plantilla recomendada antes de continuar.'
+                                : ' Por favor registra los insumos utilizados antes de marcar los resultados como completos.'
+                            }
+                        </p>
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => {
+                                    setMostrarDialogoInsumos(false);
+                                    setPlantillaParaAplicar(null);
+                                }}
+                                className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
+                            >
+                                Cancelar
+                            </button>
+
+                            {plantillaParaAplicar && (
+                                <button
+                                    onClick={async () => {
+                                        setMostrarDialogoInsumos(false);
+                                        
+                                        try {
+                                            const response = await fetch(`/estudios/${estudio.ID}/aplicar-plantilla`, {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Content-Type': 'application/json',
+                                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                                                },
+                                                body: JSON.stringify({ plantilla_key: plantillaParaAplicar })
+                                            });
+
+                                            const data = await response.json();
+                                            
+                                            if (data.success) {
+                                                setResultadosCompletos(true);
+                                                const { fecha, hora } = getCurrentDateTime();
+                                                const form = formRef.current;
+                                                if (form) {
+                                                    const fechaInput = form.querySelector('[name="FECHA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
+                                                    const horaInput = form.querySelector('[name="HORA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
+                                                    if (fechaInput) fechaInput.value = fecha;
+                                                    if (horaInput) horaInput.value = hora;
+                                                }
+                                                // Recargar insumos del estudio para que PlantillasInsumos se actualice
+                                                await cargarInsumosDelEstudio();
+                                                setInsumosRefreshTrigger(prev => prev + 1);
+                                                
+                                            } else {
+                                                alert('No se pudo aplicar la plantilla: ' + data.message);
+                                            }
+                                        } catch (error) {
+                                            console.error('Error aplicando plantilla:', error);
+                                            alert('Error al aplicar la plantilla');
+                                        }
+
+                                        setPlantillaParaAplicar(null);
+                                    }}
+                                    className="px-4 py-2 text-sm bg-[#189BAF] hover:bg-[#157a8c] text-white rounded-md"
+                                >
+                                    Aceptar y aplicar plantilla
+                                </button>
+                            )}
+
+                            {!plantillaParaAplicar && (
+                                <button
+                                    onClick={() => {
+                                        setMostrarDialogoInsumos(false);
+                                    }}
+                                    className="px-4 py-2 text-sm bg-[#189BAF] hover:bg-[#157a8c] text-white rounded-md"
+                                >
+                                    Entendido
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </AppLayout>
     );
 }

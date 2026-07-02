@@ -132,15 +132,18 @@ class PlantillaInsumoController extends Controller
             $insumosExistentes = $estudio->insumos()->with('lote')->get();
             
             foreach ($insumosExistentes as $uso) {
-                // Devolver stock al inventario
                 $uso->lote->increment('CANTIDAD_ACTUAL', $uso->CANTIDAD);
-                \Log::info('📦 Stock devuelto', [
-                    'lote' => $uso->lote->LOTE,
-                    'cantidad_devuelta' => $uso->CANTIDAD,
-                    'stock_nuevo' => $uso->lote->CANTIDAD_ACTUAL + $uso->CANTIDAD
-                ]);
-                
-                // Eliminar el registro de uso
+
+                \App\Models\LoteMovimiento::registrar(
+                    idInsumo:  $uso->lote->ID_INSUMO,
+                    idLote:    $uso->lote->ID,
+                    tipo:      \App\Models\LoteMovimiento::TIPO_INGRESO,
+                    cantidad:  $uso->CANTIDAD,
+                    motivo:    "Devolución por reemplazo de plantilla en estudio {$estudio->CLAVE_INTERNA}",
+                    idEstudio: $estudio->ID,
+                    idUsuario: auth()->user()->ID_USUARIO ?? auth()->id(),
+                );
+
                 $uso->delete();
             }
             
@@ -375,6 +378,15 @@ class PlantillaInsumoController extends Controller
                 ]);
                 
                 \Log::info("✅ Lote automático creado: {$lote->LOTE}");
+
+                \App\Models\LoteMovimiento::registrar(
+                    idInsumo:  $insumo->ID,
+                    idLote:    $lote->ID,
+                    tipo:      \App\Models\LoteMovimiento::TIPO_INGRESO,
+                    cantidad:  $lote->CANTIDAD_INICIAL,
+                    motivo:    "Ingreso inicial de lote automático generado por plantilla",
+                    idUsuario: auth()->user()->ID_USUARIO ?? auth()->id(),
+                );
                 
                 // Trackear que se creó un lote nuevo
                 $lotesCreados[] = [
@@ -404,6 +416,16 @@ class PlantillaInsumoController extends Controller
         
         // Actualizar stock del lote
         $lote->decrement('CANTIDAD_ACTUAL', $cantidad);
+
+        \App\Models\LoteMovimiento::registrar(
+            idInsumo:  $insumo->ID,
+            idLote:    $lote->ID,
+            tipo:      \App\Models\LoteMovimiento::TIPO_RETIRO,
+            cantidad:  $cantidad,
+            motivo:    "Uso por plantilla en estudio {$estudio->CLAVE_INTERNA}",
+            idEstudio: $estudio->ID,
+            idUsuario: auth()->user()->ID_USUARIO ?? auth()->id(),
+        );
         
         $resultado = [
             'success' => true,

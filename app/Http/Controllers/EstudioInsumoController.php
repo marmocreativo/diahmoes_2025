@@ -170,6 +170,16 @@ class EstudioInsumoController extends Controller
                 // Commit de la transacción
                 \DB::commit();
 
+                \App\Models\LoteMovimiento::registrar(
+                    idInsumo:  $lote->ID_INSUMO,
+                    idLote:    $lote->ID,
+                    tipo:      \App\Models\LoteMovimiento::TIPO_RETIRO,
+                    cantidad:  $request->CANTIDAD,
+                    motivo:    "Uso en estudio {$estudio->CLAVE_INTERNA}",
+                    idEstudio: $estudio->ID,
+                    idUsuario: auth()->user()->ID_USUARIO ?? auth()->id(),
+                );
+
                 // Cargar las relaciones para devolver en la respuesta
                 $estudioInsumo->load('lote.insumo', 'usuario');
 
@@ -298,6 +308,16 @@ class EstudioInsumoController extends Controller
             }
 
             \DB::commit();
+
+            \App\Models\LoteMovimiento::registrar(
+                idInsumo:  $lote->ID_INSUMO,
+                idLote:    $lote->ID,
+                tipo:      \App\Models\LoteMovimiento::TIPO_INGRESO,
+                cantidad:  $cantidadADevolver,
+                motivo:    "Devolución de estudio {$estudio->CLAVE_INTERNA}",
+                idEstudio: $estudio->ID,
+                idUsuario: auth()->user()->ID_USUARIO ?? auth()->id(),
+            );
 
             return response()->json([
                 'success' => true,

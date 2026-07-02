@@ -19,7 +19,7 @@ class DashboardExportController extends Controller
         $filters = $request->all();
         
         // Crear primera hoja - Reporte General
-        $this->createHojaGeneral($spreadsheet, $filters);
+        //$this->createHojaGeneral($spreadsheet, $filters);
         
         // Crear segunda hoja - Reporte Detallado
         $this->createHojaDetallada($spreadsheet, $filters);

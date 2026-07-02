@@ -347,7 +347,7 @@ export default function ReportesIndex() {
                         <TabsList>
                             <TabsTrigger value="estadisticas">📊 Estadísticas</TabsTrigger>
                             <TabsTrigger value="estudios">🧪 Estudios del período ({datos.estudios_periodo.length})</TabsTrigger>
-                            <TabsTrigger value="solicitudes">📋 Solicitudes</TabsTrigger>
+                            {/* <TabsTrigger value="solicitudes">📋 Solicitudes</TabsTrigger> */}
                         </TabsList>
 
                         <TabsContent value="estadisticas" className="flex flex-col gap-6 mt-4">

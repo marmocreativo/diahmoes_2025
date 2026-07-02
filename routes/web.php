@@ -202,11 +202,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     | CRUD de Insumos
     |--------------------------------------------------------------------------
     */
+    // Movimientos de insumos
+    Route::get('insumos/movimientos', [InsumoLoteController::class, 'movimientos'])
+    ->name('insumos.movimientos');
 
     // CRUD básico de insumos
     Route::resource('insumos', InsumoController::class)
         ->parameters(['insumos' => 'insumo:ID']);
-    
+
     // Confirmación antes de eliminar insumo
     Route::get('insumos/{insumo:ID}/confirm-delete', [InsumoController::class, 'confirmDelete'])
         ->name('insumos.confirm-delete');
@@ -215,7 +218,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('api/insumos/disponibles', [InsumoController::class, 'getDisponibles'])
         ->name('api.insumos.disponibles');
 
-    
+    // Movimientos de lotes (fuera del prefix para evitar conflictos)
+    Route::post('insumos/{insumo:ID}/lotes/{lote:ID}/agregar-cantidad', [InsumoLoteController::class, 'agregarCantidad'])
+        ->name('insumos.lotes.agregar-cantidad');
+
+    Route::post('insumos/{insumo:ID}/lotes/{lote:ID}/retirar-cantidad', [InsumoLoteController::class, 'retirarCantidad'])
+        ->name('insumos.lotes.retirar-cantidad');
 
     /*
     |--------------------------------------------------------------------------
@@ -223,38 +231,32 @@ Route::middleware(['auth', 'verified'])->group(function () {
     |--------------------------------------------------------------------------
     */
 
-    // Rutas para lotes de un insumo específico
     Route::prefix('insumos/{insumo:ID}')->group(function () {
-        
-        // Listar lotes del insumo
+
         Route::get('/lotes', [InsumoLoteController::class, 'index'])
             ->name('insumos.lotes.index');
-        
-        // Crear nuevo lote
+
         Route::get('/lotes/create', [InsumoLoteController::class, 'create'])
             ->name('insumos.lotes.create');
-        
+
         Route::post('/lotes', [InsumoLoteController::class, 'store'])
             ->name('insumos.lotes.store');
-        
-        // Ver, editar, actualizar y eliminar lotes
+
         Route::get('/lotes/{lote:ID}', [InsumoLoteController::class, 'show'])
             ->name('insumos.lotes.show');
-        
+
         Route::get('/lotes/{lote:ID}/edit', [InsumoLoteController::class, 'edit'])
             ->name('insumos.lotes.edit');
-        
+
         Route::patch('/lotes/{lote:ID}', [InsumoLoteController::class, 'update'])
             ->name('insumos.lotes.update');
-        
+
         Route::delete('/lotes/{lote:ID}', [InsumoLoteController::class, 'destroy'])
             ->name('insumos.lotes.destroy');
-        
-        // Ajustar cantidad manualmente (corrección de inventario)
+
         Route::patch('/lotes/{lote:ID}/ajustar-cantidad', [InsumoLoteController::class, 'ajustarCantidad'])
             ->name('insumos.lotes.ajustar-cantidad');
-        
-        // Obtener lotes disponibles del insumo
+
         Route::get('/lotes-disponibles', [InsumoLoteController::class, 'getLotesDisponibles'])
             ->name('insumos.lotes.disponibles');
     });

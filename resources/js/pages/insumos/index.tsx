@@ -347,6 +347,13 @@ export default function InsumosIndex() {
                                 <span className={isMobile ? "hidden sm:inline" : ""}>Stock Bajo</span>
                             </Link>
                             <Link 
+                                href="/insumos/movimientos"
+                                className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-white font-medium transition-colors flex items-center space-x-2"
+                            >
+                                <TrendingDown className="h-5 w-5" />
+                                <span className={isMobile ? "hidden sm:inline" : ""}>Movimientos</span>
+                            </Link>
+                            <Link 
                                 href="/insumos/create"
                                 className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-white font-medium transition-colors flex items-center space-x-2"
                             >

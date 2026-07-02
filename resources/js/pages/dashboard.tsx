@@ -58,9 +58,21 @@ interface ComparativaTipos {
 }
 
 interface ComparativaMutacion {
-    mutado: number;
-    no_mutado: number;
-    invalido: number;
+    kras: {
+        no_procesable: number;
+        invalido: number;
+        mutado: number;
+        no_mutado: number;
+        sin_datos: number;
+    };
+    nras: {
+        mutado: number;
+        no_mutado: number;
+    };
+    braf: {
+        mutado: number;
+        no_mutado: number;
+    };
 }
 
 interface Comparacion3Periodos {
@@ -371,229 +383,285 @@ export default function Dashboard() {
 
                         {/* TAB 1: todo el contenido actual de estadísticas */}
                         <TabsContent value="estadisticas" className="flex flex-col gap-6 mt-4">
-                            {/* Métricas Principales y Gráficas - Segunda fila con layout mejorado */}
-                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                                {/* Métricas principales en columnas más pequeñas */}
-                                <div className="lg:col-span-2">
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                                {/* Total */}
+                                <div className="lg:col-span-1">
                                     <Card className="border-2 border-blue-100 h-full">
-                                        <CardHeader className="pb-2">
-                                            <CardTitle className="text-sm font-medium flex items-center gap-1">
-                                                <Users className="h-4 w-4 text-blue-600" />
+                                        <CardContent className="flex flex-col items-center justify-center h-full text-center p-3">
+                                            <div className="flex items-center gap-1 text-xs font-medium text-gray-500 mb-1">
+                                                <Users className="h-3 w-3 text-blue-600" />
                                                 Total
                                                 <Tooltip>
-                                                    <TooltipTrigger>
-                                                        <HelpCircle className="h-3 w-3 text-gray-400" />
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Total de estudios en el período</p>
-                                                    </TooltipContent>
+                                                    <TooltipTrigger><HelpCircle className="h-3 w-3 text-gray-400" /></TooltipTrigger>
+                                                    <TooltipContent><p>Total de estudios en el período</p></TooltipContent>
                                                 </Tooltip>
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-3xl font-bold text-blue-600">
-                                                {datos.metricas_principales.total_estudios}
                                             </div>
-                                            <p className="text-xs text-gray-500 mt-1">
-                                                Estudios
-                                            </p>
+                                            <div className="text-2xl font-bold text-blue-600">{datos.metricas_principales.total_estudios}</div>
+                                            <p className="text-xs text-gray-400">Estudios</p>
                                         </CardContent>
                                     </Card>
                                 </div>
 
-                                <div className="lg:col-span-2">
+                                {/* En Laboratorio */}
+                                <div className="lg:col-span-1">
                                     <Card className="border-2 border-orange-100 h-full">
-                                        <CardHeader className="pb-2">
-                                            <CardTitle className="text-sm font-medium flex items-center gap-1">
-                                                <Clock className="h-4 w-4 text-orange-600" />
-                                                En Laboratorio
+                                        <CardContent className="flex flex-col items-center justify-center h-full text-center p-3">
+                                            <div className="flex items-center gap-1 text-xs font-medium text-gray-500 mb-1">
+                                                <Clock className="h-3 w-3 text-orange-600" />
+                                                En Lab.
                                                 <Tooltip>
-                                                    <TooltipTrigger>
-                                                        <HelpCircle className="h-3 w-3 text-gray-400" />
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Estudios en proceso</p>
-                                                    </TooltipContent>
+                                                    <TooltipTrigger><HelpCircle className="h-3 w-3 text-gray-400" /></TooltipTrigger>
+                                                    <TooltipContent><p>Estudios en proceso</p></TooltipContent>
                                                 </Tooltip>
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-3xl font-bold text-orange-600">
-                                                {datos.metricas_principales.pendientes}
                                             </div>
-                                            <p className="text-xs text-gray-500 mt-1">
-                                                En proceso
-                                            </p>
+                                            <div className="text-2xl font-bold text-orange-600">{datos.metricas_principales.pendientes}</div>
+                                            <p className="text-xs text-gray-400">En proceso</p>
                                         </CardContent>
                                     </Card>
                                 </div>
 
-                                <div className="lg:col-span-2">
+                                {/* Resultados Enviados */}
+                                <div className="lg:col-span-1">
                                     <Card className="border-2 border-green-100 h-full">
-                                        <CardHeader className="pb-2">
-                                            <CardTitle className="text-sm font-medium flex items-center gap-1">
-                                                <CheckCircle className="h-4 w-4 text-green-600" />
-                                                Resultados Enviados
+                                        <CardContent className="flex flex-col items-center justify-center h-full text-center p-3">
+                                            <div className="flex items-center gap-1 text-xs font-medium text-gray-500 mb-1">
+                                                <CheckCircle className="h-3 w-3 text-green-600" />
+                                                Enviados
                                                 <Tooltip>
-                                                    <TooltipTrigger>
-                                                        <HelpCircle className="h-3 w-3 text-gray-400" />
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Estudios finalizados</p>
-                                                    </TooltipContent>
+                                                    <TooltipTrigger><HelpCircle className="h-3 w-3 text-gray-400" /></TooltipTrigger>
+                                                    <TooltipContent><p>Estudios finalizados</p></TooltipContent>
                                                 </Tooltip>
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-3xl font-bold text-green-600">
-                                                {datos.metricas_principales.completados}
                                             </div>
-                                            <p className="text-xs text-gray-500 mt-1">
-                                                Finalizados
-                                            </p>
+                                            <div className="text-2xl font-bold text-green-600">{datos.metricas_principales.completados}</div>
+                                            <p className="text-xs text-gray-400">Finalizados</p>
                                         </CardContent>
                                     </Card>
                                 </div>
 
-                                {/* Tipo de Estudio - Card más grande */}
-                                <div className="lg:col-span-3">
-                                    <Card className="h-full">
-                                        <CardHeader>
-                                            <CardTitle className="flex items-center gap-2 text-lg">
-                                                <Activity className="h-5 w-5" />
-                                                Tipo de Estudio
-                                                <Tooltip>
-                                                    <TooltipTrigger>
-                                                        <HelpCircle className="h-4 w-4 text-gray-400" />
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Distribución de estudios por tipo</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            {/* Contenido existente de tipo de estudio */}
-                                            <div className="space-y-4">
-                                                <div className="w-full bg-gray-200 rounded-full h-8 flex overflow-hidden">
-                                                    {datos.graficas_pie.tipo_estudio.map((tipo, index) => {
-                                                        const porcentaje = (tipo.value / datos.metricas_principales.total_estudios) * 100;
-                                                        return (
-                                                            <div
-                                                                key={index}
-                                                                className="h-full flex items-center justify-center text-white text-xs font-medium"
-                                                                style={{
-                                                                    width: `${porcentaje}%`,
-                                                                    backgroundColor: pieColors[index % pieColors.length]
-                                                                }}
-                                                                title={`${tipo.name}: ${tipo.value} (${Math.round(porcentaje)}%)`}
-                                                            >
-                                                                {porcentaje > 10 && `${Math.round(porcentaje)}%`}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                                
-                                                <div className="space-y-2">
-                                                    {datos.graficas_pie.tipo_estudio.map((tipo, index) => {
-                                                        const porcentaje = (tipo.value / datos.metricas_principales.total_estudios) * 100;
-                                                        return (
-                                                            <div key={index} className="flex items-center justify-between">
-                                                                <div className="flex items-center gap-2">
-                                                                    <div 
-                                                                        className="w-3 h-3 rounded-full"
-                                                                        style={{ backgroundColor: pieColors[index % pieColors.length] }}
-                                                                    />
-                                                                    <span className="text-sm font-medium">{tipo.name}</span>
-                                                                </div>
-                                                                <span className="text-sm font-bold">
-                                                                    {tipo.value} ({Math.round(porcentaje)}%)
-                                                                </span>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
+                            {/* Tipo de Estudio */}
+                            <div className="lg:col-span-3">
+                                <Card className="h-full">
+                                    <CardHeader className="pb-2 pt-4 px-4">
+                                        <CardTitle className="flex items-center gap-2 text-sm">
+                                            <Activity className="h-4 w-4" />
+                                            Tipo de Estudio
+                                            <Tooltip>
+                                                <TooltipTrigger><HelpCircle className="h-3 w-3 text-gray-400" /></TooltipTrigger>
+                                                <TooltipContent><p>Distribución de estudios por tipo</p></TooltipContent>
+                                            </Tooltip>
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="px-4 pb-4">
+                                        <div className="space-y-3">
+                                            <div className="w-full bg-gray-200 rounded-full h-7 flex overflow-hidden">
+                                                {datos.graficas_pie.tipo_estudio.map((tipo, index) => {
+                                                    const pct = (tipo.value / datos.metricas_principales.total_estudios) * 100;
+                                                    return (
+                                                        <div
+                                                            key={index}
+                                                            className="h-full flex items-center justify-center text-white text-xs font-medium"
+                                                            style={{ width: `${pct}%`, backgroundColor: pieColors[index % pieColors.length] }}
+                                                            title={`${tipo.name}: ${tipo.value} (${Math.round(pct)}%)`}
+                                                        >
+                                                            {pct > 10 && `${Math.round(pct)}%`}
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
-                                        </CardContent>
-                                    </Card>
-                                </div>
+                                            <div className="space-y-1.5">
+                                                {datos.graficas_pie.tipo_estudio.map((tipo, index) => {
+                                                    const pct = (tipo.value / datos.metricas_principales.total_estudios) * 100;
+                                                    return (
+                                                        <div key={index} className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: pieColors[index % pieColors.length] }} />
+                                                                <span className="text-xs font-medium">{tipo.name}</span>
+                                                            </div>
+                                                            <span className="text-xs font-bold">{tipo.value} ({Math.round(pct)}%)</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
 
-                                {/* Estado de Mutación - Card más grande */}
-                                <div className="lg:col-span-3">
-                                    <Card className="h-full">
-                                        <CardHeader>
-                                            <CardTitle className="flex items-center gap-2 text-lg">
-                                                <TestTube className="h-5 w-5" />
-                                                Estado de Mutación
-                                                <Tooltip>
-                                                    <TooltipTrigger>
-                                                        <HelpCircle className="h-4 w-4 text-gray-400" />
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Distribución por estado de mutación (KRAS, NRAS, BRAF)</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="space-y-4">
+                            {/* Estado de Mutación */}
+                            <div className="lg:col-span-6">
+                                <Card className="h-full">
+                                    <CardHeader className="pb-2 pt-4 px-4">
+                                        <CardTitle className="flex items-center gap-2 text-sm">
+                                            <TestTube className="h-4 w-4" />
+                                            Estado de Mutación
+                                            <Tooltip>
+                                                <TooltipTrigger><HelpCircle className="h-3 w-3 text-gray-400" /></TooltipTrigger>
+                                                <TooltipContent><p>Conteo por estatus de mutación en KRAS, NRAS y BRAF</p></TooltipContent>
+                                            </Tooltip>
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="px-4 pb-4">
+                                        <div className="grid grid-cols-4 gap-4 divide-x divide-gray-200">
+
+                                            {/* Col 0 — Sin resultado */}
+                                            <div className="space-y-2 pr-2">
+                                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Sin resultado</p>
                                                 {(() => {
-                                                    const total = datos.comparativa_mutacion.mutado + datos.comparativa_mutacion.no_mutado + datos.comparativa_mutacion.invalido;
-                                                    
-                                                    const datosGrafica = [
-                                                        { name: 'Mutado', value: datos.comparativa_mutacion.mutado, color: '#EF4444' },
-                                                        { name: 'No Mutado', value: datos.comparativa_mutacion.no_mutado, color: '#10B981' },
-                                                        { name: 'Inválido/Sin Datos', value: datos.comparativa_mutacion.invalido, color: '#6B7280' }
-                                                    ].filter(item => item.value > 0);
-
+                                                    const items = [
+                                                        { label: 'No Procesable', value: datos.comparativa_mutacion.kras.no_procesable, color: '#F97316' },
+                                                        { label: 'Sin Datos',     value: datos.comparativa_mutacion.kras.sin_datos,     color: '#FB923C' },
+                                                        { label: 'Inválido', value: datos.comparativa_mutacion.kras.invalido,      color: '#EAB308' },
+                                                    ];
+                                                    const total = items.reduce((s, i) => s + i.value, 0);
                                                     return (
                                                         <>
-                                                            <div className="w-full bg-gray-200 rounded-full h-8 flex overflow-hidden">
-                                                                {datosGrafica.map((item, index) => {
-                                                                    const porcentaje = total > 0 ? (item.value / total) * 100 : 0;
-                                                                    return (
-                                                                        <div
-                                                                            key={index}
-                                                                            className="h-full flex items-center justify-center text-white text-xs font-medium"
-                                                                            style={{
-                                                                                width: `${porcentaje}%`,
-                                                                                backgroundColor: item.color
-                                                                            }}
-                                                                            title={`${item.name}: ${item.value} (${Math.round(porcentaje)}%)`}
-                                                                        >
-                                                                            {porcentaje > 10 && `${Math.round(porcentaje)}%`}
-                                                                        </div>
-                                                                    );
+                                                            <div className="w-full bg-gray-100 rounded-full h-5 flex overflow-hidden">
+                                                                {items.map((item, i) => {
+                                                                    const pct = total > 0 ? (item.value / total) * 100 : 0;
+                                                                    return pct > 0 ? (
+                                                                        <div key={i} className="h-full" style={{ width: `${pct}%`, backgroundColor: item.color }} title={`${item.label}: ${item.value}`} />
+                                                                    ) : null;
                                                                 })}
                                                             </div>
-                                                            
-                                                            <div className="space-y-2">
-                                                                {datosGrafica.map((item, index) => {
-                                                                    const porcentaje = total > 0 ? (item.value / total) * 100 : 0;
-                                                                    return (
-                                                                        <div key={index} className="flex items-center justify-between">
-                                                                            <div className="flex items-center gap-2">
-                                                                                <div 
-                                                                                    className="w-3 h-3 rounded-full"
-                                                                                    style={{ backgroundColor: item.color }}
-                                                                                />
-                                                                                <span className="text-sm font-medium">{item.name}</span>
-                                                                            </div>
-                                                                            <span className="text-sm font-bold">
-                                                                                {item.value} ({Math.round(porcentaje)}%)
-                                                                            </span>
+                                                            <div className="space-y-1">
+                                                                {items.map((item, i) => (
+                                                                    <div key={i} className="flex items-center justify-between">
+                                                                        <div className="flex items-center gap-1">
+                                                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                                                                            <span className="text-xs text-gray-600">{item.label}</span>
                                                                         </div>
-                                                                    );
-                                                                })}
+                                                                        <span className="text-xs font-bold" style={{ color: item.color }}>{item.value}</span>
+                                                                    </div>
+                                                                ))}
                                                             </div>
                                                         </>
                                                     );
                                                 })()}
                                             </div>
-                                        </CardContent>
-                                    </Card>
-                                </div>
+
+                                            {/* Col 1 — KRAS */}
+                                            <div className="space-y-2 px-4">
+                                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">KRAS</p>
+                                                {(() => {
+                                                    const items = [
+                                                        { label: 'Mutado',    value: datos.comparativa_mutacion.kras.mutado,    color: '#EF4444' },
+                                                        { label: 'No Mutado', value: datos.comparativa_mutacion.kras.no_mutado, color: '#22C55E' },
+                                                    ];
+                                                    const total = items.reduce((s, i) => s + i.value, 0);
+                                                    return (
+                                                        <>
+                                                            <div className="w-full bg-gray-100 rounded-full h-5 flex overflow-hidden">
+                                                                {items.map((item, i) => {
+                                                                    const pct = total > 0 ? (item.value / total) * 100 : 0;
+                                                                    return pct > 0 ? (
+                                                                        <div key={i} className="h-full flex items-center justify-center text-white text-[10px] font-medium"
+                                                                            style={{ width: `${pct}%`, backgroundColor: item.color }}
+                                                                            title={`${item.label}: ${item.value}`}>
+                                                                            {pct > 15 && `${Math.round(pct)}%`}
+                                                                        </div>
+                                                                    ) : null;
+                                                                })}
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                {items.map((item, i) => (
+                                                                    <div key={i} className="flex items-center justify-between">
+                                                                        <div className="flex items-center gap-1">
+                                                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                                                                            <span className="text-xs text-gray-600">{item.label}</span>
+                                                                        </div>
+                                                                        <span className="text-xs font-bold" style={{ color: item.color }}>{item.value}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </>
+                                                    );
+                                                })()}
+                                            </div>
+
+                                            {/* Col 2 — NRAS */}
+                                            <div className="space-y-2 px-4">
+                                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">NRAS</p>
+                                                {(() => {
+                                                    const items = [
+                                                        { label: 'Mutado',    value: datos.comparativa_mutacion.nras.mutado,    color: '#EF4444' },
+                                                        { label: 'No Mutado', value: datos.comparativa_mutacion.nras.no_mutado, color: '#22C55E' },
+                                                    ];
+                                                    const total = items.reduce((s, i) => s + i.value, 0);
+                                                    return (
+                                                        <>
+                                                            <div className="w-full bg-gray-100 rounded-full h-5 flex overflow-hidden">
+                                                                {items.map((item, i) => {
+                                                                    const pct = total > 0 ? (item.value / total) * 100 : 0;
+                                                                    return pct > 0 ? (
+                                                                        <div key={i} className="h-full flex items-center justify-center text-white text-[10px] font-medium"
+                                                                            style={{ width: `${pct}%`, backgroundColor: item.color }}
+                                                                            title={`${item.label}: ${item.value}`}>
+                                                                            {pct > 15 && `${Math.round(pct)}%`}
+                                                                        </div>
+                                                                    ) : null;
+                                                                })}
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                {items.map((item, i) => (
+                                                                    <div key={i} className="flex items-center justify-between">
+                                                                        <div className="flex items-center gap-1">
+                                                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                                                                            <span className="text-xs text-gray-600">{item.label}</span>
+                                                                        </div>
+                                                                        <span className="text-xs font-bold" style={{ color: item.color }}>{item.value}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </>
+                                                    );
+                                                })()}
+                                            </div>
+
+                                            {/* Col 3 — BRAF */}
+                                            <div className="space-y-2 pl-4">
+                                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">BRAF</p>
+                                                {(() => {
+                                                    const items = [
+                                                        { label: 'Mutado',    value: datos.comparativa_mutacion.braf.mutado,    color: '#EF4444' },
+                                                        { label: 'No Mutado', value: datos.comparativa_mutacion.braf.no_mutado, color: '#22C55E' },
+                                                    ];
+                                                    const total = items.reduce((s, i) => s + i.value, 0);
+                                                    return (
+                                                        <>
+                                                            <div className="w-full bg-gray-100 rounded-full h-5 flex overflow-hidden">
+                                                                {items.map((item, i) => {
+                                                                    const pct = total > 0 ? (item.value / total) * 100 : 0;
+                                                                    return pct > 0 ? (
+                                                                        <div key={i} className="h-full flex items-center justify-center text-white text-[10px] font-medium"
+                                                                            style={{ width: `${pct}%`, backgroundColor: item.color }}
+                                                                            title={`${item.label}: ${item.value}`}>
+                                                                            {pct > 15 && `${Math.round(pct)}%`}
+                                                                        </div>
+                                                                    ) : null;
+                                                                })}
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                {items.map((item, i) => (
+                                                                    <div key={i} className="flex items-center justify-between">
+                                                                        <div className="flex items-center gap-1">
+                                                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                                                                            <span className="text-xs text-gray-600">{item.label}</span>
+                                                                        </div>
+                                                                        <span className="text-xs font-bold" style={{ color: item.color }}>{item.value}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </>
+                                                    );
+                                                })()}
+                                            </div>
+
+                                        </div>
+                                    </CardContent>
+                                </Card>
                             </div>
+
+                        </div>
 
                             {/* Top 10 - Tercera fila */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

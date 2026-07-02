@@ -157,7 +157,7 @@ class ReporteController extends Controller
         ReporteLog::registrar($request, 'exportacion', $descripcion);
 
         $spreadsheet = new Spreadsheet();
-        $this->createHojaGeneral($spreadsheet, $filters);
+        //$this->createHojaGeneral($spreadsheet, $filters);
         $this->createHojaDetallada($spreadsheet, $filters);
 
         $fileName = 'reporte_' . now()->format('Y-m-d_H-i-s') . '.xlsx';

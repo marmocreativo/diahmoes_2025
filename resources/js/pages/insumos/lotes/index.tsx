@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Plus, Edit, Package, AlertTriangle, Calendar, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Package, AlertTriangle, Calendar, Trash2, PlusCircle, MinusCircle } from 'lucide-react';
 import { type BreadcrumbItem, SharedData } from '@/types';
 
 interface Insumo {
@@ -14,6 +14,7 @@ interface Insumo {
 
 interface Lote {
     ID: number;
+    ID_INSUMO: number;
     LOTE: string;
     FECHA_CADUCIDAD: string;
     CANTIDAD_INICIAL: number;
@@ -33,6 +34,10 @@ interface LotesIndexProps extends SharedData {
 export default function LotesIndex() {
     const { insumo, lotes } = usePage<LotesIndexProps>().props;
     const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [modalAgregar, setModalAgregar] = useState<Lote | null>(null);
+    const [modalRetirar, setModalRetirar] = useState<Lote | null>(null);
+    const [formMovimiento, setFormMovimiento] = useState({ CANTIDAD: 1, MOTIVO: '' });
+    const [procesando, setProcesando] = useState(false);
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
@@ -94,6 +99,48 @@ export default function LotesIndex() {
                 }
             });
         }
+    };
+
+    const abrirModalAgregar = (lote: Lote) => {
+        setFormMovimiento({ CANTIDAD: 1, MOTIVO: '' });
+        setModalAgregar(lote);
+    };
+
+    const abrirModalRetirar = (lote: Lote) => {
+        setFormMovimiento({ CANTIDAD: 1, MOTIVO: '' });
+        setModalRetirar(lote);
+    };
+
+    const cerrarModales = () => {
+        setModalAgregar(null);
+        setModalRetirar(null);
+        setFormMovimiento({ CANTIDAD: 1, MOTIVO: '' });
+    };
+
+    const handleAgregarCantidad = () => {
+        if (!modalAgregar || procesando) return;
+        setProcesando(true);
+        router.post(
+            `/insumos/${insumo.ID}/lotes/${modalAgregar.ID}/agregar-cantidad`,
+            formMovimiento,
+            {
+                onSuccess: () => cerrarModales(),
+                onFinish: () => setProcesando(false),
+            }
+        );
+    };
+
+    const handleRetirarCantidad = () => {
+        if (!modalRetirar || procesando) return;
+        setProcesando(true);
+        router.post(
+            `/insumos/${insumo.ID}/lotes/${modalRetirar.ID}/retirar-cantidad`,
+            formMovimiento,
+            {
+                onSuccess: () => cerrarModales(),
+                onFinish: () => setProcesando(false),
+            }
+        );
     };
 
     return (
@@ -269,6 +316,22 @@ export default function LotesIndex() {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 <div className="flex items-center justify-end space-x-2">
+                                                    <button
+                                                        onClick={() => abrirModalAgregar(lote)}
+                                                        className="text-green-600 hover:text-green-800 transition-colors"
+                                                        title="Agregar cantidad"
+                                                    >
+                                                        <PlusCircle className="h-5 w-5" />
+                                                    </button>
+
+                                                    <button
+                                                        onClick={() => abrirModalRetirar(lote)}
+                                                        disabled={lote.CANTIDAD_ACTUAL <= 0}
+                                                        className="text-orange-500 hover:text-orange-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                                        title="Retirar cantidad"
+                                                    >
+                                                        <MinusCircle className="h-5 w-5" />
+                                                    </button>
                                                     <Link
                                                         href={`/insumos/${insumo.ID}/lotes/${lote.ID}/edit`}
                                                         className="text-[#D68B41] hover:text-[#b8763a] transition-colors"
@@ -299,6 +362,118 @@ export default function LotesIndex() {
                     )}
                 </div>
             </div>
+            {/* Modal Agregar Cantidad */}
+            {modalAgregar && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+                        <h2 className="text-lg font-bold text-gray-800 mb-1">Agregar Cantidad</h2>
+                        <p className="text-sm text-gray-500 mb-4">Lote: <span className="font-medium text-gray-700">{modalAgregar.LOTE}</span></p>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Cantidad a agregar *
+                                </label>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    value={formMovimiento.CANTIDAD}
+                                    onChange={e => setFormMovimiento(p => ({ ...p, CANTIDAD: parseInt(e.target.value) || 1 }))}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF]"
+                                />
+                                <p className="text-xs text-gray-400 mt-1">Stock actual: {modalAgregar.CANTIDAD_ACTUAL} {insumo.UNIDAD_MEDIDA}</p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Motivo *
+                                </label>
+                                <textarea
+                                    rows={3}
+                                    value={formMovimiento.MOTIVO}
+                                    onChange={e => setFormMovimiento(p => ({ ...p, MOTIVO: e.target.value }))}
+                                    placeholder="Ej: Reposición de inventario, compra nueva..."
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF]"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button
+                                onClick={cerrarModales}
+                                disabled={procesando}
+                                className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleAgregarCantidad}
+                                disabled={procesando || !formMovimiento.MOTIVO.trim() || formMovimiento.CANTIDAD < 1}
+                                className="px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {procesando && <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />}
+                                Confirmar Ingreso
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Retirar Cantidad */}
+            {modalRetirar && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+                        <h2 className="text-lg font-bold text-gray-800 mb-1">Retirar Cantidad</h2>
+                        <p className="text-sm text-gray-500 mb-4">Lote: <span className="font-medium text-gray-700">{modalRetirar.LOTE}</span></p>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Cantidad a retirar *
+                                </label>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={modalRetirar.CANTIDAD_ACTUAL}
+                                    value={formMovimiento.CANTIDAD}
+                                    onChange={e => setFormMovimiento(p => ({ ...p, CANTIDAD: parseInt(e.target.value) || 1 }))}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF]"
+                                />
+                                <p className="text-xs text-gray-400 mt-1">Máximo disponible: {modalRetirar.CANTIDAD_ACTUAL} {insumo.UNIDAD_MEDIDA}</p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Motivo *
+                                </label>
+                                <textarea
+                                    rows={3}
+                                    value={formMovimiento.MOTIVO}
+                                    onChange={e => setFormMovimiento(p => ({ ...p, MOTIVO: e.target.value }))}
+                                    placeholder="Ej: Ajuste de inventario, material dañado..."
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#189BAF]"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button
+                                onClick={cerrarModales}
+                                disabled={procesando}
+                                className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleRetirarCantidad}
+                                disabled={procesando || !formMovimiento.MOTIVO.trim() || formMovimiento.CANTIDAD < 1 || formMovimiento.CANTIDAD > modalRetirar.CANTIDAD_ACTUAL}
+                                className="px-4 py-2 text-sm bg-orange-500 hover:bg-orange-600 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {procesando && <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />}
+                                Confirmar Retiro
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </AppLayout>
     );
 }

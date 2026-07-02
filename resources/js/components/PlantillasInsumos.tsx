@@ -32,6 +32,8 @@ interface Plantilla {
 
 interface PlantillasInsumosProps {
     estudiaId: number;
+    estatusKras?: string;
+    refreshTrigger?: number;
     onPlantillaAplicada: () => void;
 }
 
@@ -57,7 +59,7 @@ interface LoteDisponible {
     PROXIMO_VENCER?: boolean;
 }
 
-export default function PlantillasInsumos({ estudiaId, onPlantillaAplicada }: PlantillasInsumosProps) {
+export default function PlantillasInsumos({ estudiaId, estatusKras, refreshTrigger, onPlantillaAplicada }: PlantillasInsumosProps) {
     // Estados para plantillas
     const [plantillas, setPlantillas] = useState<Record<string, Plantilla>>({});
     const [plantillasRecomendadas, setPlantillasRecomendadas] = useState<Record<string, Plantilla>>({});
@@ -81,6 +83,7 @@ export default function PlantillasInsumos({ estudiaId, onPlantillaAplicada }: Pl
 
     // Tab activa
     const [activeTab, setActiveTab] = useState<'plantillas' | 'manual' | 'utilizados'>('utilizados');
+    const [mostrarTodasPlantillas, setMostrarTodasPlantillas] = useState(false);
 
     // Cargar datos al montar el componente
     useEffect(() => {
@@ -89,6 +92,18 @@ export default function PlantillasInsumos({ estudiaId, onPlantillaAplicada }: Pl
         cargarInsumosDisponibles();
         cargarInsumosUtilizados();
     }, [estudiaId]);
+
+    useEffect(() => {
+        if (estatusKras !== undefined) {
+            cargarPlantillasRecomendadas();
+        }
+    }, [estatusKras]);
+
+    useEffect(() => {
+        if (refreshTrigger !== undefined && refreshTrigger > 0) {
+            cargarInsumosUtilizados();
+        }
+    }, [refreshTrigger]);
 
     // FUNCIONES PARA PLANTILLAS (código anterior)
     const cargarPlantillas = async () => {
@@ -108,6 +123,10 @@ export default function PlantillasInsumos({ estudiaId, onPlantillaAplicada }: Pl
         try {
             const response = await fetch(`/estudios/${estudiaId}/plantillas-insumos`);
             const data = await response.json();
+
+            console.log('🎯 Respuesta plantillas recomendadas:', data);
+            console.log('🎯 info_estudio:', data.info_estudio);
+            console.log('🎯 plantillas_recomendadas:', data.plantillas_recomendadas);
             
             if (data.success) {
                 setPlantillasRecomendadas(data.plantillas_recomendadas);
@@ -315,10 +334,6 @@ export default function PlantillasInsumos({ estudiaId, onPlantillaAplicada }: Pl
     }, [estudiaId]);
 
     const eliminarInsumo = async (insumoId: number) => {
-        if (!confirm('¿Estás seguro de eliminar este insumo? La cantidad se devolverá al inventario.')) {
-            return;
-        }
-        
         try {
             const response = await fetch(`/estudios/${estudiaId}/insumos/${insumoId}`, {
                 method: 'DELETE',
@@ -330,13 +345,11 @@ export default function PlantillasInsumos({ estudiaId, onPlantillaAplicada }: Pl
             if (response.ok) {
                 cargarInsumosUtilizados();
                 cargarInsumosDisponibles();
-                alert('✅ Insumo eliminado y cantidad devuelta al inventario');
             } else {
-                alert('❌ Error al eliminar insumo');
+                console.error('Error al eliminar insumo');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('❌ Error al eliminar insumo');
         }
     };
 
@@ -569,28 +582,27 @@ export default function PlantillasInsumos({ estudiaId, onPlantillaAplicada }: Pl
                         </div>
                     )}
 
-                    {/* Todas las Plantillas */}
+                    {/* Todas las Plantillas — colapsable */}
                     <div>
-                        <div className="flex items-center gap-2 mb-4">
-                            <Package className="h-5 w-5 text-gray-600" />
-                            <h3 className="text-lg font-semibold text-gray-800">
-                                Todas las Plantillas
-                            </h3>
-                        </div>
-                        <div className="grid gap-4 md:grid-cols-2">
-                            {Object.entries(plantillas).map(([key, plantilla]) => {
-                                // No mostrar plantillas que ya están en recomendadas
-                                if (plantillasRecomendadas[key]) return null;
-                                
-                                return (
-                                    <PlantillaCard 
-                                        key={key} 
-                                        plantillaKey={key} 
-                                        plantilla={plantilla} 
-                                    />
-                                );
-                            })}
-                        </div>
+                        <button
+                            onClick={() => setMostrarTodasPlantillas(!mostrarTodasPlantillas)}
+                            className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                        >
+                            <Package className="h-4 w-4" />
+                            {mostrarTodasPlantillas ? 'Ocultar' : 'Ver'} todas las plantillas
+                            <span className="text-xs">{mostrarTodasPlantillas ? '▲' : '▼'}</span>
+                        </button>
+
+                        {mostrarTodasPlantillas && (
+                            <div className="grid gap-4 md:grid-cols-2 mt-4">
+                                {Object.entries(plantillas).map(([key, plantilla]) => {
+                                    if (plantillasRecomendadas[key]) return null;
+                                    return (
+                                        <PlantillaCard key={key} plantillaKey={key} plantilla={plantilla} />
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

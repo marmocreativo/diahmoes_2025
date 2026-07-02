@@ -6,6 +6,7 @@ use App\Models\Insumo;
 use App\Models\InsumoLote;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Carbon\Carbon;
 
 class InsumoLoteController extends Controller
 {
@@ -75,6 +76,15 @@ public function store(Request $request, Insumo $insumo)
 {
     \Log::info('🔴 INICIO store lote para insumo ID: ' . $insumo->ID);
     \Log::info('📊 Request completo:', $request->all());
+
+    \App\Models\LoteMovimiento::registrar(
+        idInsumo:  $insumo->ID,
+        idLote:    $lote->ID,
+        tipo:      \App\Models\LoteMovimiento::TIPO_INGRESO,
+        cantidad:  $lote->CANTIDAD_INICIAL,
+        motivo:    'Ingreso inicial de lote',
+        idUsuario: auth()->user()->ID_USUARIO ?? auth()->id(),
+    );
     
     $request->validate([
         'LOTE' => 'required|string|max:255',
@@ -363,6 +373,135 @@ public function update(Request $request, Insumo $insumo, InsumoLote $lote)
                 'lotes_proximos_vencer' => $lotesProximosVencer,
                 'insumos_stock_bajo' => $insumosStockBajo,
             ]
+        ]);
+    }
+
+    /**
+     * Agregar cantidad a un lote existente
+     */
+    public function agregarCantidad(Request $request, Insumo $insumo, InsumoLote $lote)
+    {
+        if ($lote->ID_INSUMO !== $insumo->ID) {
+            abort(404, 'Lote no encontrado para este insumo');
+        }
+
+        $request->validate([
+            'CANTIDAD' => 'required|integer|min:1',
+            'MOTIVO'   => 'required|string|max:500',
+        ]);
+
+        try {
+            \DB::beginTransaction();
+
+            $lote->update([
+                'CANTIDAD_INICIAL' => $lote->CANTIDAD_INICIAL + $request->CANTIDAD,
+                'CANTIDAD_ACTUAL'  => $lote->CANTIDAD_ACTUAL  + $request->CANTIDAD,
+                'ESTADO'           => 'disponible',
+            ]);
+
+            \App\Models\LoteMovimiento::registrar(
+                idInsumo:  $insumo->ID,
+                idLote:    $lote->ID,
+                tipo:      \App\Models\LoteMovimiento::TIPO_INGRESO,
+                cantidad:  $request->CANTIDAD,
+                motivo:    $request->MOTIVO,
+                idUsuario: auth()->user()->ID_USUARIO ?? auth()->id(),
+            );
+
+            \DB::commit();
+
+            return back()->with('success', "Se agregaron {$request->CANTIDAD} unidades al lote {$lote->LOTE}.");
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('❌ Error agregando cantidad a lote:', ['error' => $e->getMessage()]);
+            return back()->withErrors(['error' => 'Error al agregar cantidad: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Retirar cantidad de un lote existente
+     */
+    public function retirarCantidad(Request $request, Insumo $insumo, InsumoLote $lote)
+    {
+        if ($lote->ID_INSUMO !== $insumo->ID) {
+            abort(404, 'Lote no encontrado para este insumo');
+        }
+
+        $request->validate([
+            'CANTIDAD' => 'required|integer|min:1',
+            'MOTIVO'   => 'required|string|max:500',
+        ]);
+
+        if ($request->CANTIDAD > $lote->CANTIDAD_ACTUAL) {
+            return back()->withErrors([
+                'CANTIDAD' => "No puedes retirar más de lo disponible. Stock actual: {$lote->CANTIDAD_ACTUAL}"
+            ]);
+        }
+
+        try {
+            \DB::beginTransaction();
+
+            $nuevaCantidad = $lote->CANTIDAD_ACTUAL - $request->CANTIDAD;
+
+            $lote->update([
+                'CANTIDAD_ACTUAL' => $nuevaCantidad,
+                'ESTADO'          => $nuevaCantidad <= 0 ? 'agotado' : $lote->ESTADO,
+            ]);
+
+            \App\Models\LoteMovimiento::registrar(
+                idInsumo:  $insumo->ID,
+                idLote:    $lote->ID,
+                tipo:      \App\Models\LoteMovimiento::TIPO_RETIRO,
+                cantidad:  $request->CANTIDAD,
+                motivo:    $request->MOTIVO,
+                idUsuario: auth()->user()->ID_USUARIO ?? auth()->id(),
+            );
+
+            \DB::commit();
+
+            return back()->with('success', "Se retiraron {$request->CANTIDAD} unidades del lote {$lote->LOTE}.");
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('❌ Error retirando cantidad de lote:', ['error' => $e->getMessage()]);
+            return back()->withErrors(['error' => 'Error al retirar cantidad: ' . $e->getMessage()]);
+        }
+    }
+
+    public function movimientos(Request $request)
+    {
+        $fechaDesde = $request->get('fecha_desde', Carbon::now()->startOfMonth()->format('Y-m-d'));
+        $fechaHasta = $request->get('fecha_hasta', Carbon::now()->format('Y-m-d'));
+        $tipoFiltro = $request->get('tipo');
+        $insumoFiltro = $request->get('id_insumo');
+
+        $query = \App\Models\LoteMovimiento::with(['insumo', 'lote', 'usuario'])
+            ->whereBetween('created_at', [$fechaDesde . ' 00:00:00', $fechaHasta . ' 23:59:59']);
+
+        if ($tipoFiltro) {
+            $query->where('TIPO', $tipoFiltro);
+        }
+
+        if ($insumoFiltro) {
+            $query->where('ID_INSUMO', $insumoFiltro);
+        }
+
+        $movimientos = $query->orderByDesc('created_at')->paginate(50);
+
+        $insumos = \App\Models\Insumo::where('ESTADO', 'activo')
+            ->orderBy('NOMBRE')
+            ->get(['ID', 'NOMBRE']);
+
+        return Inertia::render('insumos/Movimientos', [
+            'movimientos' => $movimientos,
+            'insumos'     => $insumos,
+            'filtros'     => [
+                'fecha_desde' => $fechaDesde,
+                'fecha_hasta' => $fechaHasta,
+                'tipo'        => $tipoFiltro,
+                'id_insumo'   => $insumoFiltro,
+            ],
         ]);
     }
 }
