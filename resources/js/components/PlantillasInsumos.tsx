@@ -121,7 +121,10 @@ export default function PlantillasInsumos({ estudiaId, estatusKras, refreshTrigg
 
     const cargarPlantillasRecomendadas = async () => {
         try {
-            const response = await fetch(`/estudios/${estudiaId}/plantillas-insumos`);
+            const params = new URLSearchParams();
+            if (estatusKras) params.set('estatus_kras', estatusKras);
+
+            const response = await fetch(`/estudios/${estudiaId}/plantillas-insumos?${params.toString()}`);
             const data = await response.json();
 
             console.log('🎯 Respuesta plantillas recomendadas:', data);

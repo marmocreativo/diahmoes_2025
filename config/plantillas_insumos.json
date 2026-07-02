@@ -4,7 +4,7 @@
             "nombre": "Biopsia Sólida — KRAS Mutado",
             "descripcion": "Plantilla para estudios de Biopsia Sólida con resultado KRAS Mutado",
             "condiciones": {
-                "tipo_muestra": "Biopsia Sólida",
+                "tipo_muestra": ["Biopsia Sólida", "Bloque de parafina y laminillas"],
                 "resultado_kras": ["MUTADO", "MUTADO (VER NOTAS)"]
             },
             "insumos": [
@@ -17,7 +17,7 @@
             "nombre": "Biopsia Sólida — KRAS No Mutado",
             "descripcion": "Plantilla para estudios de Biopsia Sólida con resultado KRAS No Mutado",
             "condiciones": {
-                "tipo_muestra": "Biopsia Sólida",
+                "tipo_muestra": ["Biopsia Sólida", "Bloque de parafina y laminillas"],
                 "resultado_kras": ["NO MUTADO", "NO MUTADO (VER NOTAS)"]
             },
             "insumos": [

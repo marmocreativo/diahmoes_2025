@@ -59,12 +59,17 @@ class PlantillaInsumoController extends Controller
     /**
      * Obtener plantillas recomendadas para un estudio específico
      */
-    public function getPlantillasRecomendadas(Estudio $estudio)
+    public function getPlantillasRecomendadas(Request $request, Estudio $estudio)
     {
         try {
             $plantillas = $this->cargarPlantillas();
             $recomendadas = [];
-            
+
+            // Permitir sobreescribir valores no guardados aún (desde el front)
+            $estudio->R_ESTATUS_KRAS = $request->query('estatus_kras', $estudio->R_ESTATUS_KRAS);
+            $estudio->R_ESTATUS_NRAS = $request->query('estatus_nras', $estudio->R_ESTATUS_NRAS);
+            $estudio->R_ESTATUS_BRAF = $request->query('estatus_braf', $estudio->R_ESTATUS_BRAF);
+
             foreach ($plantillas['plantillas'] as $key => $plantilla) {
                 if ($this->plantillaAplicaAlEstudio($plantilla, $estudio)) {
                     $recomendadas[$key] = $plantilla;

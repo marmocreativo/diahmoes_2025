@@ -107,6 +107,8 @@ export default function EditLaboratorioConCondicionales() {
     const [mostrarDialogoInsumos, setMostrarDialogoInsumos] = useState(false);
     const [plantillaParaAplicar, setPlantillaParaAplicar] = useState<string | null>(null);
     const [insumosRefreshTrigger, setInsumosRefreshTrigger] = useState(0);
+    const [nombrePlantillaParaAplicar, setNombrePlantillaParaAplicar] = useState<string | null>(null);
+    
 
 
     // Funciones para manejar insumos
@@ -521,14 +523,20 @@ export default function EditLaboratorioConCondicionales() {
                 
                 if (data.success && (!data.insumos || data.insumos.length === 0)) {
                     // No hay insumos — buscar plantilla recomendada y mostrar diálogo
-                    const respPlantillas = await fetch(`/estudios/${estudio.ID}/plantillas-insumos`);
+                    const params = new URLSearchParams();
+                    if (estatusKRAS) params.set('estatus_kras', estatusKRAS);
+                    if (estatusNRAS) params.set('estatus_nras', estatusNRAS);
+                    if (estatusBRAF) params.set('estatus_braf', estatusBRAF);
+
+                    const respPlantillas = await fetch(`/estudios/${estudio.ID}/plantillas-insumos?${params.toString()}`);
                     const dataPlantillas = await respPlantillas.json();
                     
                     const recomendadas = dataPlantillas.plantillas_recomendadas || {};
                     const primeraKey = Object.keys(recomendadas)[0] || null;
                     const nombrePlantilla = primeraKey ? recomendadas[primeraKey].nombre : null;
-                    
+
                     setPlantillaParaAplicar(primeraKey);
+                    setNombrePlantillaParaAplicar(nombrePlantilla);
                     setMostrarDialogoInsumos(true);
                     
                     // No marcar el checkbox todavía
@@ -1605,10 +1613,9 @@ export default function EditLaboratorioConCondicionales() {
                             Sin insumos registrados
                         </h2>
                         <p className="text-sm text-gray-600 mb-4">
-                            No se han registrado insumos para este estudio. 
                             {plantillaParaAplicar 
-                                ? ' Se aplicará automáticamente la plantilla recomendada antes de continuar.'
-                                : ' Por favor registra los insumos utilizados antes de marcar los resultados como completos.'
+                                ? <>Se aplicará la plantilla recomendada: <span className="font-semibold text-gray-800">{nombrePlantillaParaAplicar}</span></>
+                                : 'No se han registrado insumos para este estudio. Puedes continuar y registrarlos más tarde.'
                             }
                         </p>
 
@@ -1617,6 +1624,7 @@ export default function EditLaboratorioConCondicionales() {
                                 onClick={() => {
                                     setMostrarDialogoInsumos(false);
                                     setPlantillaParaAplicar(null);
+                                    setNombrePlantillaParaAplicar(null);
                                 }}
                                 className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
                             >
@@ -1674,10 +1682,20 @@ export default function EditLaboratorioConCondicionales() {
                                 <button
                                     onClick={() => {
                                         setMostrarDialogoInsumos(false);
+                                        setResultadosCompletos(true);
+
+                                        const { fecha, hora } = getCurrentDateTime();
+                                        const form = formRef.current;
+                                        if (form) {
+                                            const fechaInput = form.querySelector('[name="FECHA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
+                                            const horaInput = form.querySelector('[name="HORA_OBTENCION_RESULTADOS"]') as HTMLInputElement;
+                                            if (fechaInput) fechaInput.value = fecha;
+                                            if (horaInput) horaInput.value = hora;
+                                        }
                                     }}
                                     className="px-4 py-2 text-sm bg-[#189BAF] hover:bg-[#157a8c] text-white rounded-md"
                                 >
-                                    Entendido
+                                    Aceptar y continuar
                                 </button>
                             )}
                         </div>
