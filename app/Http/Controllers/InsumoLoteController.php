@@ -77,14 +77,7 @@ public function store(Request $request, Insumo $insumo)
     \Log::info('🔴 INICIO store lote para insumo ID: ' . $insumo->ID);
     \Log::info('📊 Request completo:', $request->all());
 
-    \App\Models\LoteMovimiento::registrar(
-        idInsumo:  $insumo->ID,
-        idLote:    $lote->ID,
-        tipo:      \App\Models\LoteMovimiento::TIPO_INGRESO,
-        cantidad:  $lote->CANTIDAD_INICIAL,
-        motivo:    'Ingreso inicial de lote',
-        idUsuario: auth()->user()->ID_USUARIO ?? auth()->id(),
-    );
+    
     
     $request->validate([
         'LOTE' => 'required|string|max:255',
@@ -110,6 +103,15 @@ public function store(Request $request, Insumo $insumo)
         ]);
 
         \Log::info('✅ Lote creado exitosamente con ID: ' . $lote->ID);
+
+        \App\Models\LoteMovimiento::registrar(
+            idInsumo:  $insumo->ID,
+            idLote:    $lote->ID,
+            tipo:      \App\Models\LoteMovimiento::TIPO_INGRESO,
+            cantidad:  $lote->CANTIDAD_INICIAL,
+            motivo:    'Ingreso inicial de lote',
+            idUsuario: auth()->user()->ID_USUARIO ?? auth()->id(),
+        );
 
         return redirect()->route('insumos.lotes.index', $insumo)
             ->with('success', 'Lote agregado exitosamente al inventario.');
