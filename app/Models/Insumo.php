@@ -34,6 +34,7 @@ class Insumo extends Model
 
     // Constantes para unidades de medida
     const UNIDAD_PIEZA = 'pieza';
+    const UNIDAD_MG = 'mg';
     const UNIDAD_ML = 'ml';
     const UNIDAD_KIT = 'kit';
     const UNIDAD_CAJA = 'caja';
@@ -128,6 +129,7 @@ class Insumo extends Model
     {
         return [
             self::UNIDAD_PIEZA => 'Pieza',
+            self::UNIDAD_MG => 'Miligramos (mg)',
             self::UNIDAD_ML => 'Mililitros (ml)',
             self::UNIDAD_KIT => 'Kit',
             self::UNIDAD_CAJA => 'Caja',

@@ -212,7 +212,7 @@ export default function EstudiosPeriodoTabla({ estudios }: Props) {
                     <div>
                         <CardTitle className="flex items-center gap-2">
                             <TestTube className="h-5 w-5" />
-                            Estudios del período
+                            Estudios del periodo
                         </CardTitle>
                         <CardDescription>{estudios.length} estudios encontrados</CardDescription>
                     </div>

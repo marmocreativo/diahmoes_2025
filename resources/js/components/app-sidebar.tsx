@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavFooter } from '@/components/nav-footer';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarGroup } from '@/components/ui/sidebar';
@@ -34,7 +35,9 @@ import {
     CheckCircle,
     XCircle,
     Tag,
-    ClipboardList
+    ClipboardList,
+    GitMerge,
+    ChevronDown
 } from 'lucide-react';
 
 const footerNavItems = [
@@ -52,6 +55,7 @@ const footerNavItems = [
 
 export function AppSidebar() {
     const { url } = usePage();
+    const [fusionOpen, setFusionOpen] = useState(url.includes('/fusion'));
     
     return (
         <Sidebar 
@@ -105,21 +109,25 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarGroup>
 
-            <SidebarMenuItem>
-                <SidebarMenuButton 
-                    asChild
-                    className={`hover:bg-[#189BAF]/5 hover:text-[#189BAF] transition-colors ${
-                        url.includes('/estudios')
-                            ? 'bg-[#189BAF]/10 text-[#189BAF] font-medium border-r-2 border-[#189BAF]' 
-                            : 'text-gray-700'
-                    }`}
-                >
-                    <Link href="/estudios?prefijo=PRM" prefetch className="flex items-center gap-3">
-                        <TestTube className="!size-4" />
-                        <span className="font-medium">Estudios</span>
-                    </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
+            <SidebarGroup>
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton 
+                            asChild
+                            className={`hover:bg-[#189BAF]/5 hover:text-[#189BAF] transition-colors ${
+                                url.includes('/estudios')
+                                    ? 'bg-[#189BAF]/10 text-[#189BAF] font-medium border-r-2 border-[#189BAF]' 
+                                    : 'text-gray-700'
+                            }`}
+                        >
+                            <Link href="/estudios?prefijo=PRM" prefetch className="flex items-center gap-3">
+                                <TestTube className="!size-4" />
+                                <span className="font-medium">Estudios</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </SidebarGroup>
 
             {/* Enlaces individuales */}
             <SidebarGroup>
@@ -270,6 +278,78 @@ export function AppSidebar() {
         </SidebarContent>
 
             <SidebarFooter className="bg-gray-50 border-t border-gray-200">
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
+                            onClick={() => setFusionOpen(!fusionOpen)}
+                            className={`hover:bg-[#189BAF]/5 hover:text-[#189BAF] transition-colors cursor-pointer ${
+                                url.includes('/fusion')
+                                    ? 'bg-[#189BAF]/10 text-[#189BAF] font-medium'
+                                    : 'text-gray-700'
+                            }`}
+                        >
+                            <GitMerge className="!size-4" />
+                            <span className="font-medium">Fusión</span>
+                            <ChevronDown className={`ml-auto !size-4 transition-transform ${fusionOpen ? 'rotate-180' : ''}`} />
+                        </SidebarMenuButton>
+
+                        {fusionOpen && (
+                            <SidebarMenu className="ml-4 border-l border-gray-200 pl-2 mt-1">
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton
+                                        asChild
+                                        size="sm"
+                                        className={`hover:bg-[#189BAF]/5 hover:text-[#189BAF] transition-colors ${
+                                            url === '/fusion/instituciones'
+                                                ? 'bg-[#189BAF]/10 text-[#189BAF] font-medium'
+                                                : 'text-gray-600'
+                                        }`}
+                                    >
+                                        <Link href="/fusion/instituciones" prefetch className="flex items-center gap-3">
+                                            <Building2 className="!size-4" />
+                                            <span>Instituciones</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton
+                                        asChild
+                                        size="sm"
+                                        className={`hover:bg-[#189BAF]/5 hover:text-[#189BAF] transition-colors ${
+                                            url === '/fusion/clientes'
+                                                ? 'bg-[#189BAF]/10 text-[#189BAF] font-medium'
+                                                : 'text-gray-600'
+                                        }`}
+                                    >
+                                        <Link href="/fusion/clientes" prefetch className="flex items-center gap-3">
+                                            <Briefcase className="!size-4" />
+                                            <span>Clientes</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton
+                                        asChild
+                                        size="sm"
+                                        className={`hover:bg-[#189BAF]/5 hover:text-[#189BAF] transition-colors ${
+                                            url.includes('/fusion/usuarios')
+                                                ? 'bg-[#189BAF]/10 text-[#189BAF] font-medium'
+                                                : 'text-gray-600'
+                                        }`}
+                                    >
+                                        <Link href="/fusion/usuarios" prefetch className="flex items-center gap-3">
+                                            <Stethoscope className="!size-4" />
+                                            <span>Usuarios</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            </SidebarMenu>
+                        )}
+                    </SidebarMenuItem>
+                </SidebarMenu>
+
                 <NavFooter items={footerNavItems} className="mt-auto" />
                 <NavUser />
             </SidebarFooter>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
-import { Search, X, Filter, Eye, Edit, Download, ArrowRight, Calendar, FileText, TestTube, Microscope, Plus, MessageCircle, Printer, Trash2, Mail, CheckCircle, Clock, ChevronDown, ChevronUp, Monitor, Smartphone, Settings, Wrench, AlertTriangle } from 'lucide-react';
+import { Search, X, Filter, Eye, Edit, Download, ArrowRight, Calendar, FileText, TestTube, Microscope, Plus, MessageCircle, Printer, Trash2, Mail, CheckCircle, Clock, ChevronDown, ChevronUp, Monitor, Smartphone, Settings, Wrench, AlertTriangle, Link2 } from 'lucide-react';
 import { EstudioIndexProps } from '@/types/estudios';
 import WhatsAppDialog from '@/components/WhatsAppDialog';
 
@@ -51,6 +51,9 @@ export default function EstudiosIndex() {
     // Estados para finalización por año
     const [isFinalizing, setIsFinalizing] = useState(false);
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear() - 1); // Año anterior por defecto
+
+    // Estados de Vinculaciónd e Folios
+    const [isVinculandoFolios, setIsVinculandoFolios] = useState(false);
 
     // Estado para el dialog de WhatsApp
     const [whatsappDialog, setWhatsappDialog] = useState<{
@@ -257,6 +260,61 @@ export default function EstudiosIndex() {
             alert('Error al finalizar estudios: ' + errorMessage);
         } finally {
             setIsFinalizing(false);
+        }
+    };
+
+    // Función para vincular folios kits sin estudio
+    const handleVincularFoliosKits = async () => {
+        if (!window.confirm('¿Ejecutar la vinculación automática de folios kits con estudios?\n\nEsto buscará folios sin estudio asignado y los relacionará según coincidencia en MUESTRA_FOLIO_KIT_BL.')) {
+            return;
+        }
+
+        setIsVinculandoFolios(true);
+        setShowMaintenanceDropdown(false);
+
+        try {
+            const response = await fetch('/folios-kits/vincular-estudios', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const { reporte } = data;
+                let mensaje = `Vinculación completada exitosamente:
+                
+    • Folios sin estudio encontrados: ${reporte.folios_sin_estudio_encontrados}
+    • Folios vinculados: ${reporte.folios_vinculados}
+    • Sin coincidencia: ${reporte.folios_sin_coincidencia}
+    • Duplicados detectados: ${reporte.total_duplicados}`;
+
+                if (reporte.total_duplicados > 0) {
+                    mensaje += `\n\n⚠️ Revisa la consola para ver el detalle de los folios duplicados.`;
+                    console.warn('Folios duplicados encontrados:', reporte.duplicados);
+                }
+
+                alert(mensaje);
+                window.location.reload();
+            } else {
+                throw new Error(data.message || 'Error desconocido');
+            }
+        } catch (error) {
+            console.error('Error vinculando folios kits:', error);
+            
+            let errorMessage = 'Error desconocido';
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            }
+            
+            alert('Error al vincular folios kits: ' + errorMessage);
+        } finally {
+            setIsVinculandoFolios(false);
         }
     };
 
@@ -1095,6 +1153,28 @@ export default function EstudiosIndex() {
                                                         </div>
                                                     </div>
                                                 </div>
+
+                                                {/* Separador */}
+                                                <div className="border-t border-gray-100 my-1"></div>
+
+                                                {/* Vincular Folios Kits */}
+                                                <button
+                                                    onClick={handleVincularFoliosKits}
+                                                    disabled={isVinculandoFolios}
+                                                    className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {isVinculandoFolios ? (
+                                                        <div className="h-4 w-4 mr-3 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent"></div>
+                                                    ) : (
+                                                        <Link2 className="h-4 w-4 mr-3 text-indigo-500" />
+                                                    )}
+                                                    <div className="text-left">
+                                                        <div className="font-medium">Vincular Folios Kits</div>
+                                                        <div className="text-xs text-gray-500">
+                                                            Asociar folios sin estudio por coincidencia de folio
+                                                        </div>
+                                                    </div>
+                                                </button>
 
                                                 {/* Placeholder para futuras opciones */}
                                                 <div className="border-t border-gray-100 mt-1"></div>

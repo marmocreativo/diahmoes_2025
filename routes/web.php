@@ -18,6 +18,7 @@ use App\Http\Controllers\ReporteAccesoController;
 use App\Http\Controllers\GrupoFolioKitController;
 use App\Http\Controllers\FolioKitController;
 use App\Http\Controllers\SolicitudClienteController;
+use App\Http\Controllers\FusionController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -125,6 +126,29 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('instituciones', InstitucionController::class)
         ->parameters(['instituciones' => 'institucion:ID_INSTITUCION']);
 
+    /*
+    |--------------------------------------------------------------------------
+    | Fusión de instituciones, clientes y usuarios
+    |--------------------------------------------------------------------------
+    */
+
+    Route::prefix('fusion')->name('fusion.')->group(function () {
+        Route::get('/instituciones', [FusionController::class, 'instituciones'])->name('instituciones');
+        Route::get('/instituciones/buscar', [FusionController::class, 'buscarInstituciones'])->name('instituciones.buscar');
+        Route::post('/instituciones/preview', [FusionController::class, 'previewFusionInstituciones'])->name('instituciones.preview');
+        Route::post('/instituciones/fusionar', [FusionController::class, 'fusionarInstituciones'])->name('instituciones.fusionar');
+
+        Route::get('/clientes', [FusionController::class, 'clientes'])->name('clientes');
+        Route::get('/clientes/buscar', [FusionController::class, 'buscarClientes'])->name('clientes.buscar');
+        Route::post('/clientes/preview', [FusionController::class, 'previewFusionClientes'])->name('clientes.preview');
+        Route::post('/clientes/fusionar', [FusionController::class, 'fusionarClientes'])->name('clientes.fusionar');
+
+        Route::get('/usuarios', [FusionController::class, 'usuarios'])->name('usuarios');
+        Route::get('/usuarios/buscar', [FusionController::class, 'buscarUsuarios'])->name('usuarios.buscar');
+        Route::post('/usuarios/preview', [FusionController::class, 'previewFusionUsuarios'])->name('usuarios.preview');
+        Route::post('/usuarios/fusionar', [FusionController::class, 'fusionarUsuarios'])->name('usuarios.fusionar');
+    });
+    
    
     /*
     |--------------------------------------------------------------------------
@@ -380,6 +404,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     |--------------------------------------------------------------------------
     */
 
+    Route::get('folios-kits/exportar-excel', [FolioKitController::class, 'exportarExcel'])
+    ->name('folios-kits.exportar-excel');
+
     Route::post('folios-kits/bulk-estado', [FolioKitController::class, 'bulkUpdateEstado'])
         ->name('folios-kits.bulk-estado');
     Route::post('folios-kits/bulk-destroy', [FolioKitController::class, 'bulkDestroy'])
@@ -460,6 +487,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/estudios/cambiar-destinatario', [EstudioController::class, 'cambiarDestinatario'])
     ->name('estudios.cambiar-destinatario');
+
+    Route::post('/folios-kits/vincular-estudios', [FolioKitController::class, 'vincularEstudios'])
+    ->name('folios-kits.vincular-estudios');
     
     // Rutas para obtener datos de estudios
     Route::get('estudios/ultimo-por-institucion', [EstudioController::class, 'getUltimoEstudioInstitucion']);

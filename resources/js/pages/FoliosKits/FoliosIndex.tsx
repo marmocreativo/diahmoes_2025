@@ -3,7 +3,7 @@ import { type BreadcrumbItem } from '@/types';
 import { type FoliosIndexProps } from '@/types/folios-kits';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
-import { Tag, ChevronsUpDown, ArrowUp, ArrowDown, Edit, X, Check, Loader2, Trash2, Plus } from 'lucide-react';
+import { Tag, ChevronsUpDown, ArrowUp, ArrowDown, Edit, X, Check, Loader2, Trash2, Plus, Download } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -51,6 +51,15 @@ export default function FoliosIndex() {
     const clearFilters = () => {
         setSearch(''); setEstado(''); setIdGrupo('');
         router.get('/folios-kits', {}, { preserveState: true, replace: true });
+    };
+
+    const getExportUrl = () => {
+        const params = new URLSearchParams();
+        if (search) params.set('search', search);
+        if (estado) params.set('estado', estado);
+        if (idGrupo) params.set('id_grupo', idGrupo);
+        const query = params.toString();
+        return `/folios-kits/exportar-excel${query ? `?${query}` : ''}`;
     };
 
     const handleSort = (field: string) => {
@@ -239,6 +248,14 @@ export default function FoliosIndex() {
                             <button onClick={clearFilters} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
                                 Limpiar
                             </button>
+                            <a
+                                href={getExportUrl()}
+                                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                title="Exportar a Excel"
+                            >
+                                <Download className="h-4 w-4" />
+                                Excel
+                            </a>
                         </div>
                     </div>
                 </div>
