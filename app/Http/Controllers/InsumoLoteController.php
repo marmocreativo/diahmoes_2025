@@ -254,24 +254,45 @@ public function update(Request $request, Insumo $insumo, InsumoLote $lote)
         }
 
         try {
-            // Verificar si tiene usos registrados
-            if ($lote->usos()->count() > 0) {
-                return back()->withErrors([
-                    'delete' => 'No se puede eliminar el lote porque tiene usos registrados en estudios.'
-                ]);
-            }
+            \DB::beginTransaction();
 
+            $totalUsos = $lote->usos()->count();
+
+            \Log::warning('🗑️ ELIMINACIÓN FORZADA DE LOTE CON USOS', [
+                'lote_id' => $lote->ID,
+                'lote' => $lote->LOTE,
+                'insumo_id' => $insumo->ID,
+                'total_usos_eliminados' => $totalUsos,
+                'usuario' => auth()->user()->ID_USUARIO ?? auth()->id(),
+            ]);
+
+            // Eliminar los registros de uso en estudios (estudios_insumos)
+            // NOTA: esto NO devuelve cantidad a ningún lado, el lote desaparece por completo
+            $lote->usos()->delete();
+
+            // Eliminar movimientos asociados al lote (ingresos/retiros históricos)
+            \App\Models\LoteMovimiento::where('ID_LOTE', $lote->ID)->delete();
+
+            // Finalmente eliminar el lote
             $lote->delete();
-            
+
+            \DB::commit();
+
+            $mensaje = $totalUsos > 0
+                ? "Lote eliminado exitosamente junto con {$totalUsos} registro(s) de uso en estudios."
+                : 'Lote eliminado exitosamente.';
+
             return redirect()->route('insumos.lotes.index', $insumo)
-                ->with('success', 'Lote eliminado exitosamente.');
+                ->with('success', $mensaje);
 
         } catch (\Exception $e) {
+            \DB::rollBack();
+
             \Log::error('❌ Error eliminando lote:', [
                 'lote_id' => $lote->ID,
                 'error' => $e->getMessage()
             ]);
-            
+
             return back()->withErrors([
                 'delete' => 'Error al eliminar el lote: ' . $e->getMessage()
             ]);

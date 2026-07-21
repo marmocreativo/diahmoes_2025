@@ -364,50 +364,15 @@ class PlantillaInsumoController extends Controller
                         ->orderBy('FECHA_CADUCIDAD', 'asc')
                         ->first();
         
-        // 🆕 SI NO HAY LOTE DISPONIBLE, CREAR UNO NUEVO
+        // Si no hay lote disponible con stock suficiente, se omite este insumo
+        // y el proceso continúa con el resto (no se crean lotes ficticios)
         if (!$lote) {
-            \Log::info("🔄 No hay lote disponible para {$nombreInsumo}, creando uno nuevo...");
-            
-            try {
-                // Crear lote temporal con cantidad suficiente
-                $lote = InsumoLote::create([
-                    'ID_INSUMO' => $insumo->ID,
-                    'LOTE' => 'AUTO-' . now()->format('Ymd-His'), // Lote automático con timestamp
-                    'CANTIDAD_INICIAL' => max($cantidad * 2, 100), // Crear con el doble o mínimo 100
-                    'CANTIDAD_ACTUAL' => max($cantidad * 2, 100),
-                    'FECHA_INGRESO' => now(),
-                    'FECHA_CADUCIDAD' => now()->addYears(2), // 2 años de caducidad por defecto
-                    'COSTO_UNITARIO' => $insumo->COSTO_UNITARIO ?? 0,
-                    'ESTADO' => 'disponible',
-                    'NOTAS' => 'Lote creado automáticamente por plantilla de estudio'
-                ]);
-                
-                \Log::info("✅ Lote automático creado: {$lote->LOTE}");
+            \Log::info("⏭️ Omitiendo '{$nombreInsumo}' por falta de stock disponible");
 
-                \App\Models\LoteMovimiento::registrar(
-                    idInsumo:  $insumo->ID,
-                    idLote:    $lote->ID,
-                    tipo:      \App\Models\LoteMovimiento::TIPO_INGRESO,
-                    cantidad:  $lote->CANTIDAD_INICIAL,
-                    motivo:    "Ingreso inicial de lote automático generado por plantilla",
-                    idUsuario: auth()->user()->ID_USUARIO ?? auth()->id(),
-                );
-                
-                // Trackear que se creó un lote nuevo
-                $lotesCreados[] = [
-                    'insumo' => $insumo->NOMBRE,
-                    'lote' => $lote->LOTE,
-                    'cantidad_creada' => $lote->CANTIDAD_INICIAL
-                ];
-                
-            } catch (\Exception $e) {
-                \Log::error("❌ Error creando lote automático: " . $e->getMessage());
-                
-                return [
-                    'success' => false,
-                    'message' => "No hay stock de '{$nombreInsumo}' y no se pudo crear lote automático: " . $e->getMessage()
-                ];
-            }
+            return [
+                'success' => false,
+                'message' => "'{$nombreInsumo}' no se agregó: no hay stock disponible"
+            ];
         }
         
         // Crear el registro de uso

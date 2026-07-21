@@ -19,7 +19,7 @@ interface Lote {
     FECHA_CADUCIDAD: string;
     CANTIDAD_INICIAL: number;
     CANTIDAD_ACTUAL: number;
-    COSTO_UNITARIO: number | null;
+    COSTO_UNITARIO: number | string | null;
     ESTADO: string;
     NOTAS: string | null;
     created_at: string;
@@ -81,7 +81,10 @@ export default function LotesIndex() {
     };
 
     const handleDeleteLote = (lote: Lote) => {
-        const confirmMessage = `¿Estás seguro de que deseas eliminar el lote "${lote.LOTE}"?\n\nEsta acción NO se puede deshacer.`;
+        const confirmMessage = `¿Estás seguro de que deseas eliminar el lote "${lote.LOTE}"?\n\n` +
+            `⚠️ ADVERTENCIA: Si este lote fue usado en algún estudio, ese registro de uso también se eliminará. ` +
+            `La cantidad NO se devolverá a ningún otro lote.\n\n` +
+            `Esta acción NO se puede deshacer.`;
         
         if (window.confirm(confirmMessage)) {
             setDeletingId(lote.ID);
@@ -295,10 +298,10 @@ export default function LotesIndex() {
                                                     {lote.COSTO_UNITARIO ? (
                                                         <>
                                                             <div className="font-medium">
-                                                                ${lote.COSTO_UNITARIO.toFixed(2)}
+                                                                ${Number(lote.COSTO_UNITARIO).toFixed(2)}
                                                             </div>
                                                             <div className="text-xs text-gray-500">
-                                                                Total: ${(lote.COSTO_UNITARIO * lote.CANTIDAD_ACTUAL).toFixed(2)}
+                                                                Total: ${(Number(lote.COSTO_UNITARIO) * lote.CANTIDAD_ACTUAL).toFixed(2)}
                                                             </div>
                                                         </>
                                                     ) : (
