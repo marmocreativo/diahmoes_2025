@@ -11,8 +11,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\SolicitudClienteRecibida;
+use App\Mail\EnvioGuiaSolicitud;
 use Inertia\Inertia;
 use Carbon\Carbon;
+use App\Models\SolicitudClienteEvento;
+use Illuminate\Support\Facades\Auth;
 
 class SolicitudClienteController extends Controller
 {
@@ -46,16 +49,185 @@ class SolicitudClienteController extends Controller
     }
 
     // -------------------------------------------------------------------------
+    // SHOW — vista de detalle para el administrador (solo lectura + comentarios)
+    // -------------------------------------------------------------------------
+
+    public function show(SolicitudCliente $solicitud)
+    {
+        $solicitud->load('eventos');
+
+        return Inertia::render('SolicitudesCliente/Show', [
+            'solicitud' => $this->formatearSolicitud($solicitud),
+            'eventos'   => $solicitud->eventos->map(fn($e) => $this->formatearEvento($e)),
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // SHOW CLIENTE — detalle para el portal externo (solo su propia solicitud)
+    // -------------------------------------------------------------------------
+
+    public function showCliente(SolicitudCliente $solicitud, Request $request)
+    {
+        $accesoId = session('reporte_acceso_id');
+
+        if ($accesoId && $solicitud->CREADO_POR_ACCESO_ID !== $accesoId) {
+            abort(403, 'No tienes acceso a esta solicitud.');
+        }
+
+        $solicitud->load('eventos');
+
+        return Inertia::render('Reportes/Solicitudes/Show', [
+            'solicitud'  => $this->formatearSolicitud($solicitud),
+            'eventos'    => $solicitud->eventos->map(fn($e) => $this->formatearEvento($e)),
+            'sesionInfo' => $this->sesionInfoActual($request),
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // INDEX CLIENTE — listado dedicado del portal externo
+    // -------------------------------------------------------------------------
+
+    public function indexCliente(Request $request)
+    {
+        $accesoId = session('reporte_acceso_id');
+
+        $solicitudes = SolicitudCliente::with(['medico', 'institucion'])
+            ->where('CREADO_POR_ACCESO_ID', $accesoId)
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn($s) => $this->formatearSolicitud($s));
+
+        return Inertia::render('Reportes/Solicitudes/Index', [
+            'solicitudes' => $solicitudes,
+            'sesionInfo'  => $this->sesionInfoActual($request),
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // UPDATE — editar datos de la solicitud (solo si sigue pendiente)
+    // -------------------------------------------------------------------------
+
+    private const CAMPOS_EDITABLES = [
+        'FOLIO_MERCK', 'TIPO_SOLICITUD', 'CANTIDAD', 'MEDICO_NOMBRE_LIBRE',
+        'INSTITUCION_NOMBRE_LIBRE', 'SOLICITA', 'PREGUNTAR_POR', 'TELEFONO',
+        'CELULAR', 'PROGRAMAR_PARA', 'HORARIO', 'DIRIGIRSE_A',
+        'MUESTRA_CALLE', 'MUESTRA_NUMERO_EXT', 'MUESTRA_NUMERO_INT',
+        'MUESTRA_COLONIA', 'MUESTRA_MUNICIPIO', 'MUESTRA_ESTADO',
+        'MUESTRA_CODIGO_POSTAL', 'EMAIL_GUIA', 'EMAIL_RESULTADOS',
+        'KAM', 'PAL', 'NOTAS',
+    ];
+
+    public function update(Request $request, SolicitudCliente $solicitud)
+    {
+        $esAdmin  = $request->session()->get('reporte_tipo') === 'admin';
+        $accesoId = $request->session()->get('reporte_acceso_id');
+
+        if (! $esAdmin && $solicitud->CREADO_POR_ACCESO_ID !== $accesoId) {
+            abort(403, 'No tienes acceso a esta solicitud.');
+        }
+
+        if (! $solicitud->isPendiente()) {
+            return back()->with('error', 'Solo se pueden editar solicitudes pendientes.');
+        }
+
+        $request->validate([
+            'TIPO_SOLICITUD'    => 'required|string|max:255',
+            'CANTIDAD'          => 'required|integer|min:1|max:20',
+            'PROGRAMAR_PARA'    => 'required|date',
+            'EMAIL_GUIA'        => 'nullable|string',
+            'EMAIL_RESULTADOS'  => 'nullable|string',
+        ]);
+
+        $request->merge([
+            'EMAIL_GUIA'       => $this->limpiarListaCorreos($request->EMAIL_GUIA),
+            'EMAIL_RESULTADOS' => $this->limpiarListaCorreos($request->EMAIL_RESULTADOS),
+        ]);
+
+        $this->validarListaCorreos($request->EMAIL_GUIA, 'EMAIL_GUIA');
+        $this->validarListaCorreos($request->EMAIL_RESULTADOS, 'EMAIL_RESULTADOS');
+
+        $cambios = [];
+
+        foreach (self::CAMPOS_EDITABLES as $campo) {
+            if (! $request->has($campo)) {
+                continue;
+            }
+
+            $valorNuevo    = $request->input($campo);
+            $valorAnterior = $solicitud->{$campo};
+
+            if ((string) $valorAnterior !== (string) $valorNuevo) {
+                $cambios[$campo] = [
+                    'anterior' => $valorAnterior,
+                    'nuevo'    => $valorNuevo,
+                ];
+            }
+        }
+
+        if (empty($cambios)) {
+            return back()->with('success', 'No hubo cambios que guardar.');
+        }
+
+        $solicitud->update($request->only(self::CAMPOS_EDITABLES));
+
+        SolicitudClienteEvento::registrar($solicitud, [
+            'TIPO'         => 'edicion',
+            'AUTOR_TIPO'   => $esAdmin ? 'admin' : 'cliente',
+            'AUTOR_NOMBRE' => $esAdmin ? $this->nombreAdminActual() : $request->session()->get('reporte_nombre'),
+            'CAMBIOS'      => $cambios,
+        ]);
+
+        return back()->with('success', 'Solicitud actualizada correctamente.');
+    }
+
+    // -------------------------------------------------------------------------
+    // COMENTAR — agregar un comentario a la línea de tiempo
+    // -------------------------------------------------------------------------
+
+    public function comentar(Request $request, SolicitudCliente $solicitud)
+    {
+        $esAdmin  = $request->session()->get('reporte_tipo') === 'admin';
+        $accesoId = $request->session()->get('reporte_acceso_id');
+
+        if (! $esAdmin && $solicitud->CREADO_POR_ACCESO_ID !== $accesoId) {
+            abort(403, 'No tienes acceso a esta solicitud.');
+        }
+
+        $request->validate([
+            'mensaje' => 'required|string|max:2000',
+        ]);
+
+        SolicitudClienteEvento::registrar($solicitud, [
+            'TIPO'         => 'comentario',
+            'AUTOR_TIPO'   => $esAdmin ? 'admin' : 'cliente',
+            'AUTOR_NOMBRE' => $esAdmin ? $this->nombreAdminActual() : $request->session()->get('reporte_nombre'),
+            'MENSAJE'      => $request->mensaje,
+        ]);
+
+        return back()->with('success', 'Comentario agregado.');
+    }
+
+    // -------------------------------------------------------------------------
     // STORE — captura desde el portal cliente (middleware reporte.access)
     // -------------------------------------------------------------------------
 
     public function store(Request $request)
     {
         $request->validate([
-            'TIPO_SOLICITUD' => 'required|string|max:255',
-            'CANTIDAD'       => 'required|integer|min:1|max:20',
-            'PROGRAMAR_PARA' => 'required|date',
+            'TIPO_SOLICITUD'    => 'required|string|max:255',
+            'CANTIDAD'          => 'required|integer|min:1|max:20',
+            'PROGRAMAR_PARA'    => 'required|date',
+            'EMAIL_GUIA'        => 'nullable|string',
+            'EMAIL_RESULTADOS'  => 'nullable|string',
         ]);
+
+        $request->merge([
+            'EMAIL_GUIA'       => $this->limpiarListaCorreos($request->EMAIL_GUIA),
+            'EMAIL_RESULTADOS' => $this->limpiarListaCorreos($request->EMAIL_RESULTADOS),
+        ]);
+
+        $this->validarListaCorreos($request->EMAIL_GUIA, 'EMAIL_GUIA');
+        $this->validarListaCorreos($request->EMAIL_RESULTADOS, 'EMAIL_RESULTADOS');
 
         $accesoId = session('reporte_acceso_id');
 
@@ -90,8 +262,11 @@ class SolicitudClienteController extends Controller
             'CREADO_POR_ACCESO_ID'    => $accesoId,
         ]);
 
-        // Notificar internamente (lo haremos en el paso del Mailable)
-        Mail::to(config('mail.from.address'))->send(new SolicitudClienteRecibida($solicitud));
+        SolicitudClienteEvento::registrar($solicitud, [
+            'TIPO'         => 'creacion',
+            'AUTOR_TIPO'   => 'cliente',
+            'AUTOR_NOMBRE' => session('reporte_nombre'),
+        ]);
 
         return back()->with('success', 'Solicitud enviada correctamente. En breve nos pondremos en contacto.');
     }
@@ -114,108 +289,44 @@ class SolicitudClienteController extends Controller
     }
 
     // -------------------------------------------------------------------------
-    // PREVIEW — qué estudios se van a generar (sin guardar)
+    // ENVIAR GUÍA — solo admin, solo si está confirmada, adjunta PDF por correo
     // -------------------------------------------------------------------------
 
-    public function previewConvertir(SolicitudCliente $solicitud)
+    public function enviarGuia(Request $request, SolicitudCliente $solicitud)
     {
-        if ($solicitud->isConvertida()) {
-            return response()->json(['error' => 'Esta solicitud ya fue convertida.'], 422);
-        }
-
-        $previews = [];
-
-        for ($i = 1; $i <= $solicitud->CANTIDAD; $i++) {
-            $previews[] = [
-                'numero'                 => $i,
-                'incluir'                => true,
-                'clave_interna'          => $this->calcularSiguienteClave($i - 1),
-                'folio_merck'            => $solicitud->FOLIO_MERCK,
-                'tipo_solicitud'         => $solicitud->TIPO_SOLICITUD,
-                'tipo_estudio'           => $solicitud->TIPO_SOLICITUD === 'Envío de KIT BL' ? 'Biopsia Líquida' : 'Biopsia Sólida',
-                'id_medico'              => $solicitud->ID_MEDICO,
-                'medico_nombre'          => $solicitud->nombre_medico,
-                'id_institucion'         => $solicitud->ID_INSTITUCION,
-                'institucion_nombre'     => $solicitud->nombre_institucion,
-                'muestra_calle'          => $solicitud->MUESTRA_CALLE,
-                'muestra_numero_ext'     => $solicitud->MUESTRA_NUMERO_EXT,
-                'muestra_numero_int'     => $solicitud->MUESTRA_NUMERO_INT,
-                'muestra_colonia'        => $solicitud->MUESTRA_COLONIA,
-                'muestra_municipio'      => $solicitud->MUESTRA_MUNICIPIO,
-                'muestra_estado'         => $solicitud->MUESTRA_ESTADO,
-                'muestra_codigo_postal'  => $solicitud->MUESTRA_CODIGO_POSTAL,
-                'muestra_horarios'       => $solicitud->HORARIO,
-                'correo_copia'           => $solicitud->EMAIL_RESULTADOS,
-            ];
-        }
-
-        return response()->json([
-            'solicitud'   => $this->formatearSolicitud($solicitud),
-            'previews'    => $previews,
-            'medicos'     => Usuario::where('USUARIO_TIPO', 'medico')
-                ->select('ID_USUARIO', 'USUARIO_NOMBRE', 'USUARIO_APELLIDOS', 'PREFIJO')
-                ->orderBy('USUARIO_NOMBRE')
-                ->get(),
-            'instituciones' => Institucion::select('ID_INSTITUCION', 'INSTITUCION_NOMBRE')
-                ->orderBy('INSTITUCION_NOMBRE')
-                ->get(),
-        ]);
-    }
-
-    // -------------------------------------------------------------------------
-    // CONVERTIR — crear los estudios reales
-    // -------------------------------------------------------------------------
-
-    public function convertir(Request $request, SolicitudCliente $solicitud)
-    {
-        if ($solicitud->isConvertida()) {
-            return response()->json(['error' => 'Esta solicitud ya fue convertida.'], 422);
+        if (! $solicitud->isConfirmada()) {
+            return back()->withErrors(['guia' => 'Solo se puede enviar guía en solicitudes confirmadas.']);
         }
 
         $request->validate([
-            'estudios'                       => 'required|array|min:1',
-            'estudios.*.tipo_estudio'        => 'nullable|string',
-            'estudios.*.folio_merck'         => 'nullable|string',
-            'estudios.*.id_medico'           => 'nullable|integer',
-            'estudios.*.id_institucion'      => 'nullable|integer',
-            'estudios.*.muestra_calle'       => 'nullable|string',
-            'estudios.*.muestra_numero_ext'  => 'nullable|string',
-            'estudios.*.muestra_numero_int'  => 'nullable|string',
-            'estudios.*.muestra_colonia'     => 'nullable|string',
-            'estudios.*.muestra_municipio'   => 'nullable|string',
-            'estudios.*.muestra_estado'      => 'nullable|string',
-            'estudios.*.muestra_codigo_postal' => 'nullable|string',
-            'estudios.*.muestra_horarios'    => 'nullable|string',
-            'estudios.*.correo_copia'        => 'nullable|string',
+            'guia' => 'required|file|mimes:pdf|max:10240', // 10MB
         ]);
 
-        DB::beginTransaction();
+        $correos = array_filter(array_map('trim', explode(',', (string) $solicitud->EMAIL_GUIA)));
 
-        try {
-            $estudiosCreados = [];
-
-            foreach ($request->estudios as $datosEstudio) {
-                $estudio = $this->crearEstudioDesdeDatos($datosEstudio);
-                $estudiosCreados[] = $estudio->ID;
-            }
-
-            $solicitud->update([
-                'ESTADO'             => 'convertida',
-                'ESTUDIOS_GENERADOS' => $estudiosCreados,
-            ]);
-
-            DB::commit();
-
-            return response()->json([
-                'success'          => true,
-                'estudios_creados' => $estudiosCreados,
-                'mensaje'          => count($estudiosCreados) . ' estudio(s) creado(s) correctamente.',
-            ]);
-
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            return response()->json(['error' => 'Error al convertir: ' . $e->getMessage()], 500);
+        if (empty($correos)) {
+            return back()->withErrors(['guia' => 'La solicitud no tiene correos registrados para envío de guía.']);
         }
+
+        $archivo = $request->file('guia');
+        $nombreArchivo = 'Guia_' . ($solicitud->FOLIO_MERCK ?: $solicitud->ID) . '.pdf';
+
+        foreach ($correos as $correo) {
+            Mail::to($correo)->send(
+                new EnvioGuiaSolicitud($solicitud, $archivo->getRealPath(), $nombreArchivo)
+            );
+        }
+
+        SolicitudClienteEvento::create([
+            'ID_SOLICITUD' => $solicitud->ID,
+            'TIPO'         => 'envio_guia',
+            'AUTOR_TIPO'   => 'admin',
+            'AUTOR_NOMBRE' => $this->nombreAdminActual(),
+            'MENSAJE'      => 'Guía enviada a: ' . implode(', ', $correos),
+            'created_at'   => now(),
+        ]);
+
+        return back()->with('success', 'Guía enviada correctamente a ' . count($correos) . ' correo(s).');
     }
 
     // -------------------------------------------------------------------------
@@ -229,6 +340,12 @@ class SolicitudClienteController extends Controller
         }
 
         $solicitud->update(['ESTADO' => 'confirmada']);
+
+        SolicitudClienteEvento::registrar($solicitud, [
+            'TIPO'         => 'confirmacion',
+            'AUTOR_TIPO'   => 'admin',
+            'AUTOR_NOMBRE' => $this->nombreAdminActual(),
+        ]);
 
         return back()->with('success', 'Solicitud confirmada.');
     }
@@ -268,103 +385,69 @@ class SolicitudClienteController extends Controller
             'kam'                      => $s->KAM,
             'pal'                      => $s->PAL,
             'estado'                   => $s->ESTADO,
-            'estudios_generados'       => $s->ESTUDIOS_GENERADOS,
             'notas'                    => $s->NOTAS,
             'creado_por'               => $s->accesoCreador?->nombre,
             'created_at'               => $s->created_at?->format('d/m/Y H:i'),
         ];
     }
 
-    private function calcularSiguienteClave(int $offset = 0): string
+    /**
+     * Limpia una lista de correos separados por coma: quita vacíos y espacios.
+     */
+    private function limpiarListaCorreos(?string $correos): string
     {
-        $anio    = (int) date('Y');
-        $anioCorto = (int) date('y'); 
-        $prefijo = 'PRM';
+        if (! $correos) {
+            return '';
+        }
 
-        $ultimo = Estudio::where('ANIO', $anioCorto)
-            ->where('CLAVE', $prefijo)
-            ->max('SERIADO');
+        $lista = array_filter(array_map('trim', explode(',', $correos)));
 
-        $siguiente = ($ultimo ?? 0) + 1 + $offset;
-
-        return $prefijo . '-' . str_pad($siguiente, 4, '0', STR_PAD_LEFT) . '-' . $anioCorto;
+        return implode(',', $lista);
     }
 
-    private function crearEstudioDesdeDatos(array $datos): Estudio
+    /**
+     * Valida que cada correo en la lista separada por coma tenga formato válido.
+     */
+    private function validarListaCorreos(?string $correos, string $campo): void
     {
-        $anioCorto = (int) date('y');
-        $prefijo   = 'PRM';
+        if (! $correos) {
+            return;
+        }
 
-        // Obtener el siguiente seriado de forma atómica
-        $ultimoSeriado = Estudio::where('ANIO', $anioCorto)
-            ->where('CLAVE', $prefijo)
-            ->lockForUpdate()
-            ->max('SERIADO');
-
-        $seriado      = ($ultimoSeriado ?? 0) + 1;
-        $claveInterna = $prefijo . '-' . str_pad($seriado, 4, '0', STR_PAD_LEFT) . '-' . $anioCorto;
-
-        return Estudio::create([
-            'CLAVE'                                      => $prefijo,
-            'CLAVE_INTERNA'                              => $claveInterna,
-            'SERIADO'                                    => $seriado,
-            'ANIO'                                       => $anioCorto,
-            'ID_ALEATORIO'                               => uniqid(),
-            'FOLIO_MERCK'                                => $datos['folio_merck'] ?? '',
-            'ID_CLIENTE'                                 => 3,
-            'ID_MEDICO'                                  => $datos['id_medico'] ?? null,
-            'ID_INSTITUCION'                             => $datos['id_institucion'] ?? null,
-            'CORREO_COPIA'                               => $datos['correo_copia'] ?? '',
-            // Muestra
-            'MUESTRA_CLAVE'                              => '',
-            'MUESTRA_FOLIO_SOBRE'                        => '',
-            'MUESTRA_FOLIO_KIT_BL'                       => '',
-            'MUESTRA_OTROS_ROTULOS'                      => '',
-            'MUESTRA_SITIO_LESION'                       => '',
-            'MUESTRA_TIPO_ESTUDIO'                       => $datos['tipo_estudio'] ?? '',
-            'MUESTRA_INICIALES'                          => '',
-            'MUESTRA_BLOQUES'                            => '',
-            'MUESTRA_LAMINILLAS'                         => '',
-            'MUESTRA_DIAGNOSTICO_HISTOPATOLOGICO_REFERENCIA' => '',
-            'MUESTRA_DIAGNOSTICO_CLINICO'                => '',
-            'MUESTRA_ENVIO'                              => 'aplica',
-            'MUESTRA_ENVIO_TIPO'                         => 'Local',
-            'MUESTRA_GUIA'                               => '',
-            'MUESTRA_GUIA_MENSAJERIA'                    => '',
-            'MUESTRA_GUIA_ESPECIALIZADA'                 => '',
-            'MUESTRA_GUIA_ESPECIALIZADA_MENSAJERIA'      => '',
-            'MUESTRA_GUIA_RETORNO'                       => '',
-            'MUESTRA_GUIA_RETORNO_MENSAJERIA'            => '',
-            // Dirección (editada por estudio)
-            'MUESTRA_DIRECCION'                          => $datos['muestra_calle'] ?? '',
-            'MUESTRA_NUMERO_EXT'                         => $datos['muestra_numero_ext'] ?? '',
-            'MUESTRA_NUMERO_INT'                         => $datos['muestra_numero_int'] ?? '',
-            'MUESTRA_COLONIA'                            => $datos['muestra_colonia'] ?? '',
-            'MUESTRA_MUNICIPIO'                          => $datos['muestra_municipio'] ?? '',
-            'MUESTRA_CIUDAD'                             => $datos['muestra_municipio'] ?? '',
-            'MUESTRA_ESTADO'                             => $datos['muestra_estado'] ?? '',
-            'MUESTRA_CODIGO_POSTAL'                      => $datos['muestra_codigo_postal'] ?? '',
-            'MUESTRA_HORARIOS'                           => $datos['muestra_horarios'] ?? '',
-            'MUESTRA_REFERENCIAS'                        => '',
-            // Biopsia líquida (vacíos)
-            'MUESTRA_LIQ_CONDICION'                      => '',
-            'MUESTRA_LIQ_CONDICION_PRESENCIA'            => '',
-            'MUESTRA_LIQ_CANTIDAD_ADECUADA'              => '',
-            'MUESTRA_LIQ_CANTIDAD_ML'                    => '',
-            'MUESTRA_LIQ_HEMOLISIS'                      => '',
-            'MUESTRA_LIQ_AMP_INDICACION'                 => '',
-            'MUESTRA_LIQ_AMP_RAZON'                      => '',
-            // Resultados (vacíos)
-            'R_METODO_PROCESO'                           => '',
-            'R_RAZON_ADECUADO_PROCESAMIENTO'             => '',
-            'R_INTERPRETACION'                           => '',
-            'R_COMPLETOS'                                => 'no',
-            // Estado
-            'ESTUDIO_ESTADO'                             => Estudio::ESTADO_PENDIENTE,
-            'ESTUDIO_FACTURADO'                          => 'no',
-            'ESTUDIO_NOTAS'                              => '',
-            'ESTUDIO_COMENTARIOS'                        => '',
-            'FECHA_SOLICITUD_RECOLECCION'                => now(),
-        ]);
+        foreach (explode(',', $correos) as $correo) {
+            if (! filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    $campo => "El correo \"{$correo}\" no tiene un formato válido.",
+                ]);
+            }
+        }
     }
+
+    private function formatearEvento(SolicitudClienteEvento $e): array
+    {
+        return [
+            'id'          => $e->ID,
+            'tipo'        => $e->TIPO,
+            'autor_tipo'  => $e->AUTOR_TIPO,
+            'autor_nombre'=> $e->AUTOR_NOMBRE,
+            'mensaje'     => $e->MENSAJE,
+            'cambios'     => $e->CAMBIOS,
+            'created_at'  => $e->created_at?->format('d/m/Y H:i'),
+        ];
+    }
+
+    private function nombreAdminActual(): ?string
+    {
+        return Auth::check() ? Auth::user()->name : null;
+    }
+
+    private function sesionInfoActual(Request $request): array
+    {
+        return [
+            'nombre' => $request->session()->get('reporte_nombre'),
+            'tipo'   => $request->session()->get('reporte_tipo'),
+        ];
+    }
+
+    
 }

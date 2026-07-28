@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SolicitudCliente extends Model
@@ -64,6 +65,13 @@ class SolicitudCliente extends Model
     public function accesoCreador(): BelongsTo
     {
         return $this->belongsTo(ReporteAcceso::class, 'CREADO_POR_ACCESO_ID', 'id');
+    }
+
+    // Relación con la línea de tiempo / mensajería
+    public function eventos(): HasMany
+    {
+        return $this->hasMany(SolicitudClienteEvento::class, 'ID_SOLICITUD', 'ID')
+            ->orderBy('created_at');
     }
 
     // Helpers de estado

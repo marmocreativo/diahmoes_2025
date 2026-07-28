@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
-import { Search, X, Filter, Edit, Plus, Package, AlertTriangle, TrendingDown, Trash2, ChevronDown, ChevronRight, Calendar } from 'lucide-react';
+import { Search, X, Filter, Edit, Plus, Package, AlertTriangle, TrendingDown, Trash2, ChevronDown, ChevronRight, Calendar, Download } from 'lucide-react';
 import { SharedData } from '@/types';
 
 interface Lote {
@@ -339,6 +339,13 @@ export default function InsumosIndex() {
                             </p>
                         </div>
                         <div className="flex items-center space-x-4">
+                            <a
+                                 href="/insumos/exportar/inventario"
+                                className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-white font-medium transition-colors flex items-center space-x-2"
+                            >
+                                <Download className="h-5 w-5" />
+                                <span className={isMobile ? "hidden sm:inline" : ""}>Exportar Inventario</span>
+                            </a>
                             <Link 
                                 href="/insumos/stock-bajo"
                                 className="bg-yellow-500/20 hover:bg-yellow-500/30 px-4 py-2 rounded-lg text-white font-medium transition-colors flex items-center space-x-2"

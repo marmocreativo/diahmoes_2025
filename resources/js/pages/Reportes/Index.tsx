@@ -1,6 +1,5 @@
 import { Head, usePage, router } from '@inertiajs/react';
 import EstudiosPeriodoTabla from './EstudiosPeriodoTabla';
-import SolicitudesClienteTabla from './SolicitudesClienteTabla';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
-import { TrendingUp, TrendingDown, Calendar, Building2, MapPin, TestTube, Activity, Target, Users, Clock, CheckCircle, Download, HelpCircle, RotateCcw, LogOut, FlaskConical } from 'lucide-react';
+import { TrendingUp, TrendingDown, Calendar, Building2, MapPin, TestTube, Activity, Target, Users, Clock, CheckCircle, Download, HelpCircle, RotateCcw, LogOut, FlaskConical, ClipboardList, ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 
 interface Filtros {
@@ -796,7 +795,21 @@ export default function ReportesIndex() {
                         </TabsContent>
 
                         <TabsContent value="solicitudes" className="mt-4">
-                            <SolicitudesClienteTabla solicitudes={[]} />
+                            <Card>
+                                <CardContent className="py-12 text-center">
+                                    <ClipboardList className="h-10 w-10 mx-auto mb-3 text-[#189BAF]/40" />
+                                    <h3 className="text-base font-semibold text-gray-800 mb-1">Gestión de solicitudes</h3>
+                                    <p className="text-sm text-gray-500 mb-5 max-w-md mx-auto">
+                                        Consulta tus solicitudes, su línea de tiempo y agrega comentarios en la vista dedicada.
+                                    </p>
+                                    <Button
+                                        onClick={() => router.visit('/reportes/solicitudes')}
+                                        className="bg-[#189BAF] hover:bg-[#157a8c] text-white"
+                                    >
+                                        Ir a Mis Solicitudes <ArrowRight className="h-4 w-4 ml-1.5" />
+                                    </Button>
+                                </CardContent>
+                            </Card>
                         </TabsContent>
                     </Tabs>
 

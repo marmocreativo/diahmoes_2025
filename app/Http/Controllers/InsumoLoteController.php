@@ -4,9 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Insumo;
 use App\Models\InsumoLote;
+use App\Models\LoteMovimiento;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class InsumoLoteController extends Controller
 {
@@ -525,6 +529,169 @@ public function update(Request $request, Insumo $insumo, InsumoLote $lote)
                 'tipo'        => $tipoFiltro,
                 'id_insumo'   => $insumoFiltro,
             ],
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // EXPORTAR INVENTARIO ACTUAL A EXCEL
+    // -------------------------------------------------------------------------
+
+    public function exportarInventarioExcel(Request $request)
+    {
+        $query = Insumo::with(['lotes' => function ($q) {
+            $q->orderBy('FECHA_CADUCIDAD', 'asc');
+        }]);
+
+        if ($request->filled('estado')) {
+            $query->where('ESTADO', $request->estado);
+        }
+
+        if ($request->filled('stock_bajo') && $request->stock_bajo === 'true') {
+            $query->stockBajo();
+        }
+
+        $insumos = $query->orderBy('NOMBRE')->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Inventario');
+
+        $encabezados = [
+            'A1' => 'Insumo', 'B1' => 'Descripción', 'C1' => 'Unidad',
+            'D1' => 'Stock Total', 'E1' => 'Stock Mínimo', 'F1' => 'Estado Insumo',
+            'G1' => 'Lote', 'H1' => 'Cant. Inicial', 'I1' => 'Cant. Actual',
+            'J1' => 'Fecha Caducidad', 'K1' => 'Estado Lote', 'L1' => 'Costo Unitario',
+            'M1' => 'Valor Total Lote',
+        ];
+        foreach ($encabezados as $celda => $texto) {
+            $sheet->setCellValue($celda, $texto);
+        }
+
+        $row = 2;
+
+        foreach ($insumos as $insumo) {
+            $stockTotal = $insumo->lotes->sum('CANTIDAD_ACTUAL');
+
+            if ($insumo->lotes->isEmpty()) {
+                $sheet->setCellValue('A' . $row, $insumo->NOMBRE);
+                $sheet->setCellValue('B' . $row, $insumo->DESCRIPCION ?? '');
+                $sheet->setCellValue('C' . $row, $insumo->UNIDAD_MEDIDA);
+                $sheet->setCellValue('D' . $row, $stockTotal);
+                $sheet->setCellValue('E' . $row, $insumo->STOCK_MINIMO);
+                $sheet->setCellValue('F' . $row, $insumo->ESTADO);
+                $sheet->setCellValue('G' . $row, 'Sin lotes');
+                $row++;
+                continue;
+            }
+
+            foreach ($insumo->lotes as $lote) {
+                $sheet->setCellValue('A' . $row, $insumo->NOMBRE);
+                $sheet->setCellValue('B' . $row, $insumo->DESCRIPCION ?? '');
+                $sheet->setCellValue('C' . $row, $insumo->UNIDAD_MEDIDA);
+                $sheet->setCellValue('D' . $row, $stockTotal);
+                $sheet->setCellValue('E' . $row, $insumo->STOCK_MINIMO);
+                $sheet->setCellValue('F' . $row, $insumo->ESTADO);
+                $sheet->setCellValue('G' . $row, $lote->LOTE);
+                $sheet->setCellValue('H' . $row, $lote->CANTIDAD_INICIAL);
+                $sheet->setCellValue('I' . $row, $lote->CANTIDAD_ACTUAL);
+                $sheet->setCellValue('J' . $row, $lote->FECHA_CADUCIDAD ? \Carbon\Carbon::parse($lote->FECHA_CADUCIDAD)->format('d/m/Y') : '');
+                $sheet->setCellValue('K' . $row, $lote->ESTADO);
+                $sheet->setCellValue('L' . $row, $lote->COSTO_UNITARIO ?? 0);
+                $sheet->setCellValue('M' . $row, ($lote->COSTO_UNITARIO ?? 0) * $lote->CANTIDAD_ACTUAL);
+                $row++;
+            }
+        }
+
+        $sheet->getStyle('A1:M1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:M1')->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFE2E8F0');
+
+        foreach (range('A', 'M') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $nombreArchivo = 'inventario_diahmoes_' . now()->format('Y-m-d_His') . '.xlsx';
+
+        return $this->descargarSpreadsheet($spreadsheet, $nombreArchivo);
+    }
+
+    // -------------------------------------------------------------------------
+    // EXPORTAR MOVIMIENTOS A EXCEL
+    // -------------------------------------------------------------------------
+
+    public function exportarMovimientosExcel(Request $request)
+    {
+        $fechaDesde   = $request->get('fecha_desde', Carbon::now()->startOfMonth()->format('Y-m-d'));
+        $fechaHasta   = $request->get('fecha_hasta', Carbon::now()->format('Y-m-d'));
+        $tipoFiltro   = $request->get('tipo');
+        $insumoFiltro = $request->get('id_insumo');
+
+        $query = LoteMovimiento::with(['insumo', 'lote', 'estudio', 'usuario'])
+            ->whereBetween('created_at', [$fechaDesde . ' 00:00:00', $fechaHasta . ' 23:59:59']);
+
+        if ($tipoFiltro) {
+            $query->where('TIPO', $tipoFiltro);
+        }
+
+        if ($insumoFiltro) {
+            $query->where('ID_INSUMO', $insumoFiltro);
+        }
+
+        $movimientos = $query->orderByDesc('created_at')->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Movimientos');
+
+        $encabezados = [
+            'A1' => 'Fecha', 'B1' => 'Insumo', 'C1' => 'Lote', 'D1' => 'Tipo',
+            'E1' => 'Cantidad', 'F1' => 'Motivo', 'G1' => 'Estudio relacionado',
+            'H1' => 'Usuario',
+        ];
+        foreach ($encabezados as $celda => $texto) {
+            $sheet->setCellValue($celda, $texto);
+        }
+
+        $row = 2;
+        foreach ($movimientos as $mov) {
+            $sheet->setCellValue('A' . $row, $mov->created_at?->format('d/m/Y H:i'));
+            $sheet->setCellValue('B' . $row, $mov->insumo->NOMBRE ?? '—');
+            $sheet->setCellValue('C' . $row, $mov->lote->LOTE ?? '—');
+            $sheet->setCellValue('D' . $row, $mov->TIPO === LoteMovimiento::TIPO_INGRESO ? 'Ingreso' : 'Retiro');
+            $sheet->setCellValue('E' . $row, $mov->CANTIDAD);
+            $sheet->setCellValue('F' . $row, $mov->MOTIVO);
+            $sheet->setCellValue('G' . $row, $mov->estudio->CLAVE_INTERNA ?? '');
+            $sheet->setCellValue('H' . $row, trim(($mov->usuario->USUARIO_NOMBRE ?? '') . ' ' . ($mov->usuario->USUARIO_APELLIDOS ?? '')) ?: '—');
+            $row++;
+        }
+
+        $sheet->getStyle('A1:H1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:H1')->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFE2E8F0');
+
+        foreach (range('A', 'H') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $nombreArchivo = 'movimientos_insumos_' . now()->format('Y-m-d_His') . '.xlsx';
+
+        return $this->descargarSpreadsheet($spreadsheet, $nombreArchivo);
+    }
+
+    // -------------------------------------------------------------------------
+    // HELPER — descarga común de spreadsheet
+    // -------------------------------------------------------------------------
+
+    private function descargarSpreadsheet(Spreadsheet $spreadsheet, string $nombreArchivo)
+    {
+        $writer = new Xlsx($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $nombreArchivo, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
 }

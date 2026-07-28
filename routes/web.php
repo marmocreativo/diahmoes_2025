@@ -233,6 +233,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // CRUD básico de insumos
     Route::resource('insumos', InsumoController::class)
         ->parameters(['insumos' => 'insumo:ID']);
+    
 
     // Confirmación antes de eliminar insumo
     Route::get('insumos/{insumo:ID}/confirm-delete', [InsumoController::class, 'confirmDelete'])
@@ -397,6 +398,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('insumos/reporte/costos', function() {
         return Inertia::render('Insumos/Reportes/Costos');
     })->name('insumos.reporte.costos');
+
+    Route::get('insumos/exportar/inventario', [InsumoLoteController::class, 'exportarInventarioExcel'])
+        ->name('insumos.exportar.inventario');
+
+    Route::get('insumos/exportar/movimientos', [InsumoLoteController::class, 'exportarMovimientosExcel'])
+        ->name('insumos.exportar.movimientos');
 
     /*
     |--------------------------------------------------------------------------
@@ -968,14 +975,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/solicitudes-cliente', [SolicitudClienteController::class, 'index'])
         ->name('solicitudes-cliente.index');
 
+    Route::get('/solicitudes-cliente/{solicitud}', [SolicitudClienteController::class, 'show'])
+        ->name('solicitudes-cliente.show');
+
+    Route::put('/solicitudes-cliente/{solicitud}', [SolicitudClienteController::class, 'update'])
+        ->name('solicitudes-cliente.update');
+
+    Route::post('/solicitudes-cliente/{solicitud}/comentarios', [SolicitudClienteController::class, 'comentar'])
+        ->name('solicitudes-cliente.comentar');
+
     Route::post('/solicitudes-cliente/{solicitud}/confirmar', [SolicitudClienteController::class, 'confirmar'])
         ->name('solicitudes-cliente.confirmar');
 
-    Route::get('/solicitudes-cliente/{solicitud}/preview', [SolicitudClienteController::class, 'previewConvertir'])
-        ->name('solicitudes-cliente.preview');
-
-    Route::post('/solicitudes-cliente/{solicitud}/convertir', [SolicitudClienteController::class, 'convertir'])
-        ->name('solicitudes-cliente.convertir');
+    Route::post('/solicitudes-cliente/{solicitud}/enviar-guia', [SolicitudClienteController::class, 'enviarGuia'])
+        ->name('solicitudes-cliente.enviar-guia');
     
 });
 
@@ -1024,8 +1037,17 @@ Route::middleware(['reporte.access'])->group(function () {
     Route::post('/reportes/solicitudes', [SolicitudClienteController::class, 'store'])
         ->name('reportes.solicitudes.store');
 
-    Route::get('/reportes/solicitudes/mias', [SolicitudClienteController::class, 'misSolicitudes'])
-        ->name('reportes.solicitudes.mias');
+    Route::get('/reportes/solicitudes', [SolicitudClienteController::class, 'indexCliente'])
+        ->name('reportes.solicitudes.index');
+
+    Route::get('/reportes/solicitudes/{solicitud}', [SolicitudClienteController::class, 'showCliente'])
+        ->name('reportes.solicitudes.show');
+
+    Route::put('/reportes/solicitudes/{solicitud}', [SolicitudClienteController::class, 'update'])
+        ->name('reportes.solicitudes.update');
+
+    Route::post('/reportes/solicitudes/{solicitud}/comentarios', [SolicitudClienteController::class, 'comentar'])
+        ->name('reportes.solicitudes.comentar');
 
     // API búsqueda de médicos e instituciones para el formulario del portal
     Route::get('/reportes/api/medicos', function () {
