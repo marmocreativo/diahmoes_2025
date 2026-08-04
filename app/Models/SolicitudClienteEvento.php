@@ -54,11 +54,23 @@ class SolicitudClienteEvento extends Model
         return $evento;
     }
 
+    private const CC_FIJOS = [
+        'soluciones@geneticlab.mx',
+        'laboratorio@geneticlab.mx',
+        'alicia.lopez@geneticlab.mx',
+        'agendatucita@geneticlab.mx',
+    ];
+
     private static function notificar(SolicitudCliente $solicitud, SolicitudClienteEvento $evento): void
     {
+        $seguimiento = array_filter(array_map('trim', explode(',', (string) $solicitud->COPIA_SEGUIMIENTO)));
+        $ccBase = array_unique(array_merge(self::CC_FIJOS, $seguimiento));
+
         // Correo al cliente (acceso externo que creó la solicitud)
         if ($solicitud->accesoCreador?->email) {
-            Mail::to($solicitud->accesoCreador->email)->send(
+            $cc = array_diff($ccBase, [$solicitud->accesoCreador->email]);
+
+            Mail::to($solicitud->accesoCreador->email)->cc($cc)->send(
                 new SolicitudClienteNotificacion(
                     $solicitud,
                     $evento,
@@ -71,7 +83,9 @@ class SolicitudClienteEvento extends Model
         $correoAdmin = config('mail.from.address');
 
         if ($correoAdmin) {
-            Mail::to($correoAdmin)->send(
+            $cc = array_diff($ccBase, [$correoAdmin]);
+
+            Mail::to($correoAdmin)->cc($cc)->send(
                 new SolicitudClienteNotificacion(
                     $solicitud,
                     $evento,

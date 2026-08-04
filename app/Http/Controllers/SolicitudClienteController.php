@@ -114,7 +114,7 @@ class SolicitudClienteController extends Controller
         'MUESTRA_CALLE', 'MUESTRA_NUMERO_EXT', 'MUESTRA_NUMERO_INT',
         'MUESTRA_COLONIA', 'MUESTRA_MUNICIPIO', 'MUESTRA_ESTADO',
         'MUESTRA_CODIGO_POSTAL', 'EMAIL_GUIA', 'EMAIL_RESULTADOS',
-        'KAM', 'PAL', 'NOTAS',
+        'KAM', 'PAL', 'NOTAS', 'COPIA_SEGUIMIENTO',
     ];
 
     public function update(Request $request, SolicitudCliente $solicitud)
@@ -131,20 +131,23 @@ class SolicitudClienteController extends Controller
         }
 
         $request->validate([
-            'TIPO_SOLICITUD'    => 'required|string|max:255',
-            'CANTIDAD'          => 'required|integer|min:1|max:20',
-            'PROGRAMAR_PARA'    => 'required|date',
-            'EMAIL_GUIA'        => 'nullable|string',
-            'EMAIL_RESULTADOS'  => 'nullable|string',
+            'TIPO_SOLICITUD'     => 'required|string|max:255',
+            'CANTIDAD'           => 'required|integer|min:1|max:20',
+            'PROGRAMAR_PARA'     => 'required|date',
+            'EMAIL_GUIA'         => 'nullable|string',
+            'EMAIL_RESULTADOS'   => 'nullable|string',
+            'COPIA_SEGUIMIENTO'  => 'nullable|string',
         ]);
 
         $request->merge([
-            'EMAIL_GUIA'       => $this->limpiarListaCorreos($request->EMAIL_GUIA),
-            'EMAIL_RESULTADOS' => $this->limpiarListaCorreos($request->EMAIL_RESULTADOS),
+            'EMAIL_GUIA'        => $this->limpiarListaCorreos($request->EMAIL_GUIA),
+            'EMAIL_RESULTADOS'  => $this->limpiarListaCorreos($request->EMAIL_RESULTADOS),
+            'COPIA_SEGUIMIENTO' => $this->limpiarListaCorreos($request->COPIA_SEGUIMIENTO),
         ]);
 
         $this->validarListaCorreos($request->EMAIL_GUIA, 'EMAIL_GUIA');
         $this->validarListaCorreos($request->EMAIL_RESULTADOS, 'EMAIL_RESULTADOS');
+        $this->validarListaCorreos($request->COPIA_SEGUIMIENTO, 'COPIA_SEGUIMIENTO');
 
         $cambios = [];
 
@@ -214,20 +217,23 @@ class SolicitudClienteController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'TIPO_SOLICITUD'    => 'required|string|max:255',
-            'CANTIDAD'          => 'required|integer|min:1|max:20',
-            'PROGRAMAR_PARA'    => 'required|date',
-            'EMAIL_GUIA'        => 'nullable|string',
-            'EMAIL_RESULTADOS'  => 'nullable|string',
+            'TIPO_SOLICITUD'     => 'required|string|max:255',
+            'CANTIDAD'           => 'required|integer|min:1|max:20',
+            'PROGRAMAR_PARA'     => 'required|date',
+            'EMAIL_GUIA'         => 'nullable|string',
+            'EMAIL_RESULTADOS'   => 'nullable|string',
+            'COPIA_SEGUIMIENTO'  => 'nullable|string',
         ]);
 
         $request->merge([
-            'EMAIL_GUIA'       => $this->limpiarListaCorreos($request->EMAIL_GUIA),
-            'EMAIL_RESULTADOS' => $this->limpiarListaCorreos($request->EMAIL_RESULTADOS),
+            'EMAIL_GUIA'        => $this->limpiarListaCorreos($request->EMAIL_GUIA),
+            'EMAIL_RESULTADOS'  => $this->limpiarListaCorreos($request->EMAIL_RESULTADOS),
+            'COPIA_SEGUIMIENTO' => $this->limpiarListaCorreos($request->COPIA_SEGUIMIENTO),
         ]);
 
         $this->validarListaCorreos($request->EMAIL_GUIA, 'EMAIL_GUIA');
         $this->validarListaCorreos($request->EMAIL_RESULTADOS, 'EMAIL_RESULTADOS');
+        $this->validarListaCorreos($request->COPIA_SEGUIMIENTO, 'COPIA_SEGUIMIENTO');
 
         $accesoId = session('reporte_acceso_id');
 
@@ -255,6 +261,7 @@ class SolicitudClienteController extends Controller
             'MUESTRA_CODIGO_POSTAL'   => $request->MUESTRA_CODIGO_POSTAL,
             'EMAIL_GUIA'              => $request->EMAIL_GUIA,
             'EMAIL_RESULTADOS'        => $request->EMAIL_RESULTADOS,
+            'COPIA_SEGUIMIENTO'       => $request->COPIA_SEGUIMIENTO,
             'KAM'                     => $request->KAM,
             'PAL'                     => $request->PAL,
             'NOTAS'                   => $request->NOTAS,
@@ -351,6 +358,32 @@ class SolicitudClienteController extends Controller
     }
 
     // -------------------------------------------------------------------------
+    // CANCELAR — solo admin
+    // -------------------------------------------------------------------------
+
+    public function cancelar(Request $request, SolicitudCliente $solicitud)
+    {
+        if ($solicitud->isCancelada()) {
+            return back()->with('error', 'La solicitud ya está cancelada.');
+        }
+
+        $request->validate([
+            'motivo' => 'nullable|string|max:500',
+        ]);
+
+        $solicitud->update(['ESTADO' => 'cancelada']);
+
+        SolicitudClienteEvento::registrar($solicitud, [
+            'TIPO'         => 'cancelacion',
+            'AUTOR_TIPO'   => 'admin',
+            'AUTOR_NOMBRE' => $this->nombreAdminActual(),
+            'MENSAJE'      => $request->motivo,
+        ]);
+
+        return back()->with('success', 'Solicitud cancelada.');
+    }
+
+    // -------------------------------------------------------------------------
     // HELPERS PRIVADOS
     // -------------------------------------------------------------------------
 
@@ -382,6 +415,7 @@ class SolicitudClienteController extends Controller
             'muestra_codigo_postal'    => $s->MUESTRA_CODIGO_POSTAL,
             'email_guia'               => $s->EMAIL_GUIA,
             'email_resultados'         => $s->EMAIL_RESULTADOS,
+            'copia_seguimiento'       => $s->COPIA_SEGUIMIENTO,
             'kam'                      => $s->KAM,
             'pal'                      => $s->PAL,
             'estado'                   => $s->ESTADO,

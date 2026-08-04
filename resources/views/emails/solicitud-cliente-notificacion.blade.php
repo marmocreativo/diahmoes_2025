@@ -68,6 +68,7 @@
       .badge-edicion      { background: #6b7280; }
       .badge-comentario   { background: #189BAF; }
       .badge-confirmacion { background: #16a34a; }
+      .badge-cancelacion  { background: #dc2626; }
 
       .section-title {
         font-size: 13px;
@@ -215,6 +216,7 @@
                     'edicion'      => 'La solicitud ha sido actualizada.',
                     'comentario'   => 'Hay un nuevo comentario en la solicitud.',
                     'confirmacion' => 'La solicitud ha sido confirmada.',
+                    'cancelacion'  => 'La solicitud ha sido cancelada.',
                 ];
 
                 $badges = [
@@ -222,6 +224,7 @@
                     'edicion'      => 'Solicitud editada',
                     'comentario'   => 'Nuevo comentario',
                     'confirmacion' => 'Confirmada',
+                    'cancelacion'  => 'Cancelada',
                 ];
             @endphp
 

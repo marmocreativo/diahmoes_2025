@@ -80,8 +80,11 @@ class Estudio extends Model
         'R_AREA_TUMORAL',
         'R_PORCENTAJE_TUMOR_TEJIDO',
         'R_ENRIQUECIMIENTO',
+        'R_RAZON_ENRIQUECIMIENTO',
         'R_ADECUADO_PROCESAMIENTO',
         'R_RAZON_ADECUADO_PROCESAMIENTO',
+        'R_CANDIDATO_A_PATROCINIO',
+        'R_RAZON_CANDIDATO_A_PATROCINIO',
         'R_ESTATUS_KRAS',
         'R_GENOTIPO_KRAS',
         'R_ESTATUS_NRAS',
@@ -91,6 +94,7 @@ class Estudio extends Model
         'R_RESULTADO_HISTOPATOLOGICO',
         'R_INTERPRETACION',
         'R_COMPLETOS',
+        'R_RAZON_CANCELACION',
         'R_NOTAS_ESPECIALES',
         'FECHA_SOLICITUD_RECOLECCION',
         'FECHA_RECOLECCION',
@@ -148,6 +152,36 @@ class Estudio extends Model
     const ESTADO_RETORNO = 'Retorno Material';
     const ESTADO_TERMINADO = 'Terminado';
     const ESTADO_CANCELADO = 'Cancelado';
+
+
+
+    // Catálogo de mensajes "generales" que se pueden enviar por correo,
+    // usando la plantilla pdf.estudio-general. Para agregar un nuevo caso
+    // en el futuro solo hay que añadir una entrada aquí — no se requiere
+    // tocar el controlador ni el Mailable.
+    const MENSAJES_DISPONIBLES = [
+        'enriquecimiento' => [
+            'titulo' => 'Aviso de Enriquecimiento de Muestra',
+            'asunto_pdf' => 'Enriquecimiento',
+            'asunto_correo' => 'Enriquecimiento de Muestra',
+            'columna' => 'R_RAZON_ENRIQUECIMIENTO',
+        ],
+        'patrocinio' => [
+            'titulo' => 'Candidatura a Patrocinio',
+            'asunto_pdf' => 'Patrocinio',
+            'asunto_correo' => 'Candidatura a Patrocinio',
+            'columna' => 'R_RAZON_CANDIDATO_A_PATROCINIO',
+        ],
+        'cancelacion' => [
+            'titulo' => 'Estudio Cancelado',
+            'asunto_pdf' => 'Cancelación de Estudio',
+            'asunto_correo' => 'Cancelación de Estudio',
+            'columna' => 'R_RAZON_CANCELACION',
+        ],
+    ];
+
+    
+    const PROCESAMIENTO_REQUIERE_INFO_ADICIONAL = 'Requiere información adicional';
 
     // Constantes para género
     const GENERO_MASCULINO = 'Masculino';

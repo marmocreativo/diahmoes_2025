@@ -31,7 +31,11 @@ interface EditLaboratorioProps {
         R_AREA_TUMORAL?: string;
         R_PORCENTAJE_TUMOR_TEJIDO?: string;
         R_ENRIQUECIMIENTO?: string;
+        R_RAZON_ENRIQUECIMIENTO?: string;
         R_RAZON_ADECUADO_PROCESAMIENTO?: string;
+        R_CANDIDATO_A_PATROCINIO?: string;
+        R_RAZON_CANDIDATO_A_PATROCINIO?: string;
+        R_RAZON_CANCELACION?: string;
         R_RESULTADO_HISTOPATOLOGICO?: string;
         R_NOTAS_ESPECIALES?: string;
         ESTUDIO_NOTAS?: string;
@@ -81,7 +85,9 @@ export default function EditLaboratorioConCondicionales() {
     const [estudiosSeleccionados, setEstudiosSeleccionados] = useState(estudio.R_ESTUDIO_SOLICITADO || '');
     const [enriquecimiento, setEnriquecimiento] = useState(estudio.R_ENRIQUECIMIENTO || '');
     const [adecuadoProcesamiento, setAdecuadoProcesamiento] = useState(estudio.R_ADECUADO_PROCESAMIENTO || '');
+    const [candidatoPatrocinio, setCandidatoPatrocinio] = useState(estudio.R_CANDIDATO_A_PATROCINIO || '');
     const [resultadosCompletos, setResultadosCompletos] = useState(estudio.R_COMPLETOS === 'si');
+    const [cancelarEstudio, setCancelarEstudio] = useState(false);
     const [metodoSeleccionado, setMetodoSeleccionado] = useState(estudio.R_METODO_PROCESO || '');
 
     const [camposSangreTotal, setCamposSangreTotal] = useState({
@@ -338,6 +344,12 @@ export default function EditLaboratorioConCondicionales() {
     // Mostrar razón de procesamiento si el valor es subóptima, inadecuada o no es procesable
     const mostrarRazonProcesamiento = ['subóptima', 'inadecuada'].includes(adecuadoProcesamiento);
 
+    // Mostrar razón de enriquecimiento si se marcó "Si"
+    const mostrarRazonEnriquecimiento = enriquecimiento === 'Si';
+
+    // Mostrar razón de "no candidato a patrocinio" si se marcó "No"
+    const mostrarRazonPatrocinio = candidatoPatrocinio === 'No';
+
     const autoSelectIfSingleOption = (options: GenotipoOption[]): string => {
         const availableOptions = options.filter(opt => !opt.disabled && opt.value !== '');
         return availableOptions.length === 1 ? availableOptions[0].value : '';
@@ -477,6 +489,12 @@ export default function EditLaboratorioConCondicionales() {
         setAdecuadoProcesamiento(nuevoValor);
     };
 
+    const handleCandidatoPatrocinioChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
+        const nuevoValor = e.target.value;
+        console.log('🔄 Cambiando candidato a patrocinio de:', candidatoPatrocinio, 'a:', nuevoValor);
+        setCandidatoPatrocinio(nuevoValor);
+    };
+
     const handleMetodoProcesoChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
         const nuevoMetodo = e.target.value;
         console.log('🔄 Cambiando método de proceso de:', metodoSeleccionado, 'a:', nuevoMetodo);
@@ -602,6 +620,7 @@ export default function EditLaboratorioConCondicionales() {
         // Resto del código existente...
         data.R_COMPLETOS = resultadosCompletos ? 'si' : 'no';
         data.ESTUDIO_NOTAS = notasContent;
+        data.CANCELAR_ESTUDIO = cancelarEstudio ? 'true' : 'false';
 
         if (!resultadosCompletos) {
             data.FECHA_OBTENCION_RESULTADOS = null;
@@ -615,7 +634,7 @@ export default function EditLaboratorioConCondicionales() {
         }
 
         return data;
-    }, [resultadosCompletos, genotipoKRAS, genotipoNRAS, genotipoBRAF, notasContent, camposSangreTotal, esSangreTotal]);
+    }, [resultadosCompletos, cancelarEstudio, genotipoKRAS, genotipoNRAS, genotipoBRAF, notasContent, camposSangreTotal, esSangreTotal]);
 
     // Función global para eliminar insumo (llamada desde el HTML)
     useEffect(() => {
@@ -1087,6 +1106,19 @@ export default function EditLaboratorioConCondicionales() {
                                             </select>
                                         </div>
 
+                                        {/* Campo condicional para razón de enriquecimiento */}
+                                        {mostrarRazonEnriquecimiento && (
+                                            <div>
+                                                <label className={labelClass}>Razón / detalle del enriquecimiento</label>
+                                                <textarea
+                                                    name="R_RAZON_ENRIQUECIMIENTO"
+                                                    className={textareaClass}
+                                                    rows={6}
+                                                    defaultValue={estudio.R_RAZON_ENRIQUECIMIENTO || ''}
+                                                />
+                                            </div>
+                                        )}
+
                                         <div>
                                             <label className={labelClass}>¿Adecuado para Procesamiento?</label>
                                             <select
@@ -1102,6 +1134,7 @@ export default function EditLaboratorioConCondicionales() {
                                                 <option value="subóptima">subóptima</option>
                                                 <option value="inadecuada">inadecuada</option>
                                                 <option value="no es procesable">no es procesable</option>
+                                                <option value="Requiere información adicional">Requiere información adicional</option>
                                             </select>
                                         </div>
 
@@ -1114,6 +1147,33 @@ export default function EditLaboratorioConCondicionales() {
                                                     className={textareaClass}
                                                     rows={12}
                                                     defaultValue={estudio.R_RAZON_ADECUADO_PROCESAMIENTO || ''}
+                                                />
+                                            </div>
+                                        )}
+
+                                        <div>
+                                            <label className={labelClass}>¿Candidato a Patrocinio?</label>
+                                            <select
+                                                name="R_CANDIDATO_A_PATROCINIO"
+                                                className={selectClass}
+                                                value={candidatoPatrocinio}
+                                                onChange={handleCandidatoPatrocinioChange}
+                                            >
+                                                <option value="">Selecciona</option>
+                                                <option value="Si">Si</option>
+                                                <option value="No">No</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Campo condicional para razón de NO candidato a patrocinio */}
+                                        {mostrarRazonPatrocinio && (
+                                            <div>
+                                                <label className={labelClass}>Razón por la que no es candidato a patrocinio</label>
+                                                <textarea
+                                                    name="R_RAZON_CANDIDATO_A_PATROCINIO"
+                                                    className={textareaClass}
+                                                    rows={6}
+                                                    defaultValue={estudio.R_RAZON_CANDIDATO_A_PATROCINIO || ''}
                                                 />
                                             </div>
                                         )}
@@ -1360,6 +1420,38 @@ export default function EditLaboratorioConCondicionales() {
                                     <span className="ml-2 text-sm text-gray-600">
                                         (Al marcar se establecerá la fecha y hora de obtención de resultados)
                                     </span>
+                                </div>
+
+                                {/* Checkbox cancelar estudio */}
+                                <div className="p-4 bg-red-50 border border-red-200 rounded-lg space-y-3">
+                                    <div className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            id="cancelarEstudio"
+                                            className="h-4 w-4 text-red-600 focus:ring-red-600 border-gray-300 rounded"
+                                            checked={cancelarEstudio}
+                                            onChange={(e) => setCancelarEstudio(e.target.checked)}
+                                        />
+                                        <label htmlFor="cancelarEstudio" className="ml-2 block text-sm text-red-800 font-medium">
+                                            Cancelar Estudio
+                                        </label>
+                                        <span className="ml-2 text-sm text-gray-600">
+                                            (El estudio pasará a estado "Cancelado" y no podrá seguir editándose)
+                                        </span>
+                                    </div>
+
+                                    {cancelarEstudio && (
+                                        <div>
+                                            <label className={labelClass}>Razón de la cancelación</label>
+                                            <textarea
+                                                name="R_RAZON_CANCELACION"
+                                                className={textareaClass}
+                                                rows={4}
+                                                defaultValue={estudio.R_RAZON_CANCELACION || ''}
+                                                placeholder="Explica por qué se cancela el estudio..."
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

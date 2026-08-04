@@ -870,8 +870,11 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
             'R_AREA_TUMORAL',
             'R_PORCENTAJE_TUMOR_TEJIDO',
             'R_ENRIQUECIMIENTO',
+            'R_RAZON_ENRIQUECIMIENTO',
             'R_ADECUADO_PROCESAMIENTO',
             'R_RAZON_ADECUADO_PROCESAMIENTO',
+            'R_CANDIDATO_A_PATROCINIO',
+            'R_RAZON_CANDIDATO_A_PATROCINIO',
             'R_ESTATUS_KRAS',
             'R_GENOTIPO_KRAS',
             'R_ESTATUS_NRAS',
@@ -881,6 +884,7 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
             'R_RESULTADO_HISTOPATOLOGICO',
             'R_INTERPRETACION',
             'R_COMPLETOS',
+            'R_RAZON_CANCELACION',
             'MUESTRA_TIPO',
             'MUESTRA_GUIA_RETORNO',
             'MUESTRA_GUIA_RETORNO_MENSAJERIA',
@@ -914,7 +918,10 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
         // Cargar solo campos necesarios para informe
         $estudio = Estudio::select([
             'ID', 'CLAVE_INTERNA', 'FECHA_INFORME', 'FECHA_RESULTADOS_CORREO', 'ESTUDIO_FACTURADO',
-            'ESTUDIO_ESTADO', 'ESTUDIO_COMENTARIOS', 'BENEFICIARIO', 'ID_MEDICO','MUESTRA_TIPO_ESTUDIO'
+            'ESTUDIO_ESTADO', 'ESTUDIO_COMENTARIOS', 'BENEFICIARIO', 'ID_MEDICO', 'MUESTRA_TIPO_ESTUDIO',
+            'R_ENRIQUECIMIENTO', 'R_RAZON_ENRIQUECIMIENTO',
+            'R_CANDIDATO_A_PATROCINIO', 'R_RAZON_CANDIDATO_A_PATROCINIO',
+            'R_RAZON_CANCELACION'
         ])->with([
             'medico:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS,USUARIO_CORREO,USUARIO_TELEFONO',
             'paciente:ID_USUARIO,USUARIO_NOMBRE,USUARIO_APELLIDOS',
@@ -1299,8 +1306,11 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
                 'R_AREA_TUMORAL' => 'nullable|string|max:100',
                 'R_PORCENTAJE_TUMOR_TEJIDO' => 'nullable|string|max:100',
                 'R_ENRIQUECIMIENTO' => 'nullable|string|max:100',
+                'R_RAZON_ENRIQUECIMIENTO' => 'nullable|string',
                 'R_ADECUADO_PROCESAMIENTO' => 'nullable|string|max:100',
                 'R_RAZON_ADECUADO_PROCESAMIENTO' => 'nullable|string|max:255',
+                'R_CANDIDATO_A_PATROCINIO' => 'nullable|in:Si,No',
+                'R_RAZON_CANDIDATO_A_PATROCINIO' => 'nullable|string',
                 // Resultados genéticos
                 'R_ESTATUS_KRAS' => 'nullable|string|max:100',
                 'R_GENOTIPO_KRAS' => 'nullable|string|max:255',
@@ -1312,6 +1322,8 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
                 'R_RESULTADO_HISTOPATOLOGICO' => 'nullable|string',
                 'R_NOTAS_ESPECIALES' => 'nullable|string',
                 'R_COMPLETOS' => 'nullable|string',
+                'CANCELAR_ESTUDIO' => 'nullable|in:true,false,1,0',
+                'R_RAZON_CANCELACION' => 'nullable|string',
                 'ESTUDIO_NOTAS' => 'nullable|string',
                 'ESTUDIO_COMENTARIOS' => 'nullable|string',
                 '_next' => 'nullable|string'
@@ -1345,8 +1357,11 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
                 'R_AREA_TUMORAL',
                 'R_PORCENTAJE_TUMOR_TEJIDO',
                 'R_ENRIQUECIMIENTO',
+                'R_RAZON_ENRIQUECIMIENTO',
                 'R_ADECUADO_PROCESAMIENTO',
                 'R_RAZON_ADECUADO_PROCESAMIENTO',
+                'R_CANDIDATO_A_PATROCINIO',
+                'R_RAZON_CANDIDATO_A_PATROCINIO',
                 'R_ESTATUS_KRAS',
                 'R_GENOTIPO_KRAS',
                 'R_ESTATUS_NRAS',
@@ -1356,6 +1371,7 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
                 'R_RESULTADO_HISTOPATOLOGICO',
                 'R_NOTAS_ESPECIALES',
                 'R_COMPLETOS',
+                'R_RAZON_CANCELACION',
                 'ESTUDIO_NOTAS',
                 'ESTUDIO_COMENTARIOS'
             ];
@@ -1411,30 +1427,48 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
                 }
             }
 
-            // LÓGICA DE ACTUALIZACIÓN DE ESTADO BASADA EN R_COMPLETOS
-            $rCompletos = $request->R_COMPLETOS;
+            // LÓGICA DE CANCELACIÓN DE ESTUDIO (tiene prioridad sobre R_COMPLETOS)
             $mensajeEstado = '';
+            $cancelarEstudio = $request->boolean('CANCELAR_ESTUDIO');
 
-            if ($rCompletos === 'no') {
-                // Si R_COMPLETOS = "no", siempre actualizar a "Recepción Laboratorio"
-                $datosActualizar['ESTUDIO_ESTADO'] = 'Recepción Laboratorio';
-                $mensajeEstado = ' Estado actualizado a "Recepción Laboratorio" (resultados incompletos).';
-                \Log::info('🔄 R_COMPLETOS = no → Estado: Recepción Laboratorio');
-                
-            } else if ($rCompletos === 'si') {
-                // Si R_COMPLETOS = "si", validar que no sea "Resultados Enviados"
-                if ($estadoActual === 'Resultados Enviados') {
-                    \Log::info('📋 Estado ya es "Resultados Enviados", manteniendo estado actual');
-                    $mensajeEstado = ' Estado mantenido en "Resultados Enviados".';
-                } else {
-                    // Cualquier otro estado → actualizar a "Resultados Completos"
-                    $datosActualizar['ESTUDIO_ESTADO'] = 'Resultados Completos';
-                    $mensajeEstado = ' Estado actualizado a "Resultados Completos".';
-                    \Log::info('🔄 R_COMPLETOS = si → Estado: ' . $estadoActual . ' → Resultados Completos');
+            if ($cancelarEstudio) {
+                if (!$request->filled('R_RAZON_CANCELACION')) {
+                    \Log::warning('⚠️ Intento de cancelar estudio sin razón de cancelación');
+                    return back()->withErrors([
+                        'R_RAZON_CANCELACION' => 'Debes indicar la razón de la cancelación del estudio.'
+                    ]);
                 }
+
+                $datosActualizar['ESTUDIO_ESTADO'] = \App\Models\Estudio::ESTADO_CANCELADO;
+                $datosActualizar['R_RAZON_CANCELACION'] = $request->R_RAZON_CANCELACION;
+                $mensajeEstado = ' Estudio marcado como "Cancelado".';
+                \Log::info('🚫 Estudio cancelado', ['razon' => $request->R_RAZON_CANCELACION]);
+
             } else {
-                // Si R_COMPLETOS no está definido o es otro valor, mantener estado actual
-                \Log::info('📋 R_COMPLETOS no definido o valor no reconocido, manteniendo estado: ' . $estadoActual);
+                // LÓGICA DE ACTUALIZACIÓN DE ESTADO BASADA EN R_COMPLETOS
+                $rCompletos = $request->R_COMPLETOS;
+
+                if ($rCompletos === 'no') {
+                    // Si R_COMPLETOS = "no", siempre actualizar a "Recepción Laboratorio"
+                    $datosActualizar['ESTUDIO_ESTADO'] = 'Recepción Laboratorio';
+                    $mensajeEstado = ' Estado actualizado a "Recepción Laboratorio" (resultados incompletos).';
+                    \Log::info('🔄 R_COMPLETOS = no → Estado: Recepción Laboratorio');
+
+                } else if ($rCompletos === 'si') {
+                    // Si R_COMPLETOS = "si", validar que no sea "Resultados Enviados"
+                    if ($estadoActual === 'Resultados Enviados') {
+                        \Log::info('📋 Estado ya es "Resultados Enviados", manteniendo estado actual');
+                        $mensajeEstado = ' Estado mantenido en "Resultados Enviados".';
+                    } else {
+                        // Cualquier otro estado → actualizar a "Resultados Completos"
+                        $datosActualizar['ESTUDIO_ESTADO'] = 'Resultados Completos';
+                        $mensajeEstado = ' Estado actualizado a "Resultados Completos".';
+                        \Log::info('🔄 R_COMPLETOS = si → Estado: ' . $estadoActual . ' → Resultados Completos');
+                    }
+                } else {
+                    // Si R_COMPLETOS no está definido o es otro valor, mantener estado actual
+                    \Log::info('📋 R_COMPLETOS no definido o valor no reconocido, manteniendo estado: ' . $estadoActual);
+                }
             }
 
             // Filtrar valores null para evitar problemas con columnas NOT NULL
@@ -1914,6 +1948,108 @@ private function manejarNuevaInstitucion(Request $request, $institucionActualId 
             return response()->json([
                 'success' => false,
                 'message' => 'Error al enviar correo: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Enviar un "mensaje general" (enriquecimiento, patrocinio, cancelación,
+     * o cualquier tipo futuro registrado en Estudio::MENSAJES_DISPONIBLES)
+     * a un destinatario individual, usando la plantilla pdf.estudio-general.
+     *
+     * Flexible: se le indica el 'tipo_mensaje' y toma automáticamente el
+     * contenido de la columna correspondiente del estudio. También admite
+     * un tipo 'personalizado' con texto libre para casos no contemplados.
+     */
+    public function enviarMensajeGeneral(Request $request, Estudio $estudio)
+    {
+        try {
+            $request->validate([
+                'tipo_mensaje' => 'required|string',
+                'nombre' => 'nullable|string|max:255',
+                'correo' => 'required|email|max:255',
+                // Solo requeridos si tipo_mensaje = 'personalizado'
+                'titulo_personalizado' => 'required_if:tipo_mensaje,personalizado|nullable|string|max:255',
+                'asunto_personalizado' => 'required_if:tipo_mensaje,personalizado|nullable|string|max:255',
+                'mensaje_personalizado' => 'required_if:tipo_mensaje,personalizado|nullable|string',
+            ]);
+
+            $tipoMensaje = $request->tipo_mensaje;
+
+            if ($tipoMensaje === 'personalizado') {
+                $titulo = $request->titulo_personalizado;
+                $asuntoPdf = $request->asunto_personalizado;
+                $asuntoCorreo = $request->asunto_personalizado;
+                $mensaje = $request->mensaje_personalizado;
+            } else {
+                $catalogo = Estudio::MENSAJES_DISPONIBLES;
+
+                if (!isset($catalogo[$tipoMensaje])) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Tipo de mensaje '{$tipoMensaje}' no reconocido."
+                    ], 422);
+                }
+
+                $config = $catalogo[$tipoMensaje];
+                $columna = $config['columna'];
+                $mensaje = $estudio->{$columna};
+
+                if (empty($mensaje)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "El estudio no tiene contenido registrado en '{$columna}' para este tipo de mensaje."
+                    ], 422);
+                }
+
+                $titulo = $config['titulo'];
+                $asuntoPdf = $config['asunto_pdf'];
+                $asuntoCorreo = $config['asunto_correo'];
+            }
+
+            $nombreDestinatario = $request->nombre ?: explode('@', $request->correo)[0];
+
+            \Log::info('📧 Enviando mensaje general', [
+                'estudio_id' => $estudio->ID,
+                'tipo_mensaje' => $tipoMensaje,
+                'destinatario' => $request->correo,
+            ]);
+
+            Mail::to($request->correo)->send(
+                new \App\Mail\EstudioMensajeGeneral($estudio, $titulo, $asuntoPdf, $asuntoCorreo, $mensaje)
+            );
+
+            $envio = \App\Models\EnvioCorreo::create([
+                'ID_ESTUDIO' => $estudio->ID,
+                'ID_MEDICO' => $estudio->ID_MEDICO,
+                'ID_USUARIO_ENVIO' => auth()->user()->ID_USUARIO ?? auth()->id(),
+                'NOMBRE_DESTINATARIO' => $nombreDestinatario,
+                'CORREO_DESTINATARIO' => $request->correo,
+                'TIPO_ENVIO' => 'adjunto',
+                'MENSAJE_HTML' => 'Mensaje enviado (' . $asuntoCorreo . ') - ' . ($estudio->CLAVE_INTERNA ?? 'Sin clave'),
+                'ESTADO' => 'enviado',
+                'FECHA_ENVIO' => now(),
+            ]);
+
+            \Log::info('✅ Mensaje general enviado y registrado', ['envio_id' => $envio->id]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Mensaje enviado exitosamente a {$nombreDestinatario}.",
+                'envio_id' => $envio->id,
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            \Log::error('❌ Error en enviarMensajeGeneral', [
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al enviar el mensaje: ' . $e->getMessage()
             ], 500);
         }
     }

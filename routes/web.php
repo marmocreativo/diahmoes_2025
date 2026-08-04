@@ -471,6 +471,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('estudios.update.informe');
     Route::post('estudios/{estudio:ID}/enviar-correo', [EstudioController::class, 'enviarCorreoIndividual'])
         ->name('estudios.enviar-correo');
+    Route::post('estudios/{estudio:ID}/enviar-mensaje', [EstudioController::class, 'enviarMensajeGeneral'])
+        ->name('estudios.enviar-mensaje');
     
     // Ruta para edición completa en una sola vista
     Route::get('estudios/{estudio:ID}/edit/full', [EstudioController::class, 'editFull'])
@@ -986,6 +988,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/solicitudes-cliente/{solicitud}/confirmar', [SolicitudClienteController::class, 'confirmar'])
         ->name('solicitudes-cliente.confirmar');
+
+    Route::post('/solicitudes-cliente/{solicitud}/cancelar', [SolicitudClienteController::class, 'cancelar'])
+        ->name('solicitudes-cliente.cancelar');
 
     Route::post('/solicitudes-cliente/{solicitud}/enviar-guia', [SolicitudClienteController::class, 'enviarGuia'])
         ->name('solicitudes-cliente.enviar-guia');

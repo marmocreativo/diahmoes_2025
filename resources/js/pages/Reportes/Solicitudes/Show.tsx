@@ -5,7 +5,7 @@ import RepeaterEmails from '@/components/RepeaterEmails';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
-    ClipboardList, CheckCircle, Clock, MapPin, Phone, Pencil, X, RefreshCw,
+    ClipboardList, CheckCircle, Clock, MapPin, Phone, Pencil, X, RefreshCw, Ban,
 } from 'lucide-react';
 import TimelineSolicitud, { type EventoSolicitud } from '@/components/TimelineSolicitud';
 
@@ -37,9 +37,10 @@ interface SolicitudCliente {
     muestra_codigo_postal: string;
     email_guia: string;
     email_resultados: string;
+    copia_seguimiento: string;
     kam: string;
     pal: string;
-    estado: 'pendiente' | 'confirmada' | 'convertida';
+    estado: 'pendiente' | 'confirmada' | 'convertida' | 'cancelada';
     notas: string;
     created_at: string;
 }
@@ -64,6 +65,7 @@ type SolicitudFormData = {
     MUESTRA_CODIGO_POSTAL: string;
     EMAIL_GUIA: string;
     EMAIL_RESULTADOS: string;
+    COPIA_SEGUIMIENTO: string;
     KAM: string;
     PAL: string;
     NOTAS: string;
@@ -84,6 +86,11 @@ const ESTADOS_MX = [
 ];
 
 function BadgeEstado({ estado }: { estado: SolicitudCliente['estado'] }) {
+    if (estado === 'cancelada') return (
+        <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+            <Ban className="h-3 w-3" /> Cancelada
+        </span>
+    );
     if (estado === 'convertida') return (
         <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full">
             <CheckCircle className="h-3 w-3" /> Convertida
@@ -147,6 +154,7 @@ export default function ReportesSolicitudesShow() {
         MUESTRA_CODIGO_POSTAL: solicitud.muestra_codigo_postal || '',
         EMAIL_GUIA: solicitud.email_guia || '',
         EMAIL_RESULTADOS: solicitud.email_resultados || '',
+        COPIA_SEGUIMIENTO: solicitud.copia_seguimiento || '',
         KAM: solicitud.kam || '',
         PAL: solicitud.pal || '',
         NOTAS: solicitud.notas || '',
@@ -230,8 +238,10 @@ export default function ReportesSolicitudesShow() {
                     </div>
 
                     {!puedeEditar && (
-                        <div className="bg-blue-50 border border-blue-100 text-blue-700 text-xs rounded-lg px-3 py-2">
-                            Esta solicitud ya fue {solicitud.estado === 'confirmada' ? 'confirmada' : 'procesada'} y no se puede editar. Puedes seguir agregando comentarios.
+                        <div className={`text-xs rounded-lg px-3 py-2 border ${solicitud.estado === 'cancelada' ? 'bg-red-50 border-red-100 text-red-700' : 'bg-blue-50 border-blue-100 text-blue-700'}`}>
+                            {solicitud.estado === 'cancelada'
+                                ? 'Esta solicitud fue cancelada. Puedes seguir agregando comentarios.'
+                                : `Esta solicitud ya fue ${solicitud.estado === 'confirmada' ? 'confirmada' : 'procesada'} y no se puede editar. Puedes seguir agregando comentarios.`}
                         </div>
                     )}
 
@@ -335,7 +345,7 @@ export default function ReportesSolicitudesShow() {
                                         </div>
 
                                         <p className={sectionTitle}>Correos</p>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                                             <div>
                                                 <label className={labelClass}>Email envío de guía</label>
                                                 <RepeaterEmails value={form.EMAIL_GUIA} onChange={v => setField('EMAIL_GUIA', v)} />
@@ -343,6 +353,10 @@ export default function ReportesSolicitudesShow() {
                                             <div>
                                                 <label className={labelClass}>Email envío de resultados</label>
                                                 <RepeaterEmails value={form.EMAIL_RESULTADOS} onChange={v => setField('EMAIL_RESULTADOS', v)} />
+                                            </div>
+                                            <div>
+                                                <label className={labelClass}>Seguimiento a</label>
+                                                <RepeaterEmails value={form.COPIA_SEGUIMIENTO} onChange={v => setField('COPIA_SEGUIMIENTO', v)} />
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -416,6 +430,7 @@ export default function ReportesSolicitudesShow() {
                                             <Dato label="Celular" value={solicitud.celular} />
                                             <Dato label="Email guía" value={solicitud.email_guia?.split(',').filter(Boolean).join(', ')} />
                                             <Dato label="Email resultados" value={solicitud.email_resultados?.split(',').filter(Boolean).join(', ')} />
+                                            <Dato label="Seguimiento a" value={solicitud.copia_seguimiento?.split(',').filter(Boolean).join(', ')} />
                                             <Dato label="KAM" value={solicitud.kam} />
                                             <Dato label="PAL" value={solicitud.pal} />
                                         </CardContent>

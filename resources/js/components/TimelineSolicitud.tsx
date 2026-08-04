@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MessageSquare, Pencil, CheckCircle, PlusCircle, Send, RefreshCw, FileText } from 'lucide-react';
+import { MessageSquare, Pencil, CheckCircle, PlusCircle, Send, RefreshCw, FileText, Ban } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -9,7 +9,7 @@ import { MessageSquare, Pencil, CheckCircle, PlusCircle, Send, RefreshCw, FileTe
 
 export interface EventoSolicitud {
     id: number;
-    tipo: 'creacion' | 'edicion' | 'comentario' | 'confirmacion' | 'envio_guia';
+    tipo: 'creacion' | 'edicion' | 'comentario' | 'confirmacion' | 'envio_guia' | 'cancelacion';
     autor_tipo: 'cliente' | 'admin';
     autor_nombre: string | null;
     mensaje: string | null;
@@ -35,6 +35,7 @@ const ICONOS = {
     comentario: MessageSquare,
     confirmacion: CheckCircle,
     envio_guia: FileText,
+    cancelacion: Ban,
 };
 
 const COLORES = {
@@ -43,6 +44,7 @@ const COLORES = {
     comentario: 'bg-amber-100 text-amber-700',
     confirmacion: 'bg-green-100 text-green-700',
     envio_guia: 'bg-purple-100 text-purple-700',
+    cancelacion: 'bg-red-100 text-red-700',
 };
 
 const ETIQUETAS = {
@@ -51,6 +53,7 @@ const ETIQUETAS = {
     comentario: 'Comentario',
     confirmacion: 'Solicitud confirmada',
     envio_guia: 'Guía enviada',
+    cancelacion: 'Solicitud cancelada',
 };
 
 function EventoItem({ evento }: { evento: EventoSolicitud }) {
@@ -74,7 +77,7 @@ function EventoItem({ evento }: { evento: EventoSolicitud }) {
                     {evento.autor_nombre ? ` — ${evento.autor_nombre}` : ''}
                 </p>
 
-                {(evento.tipo === 'comentario' || evento.tipo === 'envio_guia') && evento.mensaje && (
+                {(evento.tipo === 'comentario' || evento.tipo === 'envio_guia' || evento.tipo === 'cancelacion') && evento.mensaje && (
                     <div className="mt-2 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-700 whitespace-pre-wrap">
                         {evento.mensaje}
                     </div>

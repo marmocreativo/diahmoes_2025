@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
-    ClipboardList, CheckCircle, Clock, ArrowLeft, MapPin, Phone, Mail, User, Building2, Upload, FileText
+    ClipboardList, CheckCircle, Clock, ArrowLeft, MapPin, Phone, Mail, User, Building2, Upload, FileText, Ban
 } from 'lucide-react';
 import { type BreadcrumbItem } from '@/types';
 import TimelineSolicitud, { type EventoSolicitud } from '@/components/TimelineSolicitud';
@@ -37,9 +37,10 @@ interface SolicitudCliente {
     muestra_codigo_postal: string;
     email_guia: string;
     email_resultados: string;
+    copia_seguimiento: string;
     kam: string;
     pal: string;
-    estado: 'pendiente' | 'confirmada' | 'convertida';
+    estado: 'pendiente' | 'confirmada' | 'convertida' | 'cancelada';
     notas: string;
     creado_por: string;
     created_at: string;
@@ -51,6 +52,11 @@ interface PageProps {
 }
 
 function BadgeEstado({ estado }: { estado: SolicitudCliente['estado'] }) {
+    if (estado === 'cancelada') return (
+        <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+            <Ban className="h-3 w-3" /> Cancelada
+        </span>
+    );
     if (estado === 'convertida') return (
         <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full">
             <CheckCircle className="h-3 w-3" /> Convertida
@@ -84,6 +90,7 @@ export default function SolicitudesClienteShow() {
     const [eventos, setEventos] = useState<EventoSolicitud[]>(eventosIniciales);
     const [enviandoComentario, setEnviandoComentario] = useState(false);
     const [confirmando, setConfirmando] = useState(false);
+    const [cancelando, setCancelando] = useState(false);
 
     const [archivoGuia, setArchivoGuia] = useState<File | null>(null);
     const [enviandoGuia, setEnviandoGuia] = useState(false);
@@ -126,6 +133,18 @@ export default function SolicitudesClienteShow() {
         router.post(`/solicitudes-cliente/${solicitud.id}/confirmar`, {}, {
             preserveScroll: true,
             onFinish: () => setConfirmando(false),
+        });
+    };
+
+    const handleCancelar = () => {
+        if (!confirm('¿Seguro que deseas cancelar esta solicitud? Se notificará a todas las partes.')) return;
+
+        const motivo = prompt('Motivo de cancelación (opcional):') || '';
+
+        setCancelando(true);
+        router.post(`/solicitudes-cliente/${solicitud.id}/cancelar`, { motivo }, {
+            preserveScroll: true,
+            onFinish: () => setCancelando(false),
         });
     };
 
@@ -174,6 +193,18 @@ export default function SolicitudesClienteShow() {
                             >
                                 <CheckCircle className="h-4 w-4 mr-1.5" />
                                 {confirmando ? 'Confirmando...' : 'Confirmar solicitud'}
+                            </Button>
+                        )}
+                        {(solicitud.estado === 'pendiente' || solicitud.estado === 'confirmada') && (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleCancelar}
+                                disabled={cancelando}
+                                className="text-red-600 border-red-200 hover:bg-red-50"
+                            >
+                                <Ban className="h-4 w-4 mr-1.5" />
+                                {cancelando ? 'Cancelando...' : 'Cancelar'}
                             </Button>
                         )}
                     </div>
@@ -233,6 +264,7 @@ export default function SolicitudesClienteShow() {
                                 <Dato label="Celular" value={solicitud.celular} />
                                 <Dato label="Email guía" value={solicitud.email_guia} />
                                 <Dato label="Email resultados" value={solicitud.email_resultados} />
+                                <Dato label="Seguimiento a" value={solicitud.copia_seguimiento?.split(',').filter(Boolean).join(', ')} />
                                 <Dato label="KAM" value={solicitud.kam} />
                                 <Dato label="PAL" value={solicitud.pal} />
                             </CardContent>

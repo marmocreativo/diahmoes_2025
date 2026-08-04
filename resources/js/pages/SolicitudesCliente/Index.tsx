@@ -3,7 +3,7 @@ import AppLayout from '@/layouts/app-layout';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ClipboardList, CheckCircle, Clock, ChevronRight, Filter, X } from 'lucide-react';
+import { ClipboardList, CheckCircle, Clock, ChevronRight, Filter, X, Ban } from 'lucide-react';
 import { type BreadcrumbItem } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -18,7 +18,7 @@ interface SolicitudCliente {
     medico: string;
     institucion: string;
     programar_para_formato: string;
-    estado: 'pendiente' | 'confirmada' | 'convertida';
+    estado: 'pendiente' | 'confirmada' | 'convertida' | 'cancelada';
     creado_por: string;
     created_at: string;
 }
@@ -43,6 +43,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 function BadgeEstado({ estado }: { estado: SolicitudCliente['estado'] }) {
+    if (estado === 'cancelada') return (
+        <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+            <Ban className="h-3 w-3" /> Cancelada
+        </span>
+    );
     if (estado === 'convertida') return (
         <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full">
             <CheckCircle className="h-3 w-3" /> Convertida
@@ -120,6 +125,7 @@ export default function SolicitudesClienteIndex() {
                                         <option value="">Todos</option>
                                         <option value="pendiente">Pendiente</option>
                                         <option value="confirmada">Confirmada</option>
+                                        <option value="cancelada">Cancelada</option>
                                         <option value="convertida">Convertida</option>
                                     </select>
                                 </div>

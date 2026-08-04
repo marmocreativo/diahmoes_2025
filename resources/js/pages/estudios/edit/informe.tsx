@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ChevronLeft, Save, Eye, FileText, Mail, Plus, Trash2, Send, X } from 'lucide-react';
 import { type BreadcrumbItem } from '@/types';
+import EnviarMensajeGeneral from '@/components/EnviarMensajeGeneral';
 
 interface ResultadoEnvio {
     nombre: string;
@@ -827,6 +828,49 @@ export default function EditInformeComplete() {
                                         <p><strong>Correos activos:</strong> {listaCorreos.filter(c => c.ENVIAR === 'si').length} de {listaCorreos.length}</p>
                                     </div>
                                 </div>
+
+                                {/* Mensajes adicionales - solo aparecen si aplica */}
+                                {(estudio.R_ENRIQUECIMIENTO === 'Si' && estudio.R_RAZON_ENRIQUECIMIENTO) ||
+                                 (estudio.R_CANDIDATO_A_PATROCINIO === 'No' && estudio.R_RAZON_CANDIDATO_A_PATROCINIO) ||
+                                 (estudio.ESTUDIO_ESTADO === 'Cancelado' && estudio.R_RAZON_CANCELACION) ? (
+                                    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+                                        <h4 className="font-medium text-gray-800">Mensajes Adicionales</h4>
+                                        <p className="text-xs text-gray-500 mb-2">
+                                            Se enviarán a los correos marcados con "Enviar" en la lista de arriba.
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {estudio.R_ENRIQUECIMIENTO === 'Si' && estudio.R_RAZON_ENRIQUECIMIENTO && (
+                                                <EnviarMensajeGeneral
+                                                    estudioId={estudio.ID}
+                                                    tipoMensaje="enriquecimiento"
+                                                    label="Enviar Aviso de Enriquecimiento"
+                                                    correos={listaCorreos.filter(c => c.ENVIAR === 'si')}
+                                                    colorClass="bg-orange-600 hover:bg-orange-700"
+                                                />
+                                            )}
+
+                                            {estudio.R_CANDIDATO_A_PATROCINIO === 'No' && estudio.R_RAZON_CANDIDATO_A_PATROCINIO && (
+                                                <EnviarMensajeGeneral
+                                                    estudioId={estudio.ID}
+                                                    tipoMensaje="patrocinio"
+                                                    label="Enviar Aviso de Patrocinio"
+                                                    correos={listaCorreos.filter(c => c.ENVIAR === 'si')}
+                                                    colorClass="bg-purple-600 hover:bg-purple-700"
+                                                />
+                                            )}
+
+                                            {estudio.ESTUDIO_ESTADO === 'Cancelado' && estudio.R_RAZON_CANCELACION && (
+                                                <EnviarMensajeGeneral
+                                                    estudioId={estudio.ID}
+                                                    tipoMensaje="cancelacion"
+                                                    label="Enviar Aviso de Cancelación"
+                                                    correos={listaCorreos.filter(c => c.ENVIAR === 'si')}
+                                                    colorClass="bg-red-600 hover:bg-red-700"
+                                                />
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : null}
                             </div>
                         </div>
                 </div>

@@ -5,7 +5,7 @@ import RepeaterEmails from '@/components/RepeaterEmails';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
-    ClipboardList, Plus, X, CheckCircle, Clock, RefreshCw, ChevronRight,
+    ClipboardList, Plus, X, CheckCircle, Clock, RefreshCw, ChevronRight, Ban,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -20,7 +20,7 @@ interface SolicitudCliente {
     medico: string;
     institucion: string;
     programar_para_formato: string;
-    estado: 'pendiente' | 'confirmada' | 'convertida';
+    estado: 'pendiente' | 'confirmada' | 'convertida' | 'cancelada';
     created_at: string;
 }
 
@@ -46,6 +46,7 @@ type SolicitudFormData = {
     MUESTRA_CODIGO_POSTAL: string;
     EMAIL_GUIA: string;
     EMAIL_RESULTADOS: string;
+    COPIA_SEGUIMIENTO: string;
     KAM: string;
     PAL: string;
     NOTAS: string;
@@ -73,6 +74,7 @@ const FORM_INICIAL: SolicitudFormData = {
     MUESTRA_CODIGO_POSTAL: '',
     EMAIL_GUIA: '',
     EMAIL_RESULTADOS: '',
+    COPIA_SEGUIMIENTO: '',
     KAM: '',
     PAL: '',
     NOTAS: '',
@@ -96,6 +98,11 @@ interface PageProps {
 // ---------------------------------------------------------------------------
 
 function BadgeEstado({ estado }: { estado: SolicitudCliente['estado'] }) {
+    if (estado === 'cancelada') return (
+        <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+            <Ban className="h-3 w-3" /> Cancelada
+        </span>
+    );
     if (estado === 'convertida') return (
         <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full">
             <CheckCircle className="h-3 w-3" /> Convertida
@@ -288,7 +295,7 @@ export default function ReportesSolicitudesIndex() {
                                 </div>
 
                                 <p className={sectionTitle}>Correos</p>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                                     <div>
                                         <label className={labelClass}>Email envío de guía</label>
                                         <RepeaterEmails value={form.EMAIL_GUIA} onChange={v => setField('EMAIL_GUIA', v)} />
@@ -296,6 +303,10 @@ export default function ReportesSolicitudesIndex() {
                                     <div>
                                         <label className={labelClass}>Email envío de resultados</label>
                                         <RepeaterEmails value={form.EMAIL_RESULTADOS} onChange={v => setField('EMAIL_RESULTADOS', v)} />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>Seguimiento a</label>
+                                        <RepeaterEmails value={form.COPIA_SEGUIMIENTO} onChange={v => setField('COPIA_SEGUIMIENTO', v)} />
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

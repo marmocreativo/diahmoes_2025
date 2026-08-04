@@ -36,6 +36,7 @@ class SolicitudCliente extends Model
         'MUESTRA_CODIGO_POSTAL',
         'EMAIL_GUIA',
         'EMAIL_RESULTADOS',
+        'COPIA_SEGUIMIENTO',
         'KAM',
         'PAL',
         'ESTADO',
@@ -83,6 +84,11 @@ class SolicitudCliente extends Model
     public function isConfirmada(): bool
     {
         return $this->ESTADO === 'confirmada';
+    }
+
+    public function isCancelada(): bool
+    {
+        return $this->ESTADO === 'cancelada';
     }
 
     public function isConvertida(): bool
