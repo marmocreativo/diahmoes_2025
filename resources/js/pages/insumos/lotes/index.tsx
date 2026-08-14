@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Plus, Edit, Package, AlertTriangle, Calendar, Trash2, PlusCircle, MinusCircle } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Package, AlertTriangle, Calendar, Trash2, PlusCircle, MinusCircle, History } from 'lucide-react';
 import { type BreadcrumbItem, SharedData } from '@/types';
 
 interface Insumo {
@@ -173,6 +173,12 @@ export default function LotesIndex() {
                                     Volver
                                 </Button>
                             </Link>
+                            <Link href={`/insumos/movimientos?id_insumo=${insumo.ID}`}>
+                                <Button variant="outline">
+                                    <History className="h-4 w-4 mr-2" />
+                                    Ver Movimientos
+                                </Button>
+                            </Link>
                             <Link href={`/insumos/${insumo.ID}/lotes/create`}>
                                 <Button className="bg-[#189BAF] hover:bg-[#157a8c] text-white">
                                     <Plus className="h-4 w-4 mr-2" />
@@ -319,6 +325,13 @@ export default function LotesIndex() {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 <div className="flex items-center justify-end space-x-2">
+                                                    <Link
+                                                        href={`/insumos/movimientos?id_insumo=${insumo.ID}&id_lote=${lote.ID}`}
+                                                        className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                                                        title="Ver movimientos de este lote"
+                                                    >
+                                                        <History className="h-5 w-5" />
+                                                    </Link>
                                                     <button
                                                         onClick={() => abrirModalAgregar(lote)}
                                                         className="text-green-600 hover:text-green-800 transition-colors"

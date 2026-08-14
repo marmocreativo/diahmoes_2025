@@ -81,8 +81,10 @@ class Estudio extends Model
         'R_PORCENTAJE_TUMOR_TEJIDO',
         'R_ENRIQUECIMIENTO',
         'R_RAZON_ENRIQUECIMIENTO',
+        'R_RAZON_ENRIQUECIMIENTO_INTERNA',
         'R_ADECUADO_PROCESAMIENTO',
         'R_RAZON_ADECUADO_PROCESAMIENTO',
+        'R_PROCESAMIENTO_REQUIERE_INFORMACION',
         'R_CANDIDATO_A_PATROCINIO',
         'R_RAZON_CANDIDATO_A_PATROCINIO',
         'R_ESTATUS_KRAS',
@@ -177,6 +179,12 @@ class Estudio extends Model
             'asunto_pdf' => 'Cancelación de Estudio',
             'asunto_correo' => 'Cancelación de Estudio',
             'columna' => 'R_RAZON_CANCELACION',
+        ],
+        'informacion_adicional' => [
+            'titulo' => 'Información Adicional Requerida',
+            'asunto_pdf' => 'Información Adicional',
+            'asunto_correo' => 'Información Adicional Requerida',
+            'columna' => 'R_PROCESAMIENTO_REQUIERE_INFORMACION',
         ],
     ];
 

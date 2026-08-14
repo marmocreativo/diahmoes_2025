@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Head, router, usePage, Link } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
-import { ArrowLeft, TrendingUp, TrendingDown, Filter, RotateCcw } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, Filter, RotateCcw, Download, X } from 'lucide-react';
 import { type BreadcrumbItem } from '@/types';
 
 interface Insumo {
@@ -49,22 +49,26 @@ interface Paginacion {
 interface MovimientosProps {
     movimientos: Paginacion;
     insumos: Insumo[];
+    insumoActivo: Insumo | null;
+    loteActivo: (Lote & { ID_INSUMO: number }) | null;
     filtros: {
         fecha_desde: string;
         fecha_hasta: string;
         tipo: string | null;
         id_insumo: string | null;
+        id_lote: string | null;
     };
     [key: string]: any;
 }
 
 export default function Movimientos() {
-    const { movimientos, insumos, filtros } = usePage<MovimientosProps>().props;
+    const { movimientos, insumos, insumoActivo, loteActivo, filtros } = usePage<MovimientosProps>().props;
 
     const [fechaDesde, setFechaDesde] = useState(filtros.fecha_desde);
     const [fechaHasta, setFechaHasta] = useState(filtros.fecha_hasta);
     const [tipo, setTipo] = useState(filtros.tipo || '');
     const [idInsumo, setIdInsumo] = useState(filtros.id_insumo || '');
+    const [idLote, setIdLote] = useState(filtros.id_lote || '');
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
@@ -72,11 +76,16 @@ export default function Movimientos() {
         { title: 'Movimientos', href: '/insumos/movimientos' },
     ];
 
-    const aplicarFiltros = () => {
+    const construirParams = () => {
         const params: any = { fecha_desde: fechaDesde, fecha_hasta: fechaHasta };
         if (tipo)     params.tipo      = tipo;
         if (idInsumo) params.id_insumo = idInsumo;
-        router.get('/insumos/movimientos', params, { preserveState: true });
+        if (idLote)   params.id_lote   = idLote;
+        return params;
+    };
+
+    const aplicarFiltros = () => {
+        router.get('/insumos/movimientos', construirParams(), { preserveState: true });
     };
 
     const limpiarFiltros = () => {
@@ -88,15 +97,33 @@ export default function Movimientos() {
         setFechaHasta(hasta);
         setTipo('');
         setIdInsumo('');
+        setIdLote('');
         router.get('/insumos/movimientos', { fecha_desde: desde, fecha_hasta: hasta });
+    };
+
+    const quitarFiltroLote = () => {
+        setIdLote('');
+        const params: any = { fecha_desde: fechaDesde, fecha_hasta: fechaHasta };
+        if (tipo)     params.tipo      = tipo;
+        if (idInsumo) params.id_insumo = idInsumo;
+        router.get('/insumos/movimientos', params, { preserveState: true });
+    };
+
+    const quitarFiltroInsumo = () => {
+        setIdInsumo('');
+        setIdLote('');
+        const params: any = { fecha_desde: fechaDesde, fecha_hasta: fechaHasta };
+        if (tipo) params.tipo = tipo;
+        router.get('/insumos/movimientos', params, { preserveState: true });
     };
 
     const handlePaginacion = (url: string) => {
         router.get(url, {}, { preserveState: true, preserveScroll: false });
     };
 
-    const formatearFecha = (fecha: string) => {
-        return fecha.split('T')[0].split(' ')[0];
+    const handleExportar = () => {
+        const params = new URLSearchParams(construirParams()).toString();
+        window.location.href = `/insumos/exportar/movimientos?${params}`;
     };
 
     const formatearFechaHora = (fecha: string) => {
@@ -132,13 +159,44 @@ export default function Movimientos() {
                             <p className="text-sm text-gray-500 mt-1">
                                 Historial de ingresos y retiros de todos los lotes
                             </p>
+
+                            {/* Contexto del filtro activo (insumo/lote) */}
+                            {(insumoActivo || loteActivo) && (
+                                <div className="flex flex-wrap items-center gap-2 mt-3">
+                                    {insumoActivo && (
+                                        <span className="inline-flex items-center gap-2 bg-[#189BAF]/10 text-[#157a8c] text-xs font-medium px-3 py-1.5 rounded-full border border-[#189BAF]/30">
+                                            Insumo: {insumoActivo.NOMBRE}
+                                            <button onClick={quitarFiltroInsumo} title="Quitar filtro">
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </span>
+                                    )}
+                                    {loteActivo && (
+                                        <span className="inline-flex items-center gap-2 bg-[#D68B41]/10 text-[#b8763a] text-xs font-medium px-3 py-1.5 rounded-full border border-[#D68B41]/30">
+                                            Lote: {loteActivo.LOTE}
+                                            <button onClick={quitarFiltroLote} title="Quitar filtro">
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </span>
+                                    )}
+                                </div>
+                            )}
                         </div>
-                        <Link href="/insumos">
-                            <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-                                <ArrowLeft className="h-4 w-4" />
-                                Volver a Insumos
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleExportar}
+                                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm"
+                            >
+                                <Download className="h-4 w-4" />
+                                Exportar Excel
                             </button>
-                        </Link>
+                            <Link href="/insumos">
+                                <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                    <ArrowLeft className="h-4 w-4" />
+                                    Volver a Insumos
+                                </button>
+                            </Link>
+                        </div>
                     </div>
                 </div>
 
@@ -179,7 +237,10 @@ export default function Movimientos() {
                             <label className="block text-xs font-medium text-gray-600 mb-1">Insumo</label>
                             <select
                                 value={idInsumo}
-                                onChange={e => setIdInsumo(e.target.value)}
+                                onChange={e => {
+                                    setIdInsumo(e.target.value);
+                                    setIdLote(''); // al cambiar de insumo, se limpia el filtro de lote específico
+                                }}
                                 className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#189BAF] min-w-[180px]"
                             >
                                 <option value="">Todos los insumos</option>

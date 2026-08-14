@@ -498,10 +498,19 @@ public function update(Request $request, Insumo $insumo, InsumoLote $lote)
 
     public function movimientos(Request $request)
     {
-        $fechaDesde = $request->get('fecha_desde', Carbon::now()->startOfMonth()->format('Y-m-d'));
-        $fechaHasta = $request->get('fecha_hasta', Carbon::now()->format('Y-m-d'));
-        $tipoFiltro = $request->get('tipo');
+        $tipoFiltro   = $request->get('tipo');
         $insumoFiltro = $request->get('id_insumo');
+        $loteFiltro   = $request->get('id_lote');
+
+        // Si viene filtrado por lote o insumo y no se especificaron fechas,
+        // no limitamos al mes actual: mostramos todo el historial disponible.
+        $filtroEspecifico = $insumoFiltro || $loteFiltro;
+
+        $fechaDesde = $request->get(
+            'fecha_desde',
+            $filtroEspecifico ? '2000-01-01' : Carbon::now()->startOfMonth()->format('Y-m-d')
+        );
+        $fechaHasta = $request->get('fecha_hasta', Carbon::now()->format('Y-m-d'));
 
         $query = \App\Models\LoteMovimiento::with(['insumo', 'lote', 'usuario'])
             ->whereBetween('created_at', [$fechaDesde . ' 00:00:00', $fechaHasta . ' 23:59:59']);
@@ -514,20 +523,36 @@ public function update(Request $request, Insumo $insumo, InsumoLote $lote)
             $query->where('ID_INSUMO', $insumoFiltro);
         }
 
-        $movimientos = $query->orderByDesc('created_at')->paginate(50);
+        if ($loteFiltro) {
+            $query->where('ID_LOTE', $loteFiltro);
+        }
+
+        $movimientos = $query->orderByDesc('created_at')->paginate(50)->withQueryString();
 
         $insumos = \App\Models\Insumo::where('ESTADO', 'activo')
             ->orderBy('NOMBRE')
             ->get(['ID', 'NOMBRE']);
 
+        // Info del insumo/lote filtrado, para mostrarlo como contexto en el título
+        $insumoActivo = $insumoFiltro
+            ? \App\Models\Insumo::find($insumoFiltro, ['ID', 'NOMBRE'])
+            : null;
+
+        $loteActivo = $loteFiltro
+            ? \App\Models\InsumoLote::find($loteFiltro, ['ID', 'LOTE', 'ID_INSUMO'])
+            : null;
+
         return Inertia::render('insumos/Movimientos', [
-            'movimientos' => $movimientos,
-            'insumos'     => $insumos,
-            'filtros'     => [
+            'movimientos'  => $movimientos,
+            'insumos'      => $insumos,
+            'insumoActivo' => $insumoActivo,
+            'loteActivo'   => $loteActivo,
+            'filtros'      => [
                 'fecha_desde' => $fechaDesde,
                 'fecha_hasta' => $fechaHasta,
                 'tipo'        => $tipoFiltro,
                 'id_insumo'   => $insumoFiltro,
+                'id_lote'     => $loteFiltro,
             ],
         ]);
     }
@@ -621,24 +646,35 @@ public function update(Request $request, Insumo $insumo, InsumoLote $lote)
     // -------------------------------------------------------------------------
 
     public function exportarMovimientosExcel(Request $request)
-    {
-        $fechaDesde   = $request->get('fecha_desde', Carbon::now()->startOfMonth()->format('Y-m-d'));
-        $fechaHasta   = $request->get('fecha_hasta', Carbon::now()->format('Y-m-d'));
-        $tipoFiltro   = $request->get('tipo');
-        $insumoFiltro = $request->get('id_insumo');
+{
+    $tipoFiltro   = $request->get('tipo');
+    $insumoFiltro = $request->get('id_insumo');
+    $loteFiltro   = $request->get('id_lote');
 
-        $query = LoteMovimiento::with(['insumo', 'lote', 'estudio', 'usuario'])
-            ->whereBetween('created_at', [$fechaDesde . ' 00:00:00', $fechaHasta . ' 23:59:59']);
+    $filtroEspecifico = $insumoFiltro || $loteFiltro;
 
-        if ($tipoFiltro) {
-            $query->where('TIPO', $tipoFiltro);
-        }
+    $fechaDesde = $request->get(
+        'fecha_desde',
+        $filtroEspecifico ? '2000-01-01' : Carbon::now()->startOfMonth()->format('Y-m-d')
+    );
+    $fechaHasta = $request->get('fecha_hasta', Carbon::now()->format('Y-m-d'));
 
-        if ($insumoFiltro) {
-            $query->where('ID_INSUMO', $insumoFiltro);
-        }
+    $query = LoteMovimiento::with(['insumo', 'lote', 'estudio', 'usuario'])
+        ->whereBetween('created_at', [$fechaDesde . ' 00:00:00', $fechaHasta . ' 23:59:59']);
 
-        $movimientos = $query->orderByDesc('created_at')->get();
+    if ($tipoFiltro) {
+        $query->where('TIPO', $tipoFiltro);
+    }
+
+    if ($insumoFiltro) {
+        $query->where('ID_INSUMO', $insumoFiltro);
+    }
+
+    if ($loteFiltro) {
+        $query->where('ID_LOTE', $loteFiltro);
+    }
+
+    $movimientos = $query->orderByDesc('created_at')->get();
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();

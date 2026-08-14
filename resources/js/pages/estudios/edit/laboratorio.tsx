@@ -32,7 +32,9 @@ interface EditLaboratorioProps {
         R_PORCENTAJE_TUMOR_TEJIDO?: string;
         R_ENRIQUECIMIENTO?: string;
         R_RAZON_ENRIQUECIMIENTO?: string;
+        R_RAZON_ENRIQUECIMIENTO_INTERNA?: string;
         R_RAZON_ADECUADO_PROCESAMIENTO?: string;
+        R_PROCESAMIENTO_REQUIERE_INFORMACION?: string;
         R_CANDIDATO_A_PATROCINIO?: string;
         R_RAZON_CANDIDATO_A_PATROCINIO?: string;
         R_RAZON_CANCELACION?: string;
@@ -349,6 +351,9 @@ export default function EditLaboratorioConCondicionales() {
 
     // Mostrar razón de "no candidato a patrocinio" si se marcó "No"
     const mostrarRazonPatrocinio = candidatoPatrocinio === 'No';
+
+    // Mostrar campo de información adicional si se marcó esa opción en adecuado procesamiento
+    const mostrarRequiereInformacionAdicional = adecuadoProcesamiento === 'Requiere información adicional';
 
     const autoSelectIfSingleOption = (options: GenotipoOption[]): string => {
         const availableOptions = options.filter(opt => !opt.disabled && opt.value !== '');
@@ -1032,6 +1037,35 @@ export default function EditLaboratorioConCondicionales() {
                                     </div>
                                 )}
 
+                                {/* Candidato a Patrocinio - fuera del card de Análisis de Tejido, solo biopsias sólidas */}
+                                {!esSangreTotal && (
+                                    <div>
+                                        <label className={labelClass}>¿Candidato a Patrocinio?</label>
+                                        <select
+                                            name="R_CANDIDATO_A_PATROCINIO"
+                                            className={selectClass}
+                                            value={candidatoPatrocinio}
+                                            onChange={handleCandidatoPatrocinioChange}
+                                        >
+                                            <option value="">Selecciona</option>
+                                            <option value="Si">Si</option>
+                                            <option value="No">No</option>
+                                        </select>
+                                    </div>
+                                )}
+
+                                {!esSangreTotal && mostrarRazonPatrocinio && (
+                                    <div>
+                                        <label className={labelClass}>Razón por la que no es candidato a patrocinio</label>
+                                        <textarea
+                                            name="R_RAZON_CANDIDATO_A_PATROCINIO"
+                                            className={textareaClass}
+                                            rows={6}
+                                            defaultValue={estudio.R_RAZON_CANDIDATO_A_PATROCINIO || ''}
+                                        />
+                                    </div>
+                                )}
+
                                 {/* Campos específicos para TEJIDO - CONDICIONAL */}
                                 {/* Filtro  */}
                                 {!esSangreTotal && (
@@ -1106,7 +1140,7 @@ export default function EditLaboratorioConCondicionales() {
                                             </select>
                                         </div>
 
-                                        {/* Campo condicional para razón de enriquecimiento */}
+                                        {/* Campo condicional para razón de enriquecimiento (va en el mensaje/reporte) */}
                                         {mostrarRazonEnriquecimiento && (
                                             <div>
                                                 <label className={labelClass}>Razón / detalle del enriquecimiento</label>
@@ -1115,6 +1149,20 @@ export default function EditLaboratorioConCondicionales() {
                                                     className={textareaClass}
                                                     rows={6}
                                                     defaultValue={estudio.R_RAZON_ENRIQUECIMIENTO || ''}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* Campo condicional de USO INTERNO - nunca se envía en correos ni reportes */}
+                                        {mostrarRazonEnriquecimiento && (
+                                            <div>
+                                                <label className={labelClass}>Razón / detalle del enriquecimiento (uso interno)</label>
+                                                <textarea
+                                                    name="R_RAZON_ENRIQUECIMIENTO_INTERNA"
+                                                    className={textareaClass}
+                                                    rows={6}
+                                                    defaultValue={estudio.R_RAZON_ENRIQUECIMIENTO_INTERNA || ''}
+                                                    placeholder="Uso interno - no se incluye en reportes ni correos"
                                                 />
                                             </div>
                                         )}
@@ -1151,29 +1199,16 @@ export default function EditLaboratorioConCondicionales() {
                                             </div>
                                         )}
 
-                                        <div>
-                                            <label className={labelClass}>¿Candidato a Patrocinio?</label>
-                                            <select
-                                                name="R_CANDIDATO_A_PATROCINIO"
-                                                className={selectClass}
-                                                value={candidatoPatrocinio}
-                                                onChange={handleCandidatoPatrocinioChange}
-                                            >
-                                                <option value="">Selecciona</option>
-                                                <option value="Si">Si</option>
-                                                <option value="No">No</option>
-                                            </select>
-                                        </div>
-
-                                        {/* Campo condicional para razón de NO candidato a patrocinio */}
-                                        {mostrarRazonPatrocinio && (
+                                        {/* Campo condicional cuando se requiere información adicional (se envía como mensaje) */}
+                                        {mostrarRequiereInformacionAdicional && (
                                             <div>
-                                                <label className={labelClass}>Razón por la que no es candidato a patrocinio</label>
+                                                <label className={labelClass}>Detalle de la información adicional requerida (Se envia por mensaje en informes)</label>
                                                 <textarea
-                                                    name="R_RAZON_CANDIDATO_A_PATROCINIO"
+                                                    name="R_PROCESAMIENTO_REQUIERE_INFORMACION"
                                                     className={textareaClass}
                                                     rows={6}
-                                                    defaultValue={estudio.R_RAZON_CANDIDATO_A_PATROCINIO || ''}
+                                                    defaultValue={estudio.R_PROCESAMIENTO_REQUIERE_INFORMACION || ''}
+                                                    placeholder="Explica qué información adicional se necesita..."
                                                 />
                                             </div>
                                         )}

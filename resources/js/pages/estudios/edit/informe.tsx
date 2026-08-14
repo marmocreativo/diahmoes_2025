@@ -832,6 +832,7 @@ export default function EditInformeComplete() {
                                 {/* Mensajes adicionales - solo aparecen si aplica */}
                                 {(estudio.R_ENRIQUECIMIENTO === 'Si' && estudio.R_RAZON_ENRIQUECIMIENTO) ||
                                  (estudio.R_CANDIDATO_A_PATROCINIO === 'No' && estudio.R_RAZON_CANDIDATO_A_PATROCINIO) ||
+                                 (estudio.R_ADECUADO_PROCESAMIENTO === 'Requiere información adicional' && estudio.R_PROCESAMIENTO_REQUIERE_INFORMACION) ||
                                  (estudio.ESTUDIO_ESTADO === 'Cancelado' && estudio.R_RAZON_CANCELACION) ? (
                                     <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
                                         <h4 className="font-medium text-gray-800">Mensajes Adicionales</h4>
@@ -856,6 +857,16 @@ export default function EditInformeComplete() {
                                                     label="Enviar Aviso de Patrocinio"
                                                     correos={listaCorreos.filter(c => c.ENVIAR === 'si')}
                                                     colorClass="bg-purple-600 hover:bg-purple-700"
+                                                />
+                                            )}
+
+                                            {estudio.R_ADECUADO_PROCESAMIENTO === 'Requiere información adicional' && estudio.R_PROCESAMIENTO_REQUIERE_INFORMACION && (
+                                                <EnviarMensajeGeneral
+                                                    estudioId={estudio.ID}
+                                                    tipoMensaje="informacion_adicional"
+                                                    label="Enviar Solicitud de Información"
+                                                    correos={listaCorreos.filter(c => c.ENVIAR === 'si')}
+                                                    colorClass="bg-teal-600 hover:bg-teal-700"
                                                 />
                                             )}
 

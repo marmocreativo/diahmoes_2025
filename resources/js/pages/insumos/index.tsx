@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
-import { Search, X, Filter, Edit, Plus, Package, AlertTriangle, TrendingDown, Trash2, ChevronDown, ChevronRight, Calendar, Download } from 'lucide-react';
+import { Search, X, Filter, Edit, Plus, Package, AlertTriangle, TrendingDown, Trash2, ChevronDown, ChevronRight, Calendar, Download, History } from 'lucide-react';
 import { SharedData } from '@/types';
 
 interface Lote {
@@ -604,7 +604,16 @@ export default function InsumosIndex() {
                                                     >
                                                         <Package className="h-5 w-5" />
                                                     </Link>
-                                                    
+
+                                                    <Link
+                                                        href={`/insumos/movimientos?id_insumo=${insumo.ID}`}
+                                                        className="text-indigo-600 hover:text-indigo-700 transition-colors"
+                                                        title="Ver movimientos"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        <History className="h-5 w-5" />
+                                                    </Link>
+
                                                     <Link
                                                         href={`/insumos/${insumo.ID}/edit`}
                                                         className="text-[#D68B41] hover:text-[#b8763a] transition-colors"
@@ -703,6 +712,14 @@ export default function InsumosIndex() {
                                                         </div>
                                                         {/* NUEVO: Botones de acción para lotes */}
                                                         <div className="flex items-center space-x-1 ml-4">
+                                                            <Link
+                                                                href={`/insumos/movimientos?id_insumo=${insumo.ID}&id_lote=${lote.ID}`}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                className="text-indigo-600 hover:text-indigo-700 transition-colors"
+                                                                title="Ver movimientos de este lote"
+                                                            >
+                                                                <History className="h-4 w-4" />
+                                                            </Link>
                                                             <button
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
