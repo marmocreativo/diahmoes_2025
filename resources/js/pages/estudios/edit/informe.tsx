@@ -40,6 +40,20 @@ interface CorreoCopia {
 export default function EditInformeComplete() {
     const { estudio, medico, correos_copias = [], mensajerias = []  } = usePage<EditInformeProps>().props;
 
+    // Función para obtener fecha y hora actuales en formato local (evita el shift de UTC)
+    const getCurrentDateTime = (): { fecha: string; hora: string } => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        return {
+            fecha: `${year}-${month}-${day}`,
+            hora: `${hours}:${minutes}`
+        };
+    };
+
     // Estado para el modal de Envio
     const [modalEnvio, setModalEnvio] = useState<ModalEnvioState>({
         isOpen: false,
@@ -54,18 +68,18 @@ export default function EditInformeComplete() {
     const [formData, setFormData] = useState({
         FECHA_INFORME: estudio.FECHA_INFORME ? 
             estudio.FECHA_INFORME.split('T')[0] : 
-            new Date().toISOString().split('T')[0],
+            getCurrentDateTime().fecha,
         HORA_INFORME: estudio.FECHA_INFORME ? 
             estudio.FECHA_INFORME.split('T')[1].substring(0, 5) : 
-            new Date().toTimeString().slice(0, 5),
+            getCurrentDateTime().hora,
         ESTUDIO_FACTURADO: estudio.ESTUDIO_FACTURADO || '',
         // ELIMINAR ESTA LÍNEA:
         // ESTUDIO_ESTADO: estudio.ESTUDIO_ESTADO || '',
         ESTUDIO_COMENTARIOS: estudio.ESTUDIO_COMENTARIOS || '',
         BENEFICIARIO: estudio.BENEFICIARIO || '',
         ENVIAR_ADJUNTO: true,
-        FECHA_RESULTADOS_CORREO: new Date().toISOString().split('T')[0],
-        HORA_RESULTADOS_CORREO: new Date().toTimeString().slice(0, 5),
+        FECHA_RESULTADOS_CORREO: getCurrentDateTime().fecha,
+        HORA_RESULTADOS_CORREO: getCurrentDateTime().hora,
         // NUEVOS CAMPOS DE RETORNO DE MATERIAL:
         MUESTRA_GUIA_RETORNO_MENSAJERIA: estudio.MUESTRA_GUIA_RETORNO_MENSAJERIA || '',
         MUESTRA_GUIA_RETORNO: estudio.MUESTRA_GUIA_RETORNO || '',
@@ -78,7 +92,7 @@ export default function EditInformeComplete() {
                 return estudio.FECHA_RETORNO_MATERIAL.split('T')[0];
             }
             // Si no, usar fecha actual
-            return new Date().toISOString().split('T')[0];
+            return getCurrentDateTime().fecha;
         })(),
         HORA_RETORNO_MATERIAL: (() => {
             // Si la fecha existe y no es inválida, extraer la hora
