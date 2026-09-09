@@ -19,6 +19,7 @@ use App\Http\Controllers\GrupoFolioKitController;
 use App\Http\Controllers\FolioKitController;
 use App\Http\Controllers\SolicitudClienteController;
 use App\Http\Controllers\FusionController;
+use App\Http\Controllers\EstudioPrvController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -249,6 +250,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('insumos/{insumo:ID}/lotes/{lote:ID}/retirar-cantidad', [InsumoLoteController::class, 'retirarCantidad'])
         ->name('insumos.lotes.retirar-cantidad');
+
+    Route::get('insumos/{insumo:ID}/lotes-detalle', [InsumoLoteController::class, 'getLotesConDetalle'])
+        ->name('insumos.lotes.detalle');
+
+    Route::post('insumos/movimientos/ajuste', [InsumoLoteController::class, 'registrarAjustePorFaltante'])
+        ->name('insumos.movimientos.ajuste');
 
     /*
     |--------------------------------------------------------------------------
@@ -513,6 +520,44 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('api.estudios.correos-copia.store');
     Route::delete('api/estudios/{estudio:ID}/correos-copia/{correoId}', [EstudioController::class, 'destroyCorreoCopia'])
         ->name('api.estudios.correos-copia.destroy');
+
+    /*
+    |--------------------------------------------------------------------------
+    | CRUD de Estudios PRV
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('estudios-prv/{estudioPrv}/edit/recoleccion', [EstudioPrvController::class, 'editRecoleccion'])
+        ->name('estudios-prv.edit.recoleccion');
+    Route::patch('estudios-prv/{estudioPrv}/recoleccion', [EstudioPrvController::class, 'updateRecoleccion'])
+        ->name('estudios-prv.update.recoleccion');
+
+    Route::get('estudios-prv/{estudioPrv}/edit/recepcion', [EstudioPrvController::class, 'editRecepcion'])
+        ->name('estudios-prv.edit.recepcion');
+    Route::patch('estudios-prv/{estudioPrv}/recepcion', [EstudioPrvController::class, 'updateRecepcion'])
+        ->name('estudios-prv.update.recepcion');
+
+    Route::get('estudios-prv/{estudioPrv}/edit/laboratorio', [EstudioPrvController::class, 'editLaboratorio'])
+        ->name('estudios-prv.edit.laboratorio');
+    Route::patch('estudios-prv/{estudioPrv}/laboratorio', [EstudioPrvController::class, 'updateLaboratorio'])
+        ->name('estudios-prv.update.laboratorio');
+
+        Route::get('estudios-prv/{estudioPrv}/edit/informe', [EstudioPrvController::class, 'editInforme'])
+        ->name('estudios-prv.edit.informe');
+
+    Route::post('estudios-prv/{estudioPrv}/correos-copia', [EstudioPrvController::class, 'storeCorreoCopiaPrv'])
+        ->name('estudios-prv.correos-copia.store');
+    Route::delete('estudios-prv/{estudioPrv}/correos-copia/{correoId}', [EstudioPrvController::class, 'destroyCorreoCopiaPrv'])
+        ->name('estudios-prv.correos-copia.destroy');
+
+    Route::post('estudios-prv/{estudioPrv}/enviar-informe', [EstudioPrvController::class, 'enviarInformePrv'])
+        ->name('estudios-prv.enviar-informe');
+
+    Route::get('estudios-prv/{estudioPrv}/pdf', [EstudioPrvController::class, 'generatePdf'])
+        ->name('estudios-prv.pdf');
+
+    Route::resource('estudios-prv', EstudioPrvController::class)
+        ->parameters(['estudios-prv' => 'estudioPrv']);
 
     /*
     |--------------------------------------------------------------------------

@@ -46,11 +46,33 @@ class InsumoLoteController extends Controller
         // NO paginar, obtener todos los lotes
         $lotes = $query->get();
         
-        // Agregar días para vencer a cada lote
-        $lotes->transform(function($lote) {
+        // Calcular totales de movimientos por lote (para detectar descuadres)
+        $loteIds = $lotes->pluck('ID');
+
+        $movimientosPorLote = LoteMovimiento::whereIn('ID_LOTE', $loteIds)
+            ->selectRaw('ID_LOTE, TIPO, SUM(CANTIDAD) as total')
+            ->groupBy('ID_LOTE', 'TIPO')
+            ->get()
+            ->groupBy('ID_LOTE');
+
+        // Agregar días para vencer y diagnóstico de movimientos a cada lote
+        $lotes->transform(function($lote) use ($movimientosPorLote) {
             if ($lote->FECHA_CADUCIDAD) {
                 $lote->dias_para_vencer = now()->diffInDays($lote->FECHA_CADUCIDAD, false);
             }
+
+            $movsLote = $movimientosPorLote->get($lote->ID, collect());
+            $ingresos = (int) (optional($movsLote->firstWhere('TIPO', 'ingreso'))->total ?? 0);
+            $retiros = (int) (optional($movsLote->firstWhere('TIPO', 'retiro'))->total ?? 0);
+            $saldoCalculado = $ingresos - $retiros;
+            $diferencia = $lote->CANTIDAD_ACTUAL - $saldoCalculado;
+
+            $lote->total_ingresos = $ingresos;
+            $lote->total_retiros = $retiros;
+            $lote->saldo_calculado = $saldoCalculado;
+            $lote->diferencia_movimientos = $diferencia;
+            $lote->tiene_descuadre = $diferencia !== 0;
+
             return $lote;
         });
         
@@ -327,6 +349,40 @@ public function update(Request $request, Insumo $insumo, InsumoLote $lote)
         ]);
     }
 
+        /**
+     * Devuelve TODOS los lotes de un insumo (sin filtrar por estado)
+     * con su diagnóstico de descuadre, para el modal de ajuste manual.
+     */
+    public function getLotesConDetalle(Insumo $insumo)
+    {
+        $lotes = $insumo->lotes()->orderBy('LOTE')->get();
+
+        $loteIds = $lotes->pluck('ID');
+        $movimientosPorLote = \App\Models\LoteMovimiento::whereIn('ID_LOTE', $loteIds)
+            ->selectRaw('ID_LOTE, TIPO, SUM(CANTIDAD) as total')
+            ->groupBy('ID_LOTE', 'TIPO')
+            ->get()
+            ->groupBy('ID_LOTE');
+
+        $data = $lotes->map(function ($lote) use ($movimientosPorLote) {
+            $movsLote = $movimientosPorLote->get($lote->ID, collect());
+            $ingresos = (int) (optional($movsLote->firstWhere('TIPO', 'ingreso'))->total ?? 0);
+            $retiros  = (int) (optional($movsLote->firstWhere('TIPO', 'retiro'))->total ?? 0);
+            $diferencia = $lote->CANTIDAD_ACTUAL - ($ingresos - $retiros);
+
+            return [
+                'ID' => $lote->ID,
+                'LOTE' => $lote->LOTE,
+                'CANTIDAD_ACTUAL' => $lote->CANTIDAD_ACTUAL,
+                'saldo_calculado' => $ingresos - $retiros,
+                'diferencia_movimientos' => $diferencia,
+                'tiene_descuadre' => $diferencia !== 0,
+            ];
+        });
+
+        return response()->json(['success' => true, 'lotes' => $data]);
+    }
+
     /**
      * Ajustar manualmente la cantidad de un lote (para correcciones de inventario)
      */
@@ -496,6 +552,112 @@ public function update(Request $request, Insumo $insumo, InsumoLote $lote)
         }
     }
 
+        /**
+     * Registra un movimiento histórico faltante (backfill), con fecha
+     * personalizada. NO modifica CANTIDAD_ACTUAL ni CANTIDAD_INICIAL del
+     * lote, porque el stock físico actual ya es correcto: solo completa
+     * el historial. El motivo siempre incluye la etiqueta fija de
+     * identificación "Ajuste por movimiento faltante".
+     */
+    public function registrarAjustePorFaltante(Request $request)
+    {
+        $request->validate([
+            'ID_INSUMO' => 'required|integer|exists:insumos,ID',
+            'ID_LOTE'   => 'required|integer|exists:insumos_lotes,ID',
+            'TIPO'      => 'required|in:ingreso,retiro',
+            'CANTIDAD'  => 'required|integer|min:1',
+            'FECHA'     => 'required|date',
+            'DETALLE'   => 'nullable|string|max:400',
+        ]);
+
+        $lote = InsumoLote::where('ID', $request->ID_LOTE)
+            ->where('ID_INSUMO', $request->ID_INSUMO)
+            ->first();
+
+        if (!$lote) {
+            return back()->withErrors(['ID_LOTE' => 'El lote no corresponde al insumo seleccionado.']);
+        }
+
+        // La etiqueta fija SIEMPRE va, sin importar lo que mande el frontend.
+        $motivo = 'Ajuste por movimiento faltante'
+            . ($request->filled('DETALLE') ? ': ' . trim($request->DETALLE) : '');
+
+        try {
+            $fecha = \Carbon\Carbon::parse($request->FECHA)
+                ->setTime(now()->hour, now()->minute, now()->second);
+
+            $movimiento = new \App\Models\LoteMovimiento([
+                'ID_INSUMO'  => $lote->ID_INSUMO,
+                'ID_LOTE'    => $lote->ID,
+                'TIPO'       => $request->TIPO,
+                'CANTIDAD'   => $request->CANTIDAD,
+                'MOTIVO'     => $motivo,
+                'ID_ESTUDIO' => null,
+                'ID_USUARIO' => auth()->user()->ID_USUARIO ?? auth()->id(),
+            ]);
+
+            // Forzamos la fecha manualmente y desactivamos el autollenado
+            // de timestamps para que Eloquent no la sobreescriba.
+            $movimiento->timestamps = false;
+            $movimiento->created_at = $fecha;
+            $movimiento->updated_at = $fecha;
+            $movimiento->save();
+
+            return back()->with('success',
+                "Ajuste registrado: {$request->TIPO} de {$request->CANTIDAD} unidades en el lote {$lote->LOTE} " .
+                "con fecha {$fecha->format('d/m/Y')}. El stock actual no fue modificado."
+            );
+
+        } catch (\Exception $e) {
+            \Log::error('❌ Error registrando ajuste por movimiento faltante:', ['error' => $e->getMessage()]);
+            return back()->withErrors(['error' => 'Error al registrar el ajuste: ' . $e->getMessage()]);
+        }
+    }
+
+        /**
+     * Calcula, para TODOS los lotes del sistema, la diferencia entre
+     * CANTIDAD_ACTUAL y lo que dicen los movimientos registrados.
+     */
+    private function calcularResumenDescuadres(?int $insumoFiltro = null, ?int $loteFiltro = null): array
+    {
+        $lotesQuery = InsumoLote::select('ID', 'ID_INSUMO', 'LOTE', 'CANTIDAD_ACTUAL');
+
+        if ($loteFiltro) {
+            $lotesQuery->where('ID', $loteFiltro);
+        } elseif ($insumoFiltro) {
+            $lotesQuery->where('ID_INSUMO', $insumoFiltro);
+        }
+
+        $lotes = $lotesQuery->get();
+
+        $movimientosPorLote = \App\Models\LoteMovimiento::selectRaw('ID_LOTE, TIPO, SUM(CANTIDAD) as total')
+            ->groupBy('ID_LOTE', 'TIPO')
+            ->get()
+            ->groupBy('ID_LOTE');
+
+        $insumosPorId = Insumo::pluck('NOMBRE', 'ID');
+
+        $descuadres = $lotes->map(function ($lote) use ($movimientosPorLote, $insumosPorId) {
+            $movsLote = $movimientosPorLote->get($lote->ID, collect());
+            $ingresos = (int) (optional($movsLote->firstWhere('TIPO', 'ingreso'))->total ?? 0);
+            $retiros  = (int) (optional($movsLote->firstWhere('TIPO', 'retiro'))->total ?? 0);
+            $diferencia = $lote->CANTIDAD_ACTUAL - ($ingresos - $retiros);
+
+            return [
+                'ID_LOTE'    => $lote->ID,
+                'ID_INSUMO'  => $lote->ID_INSUMO,
+                'LOTE'       => $lote->LOTE,
+                'INSUMO'     => $insumosPorId[$lote->ID_INSUMO] ?? '—',
+                'diferencia' => $diferencia,
+            ];
+        })->filter(fn($l) => $l['diferencia'] !== 0)->values();
+
+        return [
+            'total' => $descuadres->count(),
+            'lotes' => $descuadres,
+        ];
+    }
+
     public function movimientos(Request $request)
     {
         $tipoFiltro   = $request->get('tipo');
@@ -543,10 +705,14 @@ public function update(Request $request, Insumo $insumo, InsumoLote $lote)
             : null;
 
         return Inertia::render('insumos/Movimientos', [
-            'movimientos'  => $movimientos,
-            'insumos'      => $insumos,
-            'insumoActivo' => $insumoActivo,
-            'loteActivo'   => $loteActivo,
+            'movimientos'       => $movimientos,
+            'insumos'           => $insumos,
+            'insumoActivo'      => $insumoActivo,
+            'loteActivo'        => $loteActivo,
+            'resumenDescuadres' => $this->calcularResumenDescuadres(
+                $insumoFiltro ? (int) $insumoFiltro : null,
+                $loteFiltro ? (int) $loteFiltro : null
+            ),
             'filtros'      => [
                 'fecha_desde' => $fechaDesde,
                 'fecha_hasta' => $fechaHasta,

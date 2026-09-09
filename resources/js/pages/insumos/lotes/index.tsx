@@ -24,6 +24,11 @@ interface Lote {
     NOTAS: string | null;
     created_at: string;
     dias_para_vencer?: number;
+    total_ingresos?: number;
+    total_retiros?: number;
+    saldo_calculado?: number;
+    diferencia_movimientos?: number;
+    tiene_descuadre?: boolean;
 }
 
 interface LotesIndexProps extends SharedData {
@@ -190,7 +195,7 @@ export default function LotesIndex() {
                 </div>
 
                 {/* Estadísticas rápidas */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div className="bg-white rounded-lg p-4 shadow-sm">
                         <div className="text-sm text-gray-500 mb-1">Total Lotes</div>
                         <div className="text-2xl font-bold text-gray-900">{lotes.length}</div>
@@ -211,6 +216,12 @@ export default function LotesIndex() {
                         <div className="text-sm text-gray-500 mb-1">Stock Total</div>
                         <div className="text-2xl font-bold text-blue-600">
                             {lotes.reduce((sum, l) => sum + l.CANTIDAD_ACTUAL, 0)}
+                        </div>
+                    </div>
+                    <div className={`bg-white rounded-lg p-4 shadow-sm ${lotes.filter(l => l.tiene_descuadre).length > 0 ? 'ring-2 ring-red-400' : ''}`}>
+                        <div className="text-sm text-gray-500 mb-1">Con Descuadre</div>
+                        <div className={`text-2xl font-bold ${lotes.filter(l => l.tiene_descuadre).length > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                            {lotes.filter(l => l.tiene_descuadre).length}
                         </div>
                     </div>
                 </div>
@@ -253,6 +264,9 @@ export default function LotesIndex() {
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Estado
                                         </th>
+                                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Movimientos
+                                        </th>
                                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Acciones
                                         </th>
@@ -260,7 +274,7 @@ export default function LotesIndex() {
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
                                     {lotes.map((lote) => (
-                                        <tr key={lote.ID} className="hover:bg-gray-50">
+                                        <tr key={lote.ID} className={`hover:bg-gray-50 ${lote.tiene_descuadre ? 'bg-red-50/60' : ''}`}>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="flex items-center">
                                                     <Package className="h-5 w-5 text-gray-400 mr-2" />
@@ -322,6 +336,28 @@ export default function LotesIndex() {
                                                     )}
                                                     {getEstadoLabel(lote.ESTADO)}
                                                 </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                {lote.tiene_descuadre ? (
+                                                    <div className="inline-flex flex-col items-center px-2 py-1 rounded-lg bg-red-50 border border-red-300">
+                                                        <span className="flex items-center text-xs font-bold text-red-700">
+                                                            <AlertTriangle className="h-3 w-3 mr-1" />
+                                                            Descuadre
+                                                        </span>
+                                                        <span className="text-[11px] text-red-600">
+                                                            {(lote.diferencia_movimientos ?? 0) > 0
+                                                                ? `Falta ingresar ${lote.diferencia_movimientos}`
+                                                                : `Sobran ${Math.abs(lote.diferencia_movimientos ?? 0)} en movs.`}
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-400">
+                                                            (+{lote.total_ingresos ?? 0} / -{lote.total_retiros ?? 0})
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="inline-flex items-center text-xs text-green-700">
+                                                        ✓ Cuadra
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 <div className="flex items-center justify-end space-x-2">

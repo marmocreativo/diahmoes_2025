@@ -46,13 +46,30 @@ class InsumoController extends Controller
         
         $insumos = $query->paginate(20)->withQueryString();
         
+        // Calcular totales de movimientos por lote para TODOS los lotes de esta página
+        $todosLosLoteIds = $insumos->getCollection()->flatMap(function ($insumo) {
+            return $insumo->lotes->pluck('ID');
+        });
+
+        $movimientosPorLote = \App\Models\LoteMovimiento::whereIn('ID_LOTE', $todosLosLoteIds)
+            ->selectRaw('ID_LOTE, TIPO, SUM(CANTIDAD) as total')
+            ->groupBy('ID_LOTE', 'TIPO')
+            ->get()
+            ->groupBy('ID_LOTE');
+
         // CAMBIO: Agregar información completa de stock y lotes
-        $insumos->getCollection()->transform(function ($insumo) {
+        $insumos->getCollection()->transform(function ($insumo) use ($movimientosPorLote) {
             $insumo->stock_total = $insumo->lotes->where('ESTADO', 'disponible')->sum('CANTIDAD_ACTUAL');
             $insumo->stock_bajo = $insumo->stock_total <= $insumo->STOCK_MINIMO;
             
             // Formatear lotes con información adicional
-            $insumo->lotes_formateados = $insumo->lotes->map(function($lote) {
+            $insumo->lotes_formateados = $insumo->lotes->map(function($lote) use ($movimientosPorLote) {
+                $movsLote = $movimientosPorLote->get($lote->ID, collect());
+                $ingresos = (int) (optional($movsLote->firstWhere('TIPO', 'ingreso'))->total ?? 0);
+                $retiros = (int) (optional($movsLote->firstWhere('TIPO', 'retiro'))->total ?? 0);
+                $saldoCalculado = $ingresos - $retiros;
+                $diferencia = $lote->CANTIDAD_ACTUAL - $saldoCalculado;
+
                 return [
                     'ID' => $lote->ID,
                     'LOTE' => $lote->LOTE,
@@ -64,8 +81,16 @@ class InsumoController extends Controller
                     'created_at' => $lote->created_at,
                     'dias_para_vencer' => $lote->FECHA_CADUCIDAD ? now()->diffInDays($lote->FECHA_CADUCIDAD, false) : null,
                     'proximo_vencer' => $lote->proximo_vencer ?? false,
+                    'total_ingresos' => $ingresos,
+                    'total_retiros' => $retiros,
+                    'saldo_calculado' => $saldoCalculado,
+                    'diferencia_movimientos' => $diferencia,
+                    'tiene_descuadre' => $diferencia !== 0,
                 ];
             });
+
+            // Indicador agregado: ¿algún lote de este insumo tiene descuadre?
+            $insumo->tiene_descuadre = $insumo->lotes_formateados->contains('tiene_descuadre', true);
             
             return $insumo;
         });
