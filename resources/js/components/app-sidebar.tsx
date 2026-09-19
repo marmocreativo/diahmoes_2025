@@ -10,6 +10,7 @@ import {
     Building2, 
     Users, 
     TestTube,
+    FlaskConical,
     BarChart3,
     Settings,
     HelpCircle,
@@ -115,14 +116,30 @@ export function AppSidebar() {
                         <SidebarMenuButton 
                             asChild
                             className={`hover:bg-[#189BAF]/5 hover:text-[#189BAF] transition-colors ${
-                                url.includes('/estudios')
+                                url.includes('/estudios') && !url.includes('/estudios-prv')
                                     ? 'bg-[#189BAF]/10 text-[#189BAF] font-medium border-r-2 border-[#189BAF]' 
                                     : 'text-gray-700'
                             }`}
                         >
                             <Link href="/estudios?prefijo=PRM" prefetch className="flex items-center gap-3">
                                 <TestTube className="!size-4" />
-                                <span className="font-medium">Estudios</span>
+                                <span className="font-medium">Estudios PRM</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+
+                    <SidebarMenuItem>
+                        <SidebarMenuButton 
+                            asChild
+                            className={`hover:bg-[#189BAF]/5 hover:text-[#189BAF] transition-colors ${
+                                url.includes('/estudios-prv')
+                                    ? 'bg-[#189BAF]/10 text-[#189BAF] font-medium border-r-2 border-[#189BAF]' 
+                                    : 'text-gray-700'
+                            }`}
+                        >
+                            <Link href="/estudios-prv" prefetch className="flex items-center gap-3">
+                                <FlaskConical className="!size-4" />
+                                <span className="font-medium">Estudios PRV</span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
