@@ -35,6 +35,111 @@ class DashboardExportController extends Controller
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
+
+    public function exportDevoluciones(Request $request)
+    {
+        $filters = $request->all();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Devoluciones');
+
+        $fechaInicio = $filters['fecha_inicio'] ?? 'No especificada';
+        $fechaFin    = $filters['fecha_fin'] ?? 'No especificada';
+
+        $sheet->setCellValue('A1', 'REPORTE DE DEVOLUCIONES');
+        $sheet->setCellValue('A2', 'Periodo: ' . $fechaInicio . ' al ' . $fechaFin);
+
+        $headers = [
+            'A4' => 'CLAVE INTERNA',
+            'B4' => 'FOLIO MERCK',
+            'C4' => 'MÉDICO',
+            'D4' => 'HOSPITAL',
+            'E4' => 'ID DE MUESTRA',
+            'F4' => 'FECHA DE RETORNO',
+            'G4' => 'GUÍA',
+            'H4' => 'PAQUETERÍA',
+            'I4' => 'FECHA Y HORA DE ENTREGA',   // SIN DATO: no existe columna en BD
+            'J4' => 'RECIBIÓ EL RETORNO',        // SIN DATO: no existe columna en BD
+        ];
+
+        foreach ($headers as $cell => $value) {
+            $sheet->setCellValue($cell, $value);
+        }
+
+        $row = 5;
+        foreach ($this->getDataDevoluciones($filters) as $dato) {
+            $fechaRetorno = $dato->FECHA_RETORNO_MATERIAL
+                ? Carbon::parse($dato->FECHA_RETORNO_MATERIAL)
+                : null;
+
+            $sheet->setCellValue('A' . $row, $dato->CLAVE_INTERNA ?? '');
+            $sheet->setCellValueExplicit('B' . $row, (string) ($dato->FOLIO_MERCK ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $sheet->setCellValue('C' . $row, $dato->medico_completo ?? '');
+            $sheet->setCellValue('D' . $row, $dato->INSTITUCION_NOMBRE ?? '');
+            $sheet->setCellValueExplicit('E' . $row, (string) ($dato->MUESTRA_CLAVE ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $sheet->setCellValue('F' . $row, $fechaRetorno ? $fechaRetorno->format('Y-m-d') : '');
+            $sheet->setCellValueExplicit('G' . $row, (string) ($dato->MUESTRA_GUIA_RETORNO ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $sheet->setCellValue('H' . $row, $dato->MUESTRA_GUIA_RETORNO_MENSAJERIA ?? '');
+            $sheet->setCellValue('I' . $row, ''); // SIN DATO
+            $sheet->setCellValue('J' . $row, ''); // SIN DATO
+
+            $row++;
+        }
+
+        // Formato
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A4:J4')->getFont()->setBold(true);
+        $sheet->getStyle('A4:J4')->getFill()
+            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFE2E8F0');
+
+        foreach (range('A', 'J') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $fileName = 'reporte_devoluciones_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
+        $writer = new Xlsx($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    private function getDataDevoluciones($filters)
+    {
+        $query = DB::table('estudios as e')
+            ->leftJoin('usuarios as u', 'e.ID_MEDICO', '=', 'u.ID_USUARIO')
+            ->leftJoin('instituciones as i', 'e.ID_INSTITUCION', '=', 'i.ID_INSTITUCION')
+            ->select(
+                'e.CLAVE_INTERNA',
+                'e.FOLIO_MERCK',
+                DB::raw("CONCAT_WS(' ', u.USUARIO_NOMBRE, u.USUARIO_APELLIDOS) as medico_completo"),
+                'i.INSTITUCION_NOMBRE',
+                'e.MUESTRA_CLAVE',
+                'e.FECHA_RETORNO_MATERIAL',
+                'e.MUESTRA_GUIA_RETORNO',
+                'e.MUESTRA_GUIA_RETORNO_MENSAJERIA'
+            )
+            ->whereNotNull('e.FECHA_RETORNO_MATERIAL')
+            ->where('e.FECHA_RETORNO_MATERIAL', '>', '1000-01-01');
+
+        if (!empty($filters['fecha_inicio'])) {
+            $query->where('e.FECHA_RETORNO_MATERIAL', '>=', $filters['fecha_inicio'] . ' 00:00:00');
+        }
+
+        if (!empty($filters['fecha_fin'])) {
+            $query->where('e.FECHA_RETORNO_MATERIAL', '<=', $filters['fecha_fin'] . ' 23:59:59');
+        }
+
+        if (!empty($filters['prefijo'])) {
+            $query->where('e.CLAVE', $filters['prefijo']);
+        }
+
+        return $query->orderBy('e.FECHA_RETORNO_MATERIAL')->get();
+    }
     
     private function createHojaGeneral($spreadsheet, $filters)
     {

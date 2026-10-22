@@ -174,6 +174,16 @@ export default function Dashboard() {
         window.open(`/dashboard/export-excel?${params.toString()}`, '_blank');
     };
 
+    const handleExportDevoluciones = () => {
+        // Solo usa el rango de fechas (el reporte de devoluciones filtra por fecha de retorno)
+        const params = new URLSearchParams();
+
+        if (fechaDesde) params.append('fecha_inicio', fechaDesde);
+        if (fechaHasta) params.append('fecha_fin', fechaHasta);
+
+        window.open(`/dashboard/export-devoluciones?${params.toString()}`, '_blank');
+    };
+
     const { filtros, datos, filtrosActivos } = usePage<{
         filtros: Filtros;
         datos: Datos;
@@ -335,6 +345,9 @@ export default function Dashboard() {
                                     </Button>
                                     <Button onClick={handleExportExcel} className="bg-green-600 hover:bg-green-700 text-white">
                                         <Download className="h-4 w-4" /> Exportar esta consulta
+                                    </Button>
+                                    <Button onClick={handleExportDevoluciones} className="bg-amber-600 hover:bg-amber-700 text-white">
+                                        <Download className="h-4 w-4" /> Exportar devoluciones
                                     </Button>
                                 </div>
 

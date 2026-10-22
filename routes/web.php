@@ -73,6 +73,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     ->name('dashboard.export.excel')
     ->middleware(['auth']);
 
+    Route::get('/dashboard/export-devoluciones', [DashboardExportController::class, 'exportDevoluciones'])
+    ->name('dashboard.export.devoluciones');
+
     /*
     |--------------------------------------------------------------------------
     | Gestión de accesos a reportes (solo admin)
